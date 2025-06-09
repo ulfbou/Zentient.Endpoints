@@ -1,4 +1,3 @@
-
 # Zentient.Endpoints — Unified, Transport-Agnostic Result Handling for .NET
 
 [![NuGet](https://img.shields.io/nuget/v/Zentient.Endpoints?label=Zentient.Endpoints)](https://www.nuget.org/packages/Zentient.Endpoints)
@@ -72,13 +71,13 @@ Zentient.Endpoints serves as the unified boundary adapter:
 
 ```mermaid
 graph TD
-    subgraph Core Application Layers
+    subgraph "Core Application Layers"
         A[Domain Layer] --> B[Application Layer]
     end
-    B --> |Zentient.Results.IResult<T>| C{Zentient.Endpoints}
-    C --> |IEndpointResult<T>| D[HTTP (Minimal API/MVC)]
-    C --> |IEndpointResult<T>| E[gRPC]
-    C --> |IEndpointResult<T>| F[Messaging (Coming Soon)]
+    B -->|Zentient.Results.IResult<T>| C[Zentient.Endpoints]
+    C -->|IEndpointResult<T>| D["HTTP (Minimal API/MVC)"]
+    C -->|IEndpointResult<T>| E[gRPC]
+    C -->|IEndpointResult<T>| F["Messaging (Coming Soon)"]
     D --> G[HTTP Client/Browser]
     E --> H[gRPC Client]
     F --> I[Message Consumer]
