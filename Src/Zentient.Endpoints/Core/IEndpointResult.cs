@@ -2,7 +2,6 @@
 // <copyright file="IEndpointResult.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
-// <license>Licensed under the MIT License. See LICENSE in the project root for license information.</license>
 // --------------------------------------------------------------------------------------------------------------------
 
 using Zentient.Results;
@@ -23,11 +22,11 @@ namespace Zentient.Endpoints.Core
     public interface IEndpointResult
     {
         /// <summary>
-        /// Gets the underlying business result of the operation.
+        /// Gets the underlying business result of the operation in a non-generic form.
         /// This provides the core success/failure state, messages, and errors
         /// from the application logic, independent of the transport.
         /// </summary>
-        /// <value>An instance of <see cref="IResult"/>.</value>
+        /// <value>An instance of <see cref="Zentient.Results.IResult"/>.</value>
         IResult BaseResult { get; }
 
         /// <summary>
@@ -35,7 +34,7 @@ namespace Zentient.Endpoints.Core
         /// This includes information like suggested HTTP status codes, headers, or
         /// gRPC tags, which can be used by transport adapters to construct the final response.
         /// </summary>
-        /// <value>Transport-agnostic metadata object.</value>
-        object BaseTransport { get; }
+        /// <value>An instance of <see cref="TransportMetadata"/>.</value>
+        TransportMetadata BaseTransport { get; }
     }
 }
