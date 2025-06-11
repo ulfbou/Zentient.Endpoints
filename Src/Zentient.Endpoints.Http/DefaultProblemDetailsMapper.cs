@@ -66,18 +66,22 @@ namespace Zentient.Endpoints.Http
                 // If no error information is provided, return a generic error ProblemDetails.
                 // However, this should be handled carefully as it may indicate a logic error upstream.
                 // Check if TraceId is set to provide some context in the response.
+                // TODO: Change ResultStatuses.Error to ResultStatuses.InternalServerError
+                var defaultExtensions = new Dictionary<string, object?>();
+
+                if (!string.IsNullOrEmpty(httpContext.TraceIdentifier))
+                {
+                    defaultExtensions[TraceId] = httpContext.TraceIdentifier;
+                }
+
                 return new ProblemDetails
                 {
-                    // TODO: Change ResultStatuses.Error to ResultStatuses.InternalServerError
                     Status = ResultStatuses.Error.Code,
                     Title = ResultStatuses.Error.Description,
                     Detail = "No error information was provided.",
                     Instance = httpContext.Request.Path,
                     Type = this._problemTypeUriGenerator?.GenerateProblemTypeUri(null)?.ToString(),
-                    Extensions = new Dictionary<string, object?>
-                    {
-                        { TraceId, httpContext.TraceIdentifier },
-                    },
+                    Extensions = defaultExtensions,
                 };
             }
 
@@ -94,6 +98,41 @@ namespace Zentient.Endpoints.Http
 
             int statusCode = GetHttpStatusCode(actualErrorInfo.Category);
 
+            var populatedExtensions = new Dictionary<string, object?>();
+
+            if (!string.IsNullOrEmpty(actualErrorInfo.Code))
+            {
+                populatedExtensions[ErrorCode] = actualErrorInfo.Code;
+            }
+
+            if (!string.IsNullOrEmpty(actualErrorInfo.Detail))
+            {
+                populatedExtensions[ErrorDetail] = actualErrorInfo.Detail;
+            }
+
+            if (actualErrorInfo.Data is IReadOnlyList<object> dataList && dataList.Count > 0)
+            {
+                populatedExtensions[ErrorData] = dataList;
+            }
+
+            if (actualErrorInfo.InnerErrors is IReadOnlyList<ErrorInfo> innerErrorsList && innerErrorsList.Count > 0)
+            {
+                populatedExtensions[InnerErrors] = innerErrorsList;
+            }
+
+            if (!string.IsNullOrEmpty(httpContext.TraceIdentifier))
+            {
+                populatedExtensions[TraceId] = httpContext.TraceIdentifier;
+            }
+
+            foreach (KeyValuePair<string, object?> kvp in actualErrorInfo.Extensions)
+            {
+                if (!populatedExtensions.ContainsKey(kvp.Key))
+                {
+                    populatedExtensions[kvp.Key] = kvp.Value;
+                }
+            }
+
             ProblemDetails problemDetails = new ProblemDetails
             {
                 Status = statusCode,
@@ -101,43 +140,8 @@ namespace Zentient.Endpoints.Http
                 Detail = actualErrorInfo.Message,
                 Type = this._problemTypeUriGenerator?.GenerateProblemTypeUri(actualErrorInfo.Code)?.ToString(),
                 Instance = httpContext.Request.Path,
-                Extensions = new Dictionary<string, object?>(),
+                Extensions = populatedExtensions,
             };
-
-            IDictionary<string, object?> extensions = problemDetails.Extensions;
-
-            if (!string.IsNullOrEmpty(actualErrorInfo.Code))
-            {
-                extensions[ErrorCode] = actualErrorInfo.Code;
-            }
-
-            if (!string.IsNullOrEmpty(actualErrorInfo.Detail))
-            {
-                extensions[ErrorDetail] = actualErrorInfo.Detail;
-            }
-
-            if (actualErrorInfo.Data is IReadOnlyList<object> dataList && dataList.Count > 0)
-            {
-                extensions[ErrorData] = dataList;
-            }
-
-            if (actualErrorInfo.InnerErrors is IReadOnlyList<ErrorInfo> innerErrorsList && innerErrorsList.Count > 0)
-            {
-                extensions[InnerErrors] = innerErrorsList;
-            }
-
-            if (!string.IsNullOrEmpty(httpContext.TraceIdentifier))
-            {
-                extensions[TraceId] = httpContext.TraceIdentifier;
-            }
-
-            foreach (KeyValuePair<string, object?> kvp in actualErrorInfo.Extensions)
-            {
-                if (!extensions.ContainsKey(kvp.Key))
-                {
-                    extensions[kvp.Key] = kvp.Value;
-                }
-            }
 
             return problemDetails;
         }
