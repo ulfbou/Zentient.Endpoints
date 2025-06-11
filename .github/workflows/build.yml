@@ -14,28 +14,25 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive
+        submodules: recursive # Keep this, essential if 'Results' or other dependencies are submodules
         fetch-depth: 0
 
     - name: Set working directory
-      # Correcting REPO_ROOT. If the solution file is at the root of the checked-out repo,
-      # GITHUB_WORKSPACE is the correct path.
+      # REPO_ROOT should point to the base directory of your primary repository
+      # Based on ls output, GITHUB_WORKSPACE seems to be the correct location for Zentient.Endpoints.sln and its direct children (Src, Tests, etc.)
       run: echo "REPO_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
 
-    - name: Print working directory
+    - name: Print current directory and REPO_ROOT
       run: |
         pwd
-        echo "Current REPO_ROOT is: $REPO_ROOT" # Add this for immediate verification
+        echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+        echo "REPO_ROOT: $REPO_ROOT" # This should now be identical to GITHUB_WORKSPACE
 
-    - name: List all files and folders in workspace (recursive, human readable, all files)
+    - name: List contents of GITHUB_WORKSPACE (full recursive list)
       run: |
-        echo "Listing contents of GITHUB_WORKSPACE ($GITHUB_WORKSPACE):"
-        ls "$GITHUB_WORKSPACE"
-        echo "Listing contents of calculated REPO_ROOT ($REPO_ROOT):"
-        ls "$REPO_ROOT" # This should now work correctly
-
-    - name: Print environment variables
-      run: env
+        echo "--- Listing contents of GITHUB_WORKSPACE (full recursive list) ---"
+        ls -Rlah "$GITHUB_WORKSPACE" # Use -Rlah for detailed recursive listing
+        echo "------------------------------------------------------------------"
 
     - name: Print important GitHub Actions environment variables
       run: |
@@ -43,57 +40,42 @@ jobs:
         echo "GITHUB_REF: $GITHUB_REF"
         echo "GITHUB_SHA: $GITHUB_SHA"
         echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
-        echo "GITHUB_ACTOR: $GITHUB_ACTOR" # Added for more context
-        echo "RUNNER_OS: $RUNNER_OS" # Added for more context
+        echo "GITHUB_ACTOR: $GITHUB_ACTOR"
+        echo "RUNNER_OS: $RUNNER_OS"
+        env # Print all environment variables
 
-    - name: Find all .csproj files
+    - name: Find all .csproj files (verify expected paths)
       run: find "$REPO_ROOT" -name "*.csproj"
 
-    - name: Print contents of solution file
+    - name: Print contents of solution file for path verification
       run: |
-        SOLUTION_FILE_NAME="Zentient.Endpoints.sln" # Define solution file name for clarity
-        SOLUTION="$REPO_ROOT/$SOLUTION_FILE_NAME"
-        if [ -f "$SOLUTION" ]; then
-          echo "Solution file found at $SOLUTION. Contents:"
-          cat "$SOLUTION"
+        SOLUTION_FILE_NAME="Zentient.Endpoints.sln"
+        SOLUTION_PATH="$REPO_ROOT/$SOLUTION_FILE_NAME"
+        if [ -f "$SOLUTION_PATH" ]; then
+          echo "Solution file found at $SOLUTION_PATH. Contents:"
+          cat "$SOLUTION_PATH" | grep 'Project(' # Only show lines with Project definitions
         else
-          echo "##[error]No solution file found at $SOLUTION!" # Use GitHub Actions error formatting
-          exit 1 # Exit with error code if solution not found
+          echo "##[error]No solution file found at $SOLUTION_PATH!"
+          exit 1
         fi
 
-    - name: Enable detailed dotnet CLI debug output and environment variables
+    - name: Enable detailed dotnet CLI debug output
       run: |
         echo "Setting .NET CLI environment variables for detailed logging."
-        # These are usually set as environment variables before dotnet commands,
-        # but adding them to the shell script for explicit demonstration.
-        export DOTNET_CLI_TELEMETRY_OPTOUT=1
-        export DOTNET_CLI_UI_LANGUAGE="en"
-        # Setting DOTNET_CLI_CONTEXT_VERBOSE and DOTNET_CLI_CONTEXT_DIAGNOSTIC
-        # is generally not how you control verbosity for dotnet build/restore.
-        # Verbosity is typically controlled by --verbosity flag.
-        # However, if these are specific to a custom tool or extension, keep them.
-        # For general dotnet CLI verbosity, --verbosity is key.
-        export NUGET_XMLDOC_MODE=skip
-        echo "DOTNET_CLI_TELEMETRY_OPTOUT set to 1"
-        echo "DOTNET_CLI_UI_LANGUAGE set to en"
-        echo "NUGET_XMLDOC_MODE set to skip"
-        # If you still want to set these as environment variables for future steps,
-        # you need to echo them to GITHUB_ENV.
         echo "DOTNET_CLI_TELEMETRY_OPTOUT=1" >> $GITHUB_ENV
         echo "DOTNET_CLI_UI_LANGUAGE=en" >> $GITHUB_ENV
         echo "NUGET_XMLDOC_MODE=skip" >> $GITHUB_ENV
-        # For true debug logging of dotnet CLI itself (not just build output),
-        # consider setting MSBUILD_DEBUG_ENGINE or similar if needed for deep dives.
 
     - name: Run dotnet --info
       run: dotnet --info
 
     - name: Restore dependencies
-      # Using the defined SOLUTION_FILE_NAME and REPO_ROOT for consistency
-      run: dotnet restore "$REPO_ROOT/$SOLUTION_FILE_NAME" --verbosity diagnostic
+      # Now, try restoring from the REPO_ROOT directly.
+      # The problem is likely in how the .sln file references projects.
+      run: dotnet restore "$REPO_ROOT/Zentient.Endpoints.sln" --verbosity diagnostic
 
     - name: Build
-      run: dotnet build "$REPO_ROOT/$SOLUTION_FILE_NAME" --no-restore --verbosity diagnostic
+      run: dotnet build "$REPO_ROOT/Zentient.Endpoints.sln" --no-restore --verbosity diagnostic
 
     - name: Test
-      run: dotnet test "$REPO_ROOT/$SOLUTION_FILE_NAME" --no-build --verbosity normal
+      run: dotnet test "$REPO_ROOT/Zentient.Endpoints.sln" --no-build --verbosity normal
