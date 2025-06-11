@@ -44,7 +44,7 @@ namespace Zentient.Endpoints.Http
         /// <param name="builder">The <see cref="RouteHandlerBuilder"/> to add the filter to.</param>
         /// <returns>The <see cref="RouteHandlerBuilder"/> so that additional calls can be chained.</returns>
         public static RouteHandlerBuilder WithNormalizeEndpointResultFilter(
-            [NotNull] this RouteHandlerBuilder builder)
+                [NotNull] this RouteHandlerBuilder builder)
         {
             ArgumentNullException.ThrowIfNull(builder);
 
