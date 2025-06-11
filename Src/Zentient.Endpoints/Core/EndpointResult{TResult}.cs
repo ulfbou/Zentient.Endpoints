@@ -1,4 +1,4 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="EndpointResult{TResult}.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
@@ -22,18 +22,21 @@ namespace Zentient.Endpoints.Core
         /// <summary>
         /// Gets the internal <see cref="IResult{TResult}"/> representing the business outcome.
         /// </summary>
+        /// <value>The internal <see cref="IResult{TResult}"/> instance that holds the business result and error information.</value>
         required public IResult<TResult> InnerResult { get; init; }
 
         /// <summary>
         /// Gets the underlying business result of the operation in a non-generic form.
         /// Implements <see cref="IEndpointResult.BaseResult"/>.
         /// </summary>
+        /// <value>The non-generic <see cref="IResult"/> representation of the business result.</value>
         public IResult BaseResult => this.InnerResult;
 
         /// <summary>
         /// Gets the strongly-typed value of the business result.
         /// Implements <see cref="IEndpointResult{TResult}.Result"/>.
         /// </summary>
+        /// <value>The strongly-typed value of the business result if successful; otherwise, throws an exception.</value>
         public TResult Result => this.InnerResult.IsSuccess
             ? this.InnerResult.Value!
             : throw new InvalidOperationException("Cannot access Result.Value when InnerResult is not successful.");
@@ -41,16 +44,19 @@ namespace Zentient.Endpoints.Core
         /// <summary>
         /// Gets the transport-agnostic metadata associated with this endpoint result.
         /// </summary>
+        /// <value>The <see cref="TransportMetadata"/> associated with this result.</value>
         required public TransportMetadata BaseTransport { get; init; }
 
         /// <summary>
         /// Gets a value indicating whether the operation was successful.
         /// </summary>
+        /// <value><c>true</c> if the operation was successful; otherwise, <c>false</c>.</value>
         public bool IsSuccess => this.InnerResult.IsSuccess;
 
         /// <summary>
         /// Gets the error associated with the operation, if any.
         /// </summary>
+        /// <value>The first <see cref="ErrorInfo"/> if present; otherwise, <c>null</c>.</value>
         public ErrorInfo? Error
         {
             get
