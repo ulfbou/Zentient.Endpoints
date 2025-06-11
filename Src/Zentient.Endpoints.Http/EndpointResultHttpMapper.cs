@@ -73,7 +73,6 @@ namespace Zentient.Endpoints.Http
             object? value = null;
             Type? resultType = null;
 
-            // Always prefer to get the generic interface and its property, even for proxies/mocks
             Type endpointResultType = endpointResult.GetType();
             Type? iEndpointResultGeneric = endpointResultType
                 .GetInterfaces()
@@ -110,26 +109,21 @@ namespace Zentient.Endpoints.Http
                     {
                         ParameterInfo[] p = m.GetParameters();
 
-                        // Parameter 0: TValue data - should be a generic type parameter
                         if (!p[0].ParameterType.IsGenericParameter)
                         {
                             return false;
                         }
 
-                        // Parameter 1: JsonSerializerOptions? options - should be JsonSerializerOptions and optional
                         if (p[1].ParameterType != typeof(JsonSerializerOptions) || !p[1].IsOptional)
                         {
                             return false;
                         }
 
-                        // Parameter 2: string? contentType - should be string and optional
                         if (p[2].ParameterType != typeof(string) || !p[2].IsOptional)
                         {
                             return false;
                         }
 
-                        // Parameter 3: int? statusCode - should be Nullable<int> and optional
-                        // typeof(int?) correctly represents Nullable<int> in reflection
                         if (p[3].ParameterType != typeof(int?) || !p[3].IsOptional)
                         {
                             return false;
@@ -167,13 +161,17 @@ namespace Zentient.Endpoints.Http
         private Microsoft.AspNetCore.Http.IResult HandleFailedResult(IEndpointResult endpointResult, HttpContext httpContext)
         {
             ErrorInfo errorInfo = endpointResult.BaseResult.Errors != null && endpointResult.BaseResult.Errors.Count > 0
-                                  ? endpointResult.BaseResult.Errors[0]
-                                  : new ErrorInfo(ErrorCategory.InternalServerError, code: "InternalError", message: "An unexpected error occurred.");
+                ? endpointResult.BaseResult.Errors[0]
+                : new ErrorInfo(ErrorCategory.InternalServerError, code: "InternalError", message: "An unexpected error occurred.");
 
             ProblemDetails problemDetails = endpointResult.BaseTransport.ProblemDetails
-                                 ?? this._problemDetailsMapper.Map(errorInfo, httpContext);
+                ?? this._problemDetailsMapper.Map(errorInfo, httpContext);
 
-            return Microsoft.AspNetCore.Http.Results.Problem(problemDetails);
+            // FIX CS0266: Explicitly cast ObjectResult to IResult
+            return (Microsoft.AspNetCore.Http.IResult)new ObjectResult(problemDetails)
+            {
+                StatusCode = problemDetails.Status,
+            };
         }
     }
 }
