@@ -1,22 +1,28 @@
-﻿<!-- Zentient.Endpoints.Http.Tests -->
+﻿<!-- tests/Zentient.Endpoints.Http.Tests/Zentient.Endpoints.Http.Tests.csproj -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+		<IsTestProject>true</IsTestProject>
 		<IsPackable>false</IsPackable>
 		<RootNamespace>Zentient.Endpoints.Http.Tests</RootNamespace>
-		<IsTestProject>true</IsTestProject>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj" />
 		<ProjectReference Include="..\..\src\Zentient.Endpoints.Tests.Shared\Zentient.Endpoints.Tests.Shared.csproj" />
+		<ProjectReference Include="..\..\..\Results\Src\Utilities\Zentient.Utilities.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Specific ASP.NET Core testing packages -->
+		<PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.6" />
 		<PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.0" />
 		<PackageReference Include="Microsoft.AspNetCore.TestHost" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="System.Text.Json" Version="8.0.5" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+		<PackageReference Include="xunit" Version="2.9.3" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.1" />
 	</ItemGroup>
-
 </Project>

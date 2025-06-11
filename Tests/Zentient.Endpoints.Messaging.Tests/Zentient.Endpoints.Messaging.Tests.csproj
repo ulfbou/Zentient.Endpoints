@@ -11,6 +11,13 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Zentient.Endpoints.Messaging\Zentient.Endpoints.Messaging.csproj" />
 		<ProjectReference Include="..\..\src\Zentient.Endpoints.Tests.Shared\Zentient.Endpoints.Tests.Shared.csproj" />
+		<ProjectReference Include="..\..\..\Results\Src\Utilities\Zentient.Utilities.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+		<PackageReference Include="xunit" Version="2.9.3" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.1" />
 	</ItemGroup>
 
 </Project>

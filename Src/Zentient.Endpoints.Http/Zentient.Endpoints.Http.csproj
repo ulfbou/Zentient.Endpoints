@@ -9,12 +9,13 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Zentient.Endpoints\Zentient.Endpoints.csproj" />
+		<PackageReference Include="System.Runtime" Version="4.3.0" />
 		<PackageReference Include="Zentient.Results" Version="[0.3.0, )" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" Condition="'$(TargetFramework)' == 'net8.0'" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" Condition="'$(TargetFramework)' == 'net8.0'" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="[9.0.0,)" Condition="'$(TargetFramework)' == 'net9.0'" />
 
 	</ItemGroup>
