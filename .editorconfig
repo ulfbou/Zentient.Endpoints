@@ -1,5 +1,14 @@
+# .editorconfig
 root = true
 
+# NOTE: Requires **VS2019 16.3** or later for full functionality.
+# For Nullable Reference Type (CS86xx) warnings to function,
+# ensure <Nullable>enable</Nullable> is set in your .csproj file.
+
+# Zentient Core Rules
+# Description: Core Roslyn ruleset for Zentient code quality.
+
+# Code files with C# specific rules
 [*.cs]
 # Indentation and spacing
 indent_style = space
@@ -41,7 +50,7 @@ dotnet_naming_symbols.types_and_methods.required_modifiers = *
 
 dotnet_naming_style.pascal_case_style.capitalization = pascal_case
 
-# var preferences (strict clarity)
+# var preferences (strict clarity - aligns with 'Clarity and Readability First')
 csharp_style_var_for_built_in_types = false:suggestion
 csharp_style_var_when_type_is_apparent = false:suggestion
 csharp_style_var_elsewhere = false:warning
@@ -56,10 +65,100 @@ dotnet_style_require_accessibility_modifiers = always
 # Misc
 max_line_length = 120
 
-# Analyzer severities
-dotnet_diagnostic.CS1591.severity = warning     # missing XML docs
-dotnet_diagnostic.IDE0051.severity = silent     # unused private members
-dotnet_diagnostic.IDE0060.severity = none       # unused method parameters
+# Analyzer severities (Consolidated and updated based on Zentient Guidelines)
+# Documentation
+dotnet_diagnostic.CS1591.severity = error     # Missing XML comments on public members (Updated: Error)
+dotnet_diagnostic.SA1600.severity = error     # Elements must be documented
+
+# Maintainability & Design
+dotnet_diagnostic.CA1062.severity = error      # Validate arguments of public methods
+dotnet_diagnostic.CA1502.severity = error      # Avoid excessive complexity
+dotnet_diagnostic.CA1506.severity = error      # Avoid excessive class coupling
+dotnet_diagnostic.CA1822.severity = warning    # Mark members as static
+
+# Naming
+dotnet_diagnostic.CA1707.severity = none       # Identifiers should not contain underscores
+dotnet_diagnostic.CA1708.severity = error      # Identifiers should differ by more than case
+dotnet_diagnostic.CA1710.severity = warning    # Identifiers should have correct suffix (Added)
+dotnet_diagnostic.CA1716.severity = error      # Identifiers should not match keywords (Added)
+dotnet_diagnostic.CA1720.severity = warning    # Identifiers should not contain type names (Added)
+dotnet_diagnostic.CA1724.severity = error      # Type names should not match namespaces (Added)
+
+# Performance & Safe Refactoring
+dotnet_diagnostic.CA1805.severity = warning    # Do not initialize unnecessarily (Added)
+dotnet_diagnostic.CA1812.severity = none       # Avoid uninstantiated internal classes
+dotnet_diagnostic.CA1819.severity = warning    # Properties should not return arrays (Added)
+dotnet_diagnostic.CA1825.severity = error      # Avoid unnecessary zero-length array allocations
+dotnet_diagnostic.CA1829.severity = warning    # Use Length/Count property instead of Enumerable.Count() for collections (Added)
+dotnet_diagnostic.CA1830.severity = warning    # Prefer strongly-typed IEnumerable methods (Added)
+dotnet_diagnostic.CA1831.severity = warning    # Use AsSpan or AsMemory instead of range-based indexers where applicable (Added)
+
+# Async-First & Resource Management
+dotnet_diagnostic.CA2000.severity = error      # Dispose objects before losing scope (Added)
+dotnet_diagnostic.CA2001.severity = error      # Avoid calling problematic Async methods (Added)
+dotnet_diagnostic.CA2002.severity = error      # Do not lock on objects with weak identity (Added)
+dotnet_diagnostic.CA2003.severity = error      # Do not misuse COM IDisposable (Added)
+dotnet_diagnostic.CA2004.severity = error      # Remove calls to GC.KeepAlive (Added)
+dotnet_diagnostic.CA2005.severity = error      # Avoid empty catch blocks (Added)
+dotnet_diagnostic.CA2007.severity = warning    # Do not directly await a Task (Prefer ConfigureAwait(false)) (Added)
+dotnet_diagnostic.CA2012.severity = error      # Use ValueTasks correctly (Added)
+dotnet_diagnostic.CA2016.severity = error      # Forward the CancellationToken parameter to methods that take a CancellationToken parameter (Added)
+dotnet_diagnostic.CA2017.severity = warning    # Parameter 'value' should not be used in the 'Task.Run' or 'Task.Factory.StartNew' lambda expression (Added)
+dotnet_diagnostic.CA2208.severity = warning    # Instantiate argument exceptions correctly
+
+# Nullable Reference Types (NRT) - Critical for Safety and Clarity
+dotnet_diagnostic.CS8600.severity = warning      # Converting null literal or possible null value to non-nullable type (Added)
+dotnet_diagnostic.CS8601.severity = warning      # Possible null reference assignment (Added)
+dotnet_diagnostic.CS8602.severity = error       # Dereference of a possibly null reference (Added: ERROR)
+dotnet_diagnostic.CS8603.severity = warning      # Possible null reference return (Added)
+dotnet_diagnostic.CS8604.severity = warning      # Possible null reference argument for parameter (Added)
+dotnet_diagnostic.CS8605.severity = error       # Unboxing a possibly null value (Added: ERROR)
+dotnet_diagnostic.CS8606.severity = error       # Possible null reference conversion (Added: ERROR)
+dotnet_diagnostic.CS8607.severity = error       # Possible null reference in 'in' or 'out' argument (Added: ERROR)
+dotnet_diagnostic.CS8608.severity = warning      # Nullability of reference types in type of parameter 'value' doesn't match 'override'd member (Added)
+dotnet_diagnostic.CS8609.severity = warning      # Nullability of reference types in type of parameter 'value' doesn't match 'implement'd member (Added)
+dotnet_diagnostic.CS8610.severity = warning      # Nullability of reference types in type of parameter 'value' doesn't match 'base' member (Added)
+dotnet_diagnostic.CS8612.severity = warning      # Nullability of reference types in type of 'value' doesn't match 'implement'd member (Added)
+dotnet_diagnostic.CS8613.severity = warning      # Nullability of reference types in type of 'value' doesn't match 'override'd member (Added)
+dotnet_diagnostic.CS8614.severity = warning      # Nullability of reference types in type of 'value' doesn't match 'base' member (Added)
+dotnet_diagnostic.CS8618.severity = error       # Non-nullable field must contain a non-null value when exiting constructor (Added: ERROR)
+dotnet_diagnostic.CS8620.severity = warning      # Argument of type 'T' is not generic enough (Added)
+dotnet_diagnostic.CS8621.severity = warning      # Nullability of reference types in type of 'value' doesn't match 'target' type (Added)
+dotnet_diagnostic.CS8622.severity = warning      # Nullability of reference types in type of 'value' doesn't match 'delegate' type (Added)
+dotnet_diagnostic.CS8625.severity = error       # Cannot convert null literal to non-nullable reference type (Added: ERROR)
+dotnet_diagnostic.CS8765.severity = warning      # Nullability of parameter 'value' doesn't match 'override'd member (Added)
+dotnet_diagnostic.CS8766.severity = warning      # Nullability of reference types in type of parameter 'value' doesn't match 'implement'd member (Added)
+dotnet_diagnostic.CS8767.severity = warning      # Nullability of reference types in type of parameter 'value' doesn't match 'base' member (Added)
+dotnet_diagnostic.CS8768.severity = warning      # Nullability of reference types in type of parameter 'value' doesn't match 'target' type (Added)
+dotnet_diagnostic.CS8769.severity = warning      # Nullability of reference types in type of parameter 'value' doesn't match 'delegate' type (Added)
+
+# General IDE Diagnostics (for Feedback Loops and Cleanliness)
+dotnet_diagnostic.IDE0051.severity = silent     # Unused private members
+dotnet_diagnostic.IDE0055.severity = warning    # Fix formatting (Added)
+dotnet_diagnostic.IDE0060.severity = warning    # Unused method parameters (Updated: Warning)
+dotnet_diagnostic.IDE0079.severity = warning    # Remove unnecessary suppressions (Added)
+dotnet_diagnostic.IDE0090.severity = suggestion # Simplify 'new' expression (Target-typed new) (Added)
+
+# StyleCop Analyzer Rules (SAxxxx)
+dotnet_diagnostic.SA1000.severity = error      # Keywords must not be prefixed or suffixed by a space (Added)
+dotnet_diagnostic.SA1005.severity = error      # Semicolons must be spaced correctly (Added)
+dotnet_diagnostic.SA1101.severity = error      # Prefix local calls with 'this.' (Added)
+dotnet_diagnostic.SA1105.severity = warning    # Code must not contain multiple blank lines in a row (Added)
+dotnet_diagnostic.SA1118.severity = warning    # Parameter must be on its own line when multiple parameters are present (Added)
+dotnet_diagnostic.SA1200.severity = error      # Using directives must be placed correctly
+dotnet_diagnostic.SA1309.severity = none       # Field names must not begin with underscore
+dotnet_diagnostic.SA1407.severity = warning    # Arithmetic expressions must contain parenthesis (Added)
+dotnet_diagnostic.SA1516.severity = warning    # Elements should be separated by blank line
+dotnet_diagnostic.SA1600.severity = error      # Elements must be documented
+dotnet_diagnostic.SA1601.severity = error      # Partial elements must be documented (Added)
+dotnet_diagnostic.SA1602.severity = error      # Enumeration items must be documented (Added)
+dotnet_diagnostic.SA1609.severity = warning    # Property documentation must have value tag (Added)
+dotnet_diagnostic.SA1618.severity = error      # Generic type parameters must be documented (Added)
+dotnet_diagnostic.SA1623.severity = warning    # Property summary documentation must start with "Gets or sets" (Added)
+dotnet_diagnostic.SA1636.severity = warning    # File header must contain a copyright tag (Added)
+dotnet_diagnostic.SA0001.severity = suggestion # StyleCop general configuration rule
+
+# Other C# style preferences (general, not specific to diagnostics)
 csharp_indent_labels = one_less_than_current
 csharp_prefer_simple_using_statement = true:suggestion
 csharp_prefer_braces = true:silent
@@ -79,7 +178,11 @@ csharp_style_prefer_null_check_over_type_check = true:suggestion
 csharp_style_implicit_object_creation_when_type_is_apparent = true:suggestion
 csharp_style_prefer_unbound_generic_type_in_nameof = true:suggestion
 csharp_style_prefer_not_pattern = true:suggestion
+csharp_style_inlined_variable_declaration = true:suggestion # Added
+csharp_style_pattern_matching_over_is_with_cast = true:suggestion # Added
+csharp_style_null_conditional_operators = true:suggestion # Added
 
+# Code files for both C# and VB (general rules)
 [*.{cs,vb}]
 dotnet_style_operator_placement_when_wrapping = beginning_of_line
 tab_width = 4
@@ -99,6 +202,6 @@ dotnet_style_prefer_inferred_tuple_names = true:suggestion
 dotnet_style_prefer_inferred_anonymous_type_member_names = true:suggestion
 dotnet_style_prefer_compound_assignment = true:suggestion
 dotnet_style_prefer_simplified_interpolation = true:suggestion
-dotnet_diagnostic.CA1000.severity = none
+dotnet_diagnostic.CA1000.severity = none # Keeping as none as you had it.
 dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
 dotnet_style_predefined_type_for_member_access = true:suggestion
