@@ -1,4 +1,4 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="EndpointResultExtensions.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
@@ -8,7 +8,7 @@ using System;
 using System.Linq;
 
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection; // Ensure this is present
 
 using Zentient.Endpoints.Core;
 using Zentient.Results;
@@ -43,8 +43,10 @@ namespace Zentient.Endpoints.Http
             ArgumentNullException.ThrowIfNull(endpointResult, nameof(endpointResult));
             ArgumentNullException.ThrowIfNull(httpContext, nameof(httpContext));
 
-            return ((IEndpointResult)endpointResult).ToHttpResult(httpContext);
-        }
+            IEndpointResultToHttpResultMapper mapper = httpContext.RequestServices.GetRequiredService<IEndpointResultToHttpResultMapper>();
+            return mapper.Map(endpointResult, httpContext);
+        }
+
         /// <summary>
         /// Converts an <see cref="EndpointResult{TResult}"/> into an ASP.NET Core <see cref="Microsoft.AspNetCore.Http.IResult"/>
         /// suitable for Minimal API handlers. This method leverages the global
@@ -78,7 +80,7 @@ namespace Zentient.Endpoints.Http
             where TValue : notnull
         {
             ArgumentNullException.ThrowIfNull(result, nameof(result));
-            return Core.EndpointResult<TValue>.From(result);
+            return EndpointResult<TValue>.From(result);
         }
 
         /// <summary>
@@ -96,9 +98,9 @@ namespace Zentient.Endpoints.Http
                 return Core.EndpointResult<Core.Unit>.From(Core.Unit.Value);
             }
 
-            ErrorInfo error = result.Errors != null && result.Errors.Count > 0
-                              ? result.Errors[0]
-                              : new ErrorInfo(ErrorCategory.InternalServerError, code: "InternalError", message: "An unknown error occurred.");
+            ErrorInfo error = result.Errors != null && result.Errors.Any()
+                ? result.Errors[0]
+                : new ErrorInfo(ErrorCategory.InternalServerError, code: "InternalError", message: "An unknown error occurred.");
 
             return Core.EndpointResult<Core.Unit>.From(error);
         }

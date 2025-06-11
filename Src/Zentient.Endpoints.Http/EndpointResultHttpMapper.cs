@@ -1,4 +1,4 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="EndpointResultHttpMapper.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
@@ -7,12 +7,17 @@
 using System;
 using System.Linq;
 using System.Net;
+using System.Reflection;
+using System.Text.Json;
 
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 using Zentient.Endpoints.Core;
 using Zentient.Results;
+
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Zentient.Endpoints.Http
 {
@@ -50,7 +55,7 @@ namespace Zentient.Endpoints.Http
 
             if (endpointResult.BaseResult.IsSuccess)
             {
-                return HandleSuccessfulResult(endpointResult, httpContext);
+                return HandleSuccessfulResult(endpointResult);
             }
             else
             {
@@ -62,19 +67,31 @@ namespace Zentient.Endpoints.Http
         /// Handles a successful <see cref="IEndpointResult"/>, returning an appropriate <see cref="Microsoft.AspNetCore.Http.IResult"/>.
         /// </summary>
         /// <param name="endpointResult">The successful endpoint result.</param>
-        /// <param name="httpContext">The current <see cref="HttpContext"/>.</param>
         /// <returns>An <see cref="Microsoft.AspNetCore.Http.IResult"/> for a successful operation.</returns>
-        private static Microsoft.AspNetCore.Http.IResult HandleSuccessfulResult(IEndpointResult endpointResult, HttpContext httpContext)
+        private static Microsoft.AspNetCore.Http.IResult HandleSuccessfulResult(IEndpointResult endpointResult)
         {
             object? value = null;
+            Type? resultType = null;
 
-            if (endpointResult is IEndpointResult<object> genericEndpointResult)
+            // Always prefer to get the generic interface and its property, even for proxies/mocks
+            Type endpointResultType = endpointResult.GetType();
+            Type? iEndpointResultGeneric = endpointResultType
+                .GetInterfaces()
+                .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEndpointResult<>));
+            if (iEndpointResultGeneric != null)
             {
-                value = genericEndpointResult.Result;
+                resultType = iEndpointResultGeneric.GetGenericArguments()[0];
+                PropertyInfo? resultProp = iEndpointResultGeneric.GetProperty("Result");
+                value = resultProp?.GetValue(endpointResult);
             }
-            else if (endpointResult is IEndpointResult<Unit> unitResult)
+            else if (endpointResult is IEndpointResult<Unit>)
             {
+                resultType = typeof(Unit);
                 value = Unit.Value;
+            }
+            else
+            {
+                value = null;
             }
 
             var httpStatusCode = endpointResult.BaseTransport.HttpStatusCode ?? (int)HttpStatusCode.OK;
@@ -84,6 +101,59 @@ namespace Zentient.Endpoints.Http
                 return Microsoft.AspNetCore.Http.Results.StatusCode(httpStatusCode == (int)HttpStatusCode.OK ? (int)HttpStatusCode.NoContent : httpStatusCode);
             }
 
+            if (resultType != null)
+            {
+                MethodInfo? method = typeof(Microsoft.AspNetCore.Http.Results)
+                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .Where(m => m.Name == "Json" && m.IsGenericMethod && m.GetParameters().Length == 4)
+                    .FirstOrDefault(m =>
+                    {
+                        ParameterInfo[] p = m.GetParameters();
+
+                        // Parameter 0: TValue data - should be a generic type parameter
+                        if (!p[0].ParameterType.IsGenericParameter)
+                        {
+                            return false;
+                        }
+
+                        // Parameter 1: JsonSerializerOptions? options - should be JsonSerializerOptions and optional
+                        if (p[1].ParameterType != typeof(JsonSerializerOptions) || !p[1].IsOptional)
+                        {
+                            return false;
+                        }
+
+                        // Parameter 2: string? contentType - should be string and optional
+                        if (p[2].ParameterType != typeof(string) || !p[2].IsOptional)
+                        {
+                            return false;
+                        }
+
+                        // Parameter 3: int? statusCode - should be Nullable<int> and optional
+                        // typeof(int?) correctly represents Nullable<int> in reflection
+                        if (p[3].ParameterType != typeof(int?) || !p[3].IsOptional)
+                        {
+                            return false;
+                        }
+
+                        return true;
+                    });
+
+                MethodInfo? genericMethod = null;
+                if (method != null)
+                {
+                    genericMethod = method.MakeGenericMethod(resultType);
+                }
+
+                if (genericMethod != null)
+                {
+                    return (Microsoft.AspNetCore.Http.IResult)genericMethod.Invoke(
+                        null,
+                        new object?[] { value, null, null, httpStatusCode })!;
+                }
+            }
+
+            // Fallback: should ideally not be hit for properly structured generic endpoint results
+            // This will use Results.Json(object?, int? statusCode) which returns JsonHttpResult<object>
             return Microsoft.AspNetCore.Http.Results.Json(value, statusCode: httpStatusCode);
         }
 
