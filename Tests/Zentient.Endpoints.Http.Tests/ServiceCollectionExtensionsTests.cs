@@ -6,7 +6,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Net;
+using System.Reflection;
 using System.Runtime;
 
 using FluentAssertions;
@@ -147,104 +150,168 @@ namespace Zentient.Endpoints.Http.Tests
         }
 
         /// <summary>
-        /// Tests that <see cref="ServiceCollectionExtensions.WithNormalizeEndpointResultFilter"/>
+        /// Verifies that <see cref="ServiceCollectionExtensions.WithNormalizeEndpointResultFilter"/>
         /// correctly adds the <see cref="NormalizeEndpointResultFilter"/> to a Minimal API endpoint.
         /// This is an integration test to verify the filter's application and effect.
         /// </summary>
         /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
         [Fact]
+        [SuppressMessage("Minor Code Smell", "CA1506:Avoid excessive class coupling", Justification = "Integration test inherently has high coupling.")]
         public async Task WithNormalizeEndpointResultFilter_AppliesFilterCorrectly()
         {
-            using TestServer server = new TestServer(new WebHostBuilder()
+            // Arrange
+            // FIX "Use explicit type instead of 'var'": Use WebHostBuilder
+            IWebHostBuilder hostBuilder = new WebHostBuilder()
                 .ConfigureServices(services =>
                 {
-                    services.AddZentientEndpointsHttp();
+                    services.AddZentientEndpointsHttp(); // Only register the services here
                     services.AddRouting();
-                    services.AddControllers().AddNewtonsoftJson();
+                    services.AddControllers()
+                            .AddNewtonsoftJson()
+                            .AddApplicationPart(Assembly.GetExecutingAssembly());
                 })
                 .Configure(app =>
                 {
                     app.UseRouting();
                     app.UseEndpoints(endpoints =>
                     {
-                        endpoints.MapControllers();
+                        // Apply the filter to the specific Minimal API endpoint
+                        endpoints.MapGet("/test-endpoint", () => EndpointResult<string>.From("Hello World"))
+                                 .WithNormalizeEndpointResultFilter(); // Apply the filter here
                     });
-                }));
+                });
 
-            HttpClient client = server.CreateClient();
-            HttpResponseMessage response = await client.GetAsync(new Uri("/TestEndpoint/test-endpoint", UriKind.Relative));
+            using TestServer server = new TestServer(hostBuilder);
+            using HttpClient client = server.CreateClient();
 
-            response.IsSuccessStatusCode.Should().BeTrue();
-            (await response.Content.ReadAsStringAsync()).Should().Be("\"Hello World\"");
-            response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+            // Act
+            HttpResponseMessage response = await client.GetAsync(new Uri("/test-endpoint", UriKind.Relative));
+
+            // Assert
+            response.IsSuccessStatusCode.Should().BeTrue("because the EndpointResult should be successfully converted to HTTP 200 OK.");
+            (await response.Content.ReadAsStringAsync()).Should().Be("\"Hello World\"", "because the filter should have mapped the EndpointResult to the correct JSON string.");
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
 
         /// <summary>
-        /// Tests that <see cref="ServiceCollectionExtensions.WithNormalizeEndpointResultFilter"/>
-        /// correctly adds the <see cref="NormalizeEndpointResultFilter"/> to a Minimal API endpoint
-        /// for a failed result, asserting the problem details response.
+        /// Verifies that <see cref="ServiceCollectionExtensions.WithNormalizeEndpointResultFilter"/>
+        /// correctly handles a failed <see cref="EndpointResult{TResult}"/> by mapping it to <see cref="ProblemDetails"/>.
+        /// This test uses <see cref="TestServer"/> for end-to-end validation.
         /// </summary>
-        /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
         [Fact]
+        [SuppressMessage("Minor Code Smell", "CA1506:Avoid excessive class coupling", Justification = "Integration test inherently has high coupling.")]
         public async Task WithNormalizeEndpointResultFilter_AppliesFilterCorrectly_FailedResult()
         {
             // Arrange
-            using TestServer server = new TestServer(new WebHostBuilder()
+            ErrorInfo errorInfo = new ErrorInfo(ErrorCategory.NotFound, "RES_NOT_FOUND", "Resource not found.");
+            var endpointResult = EndpointResult<object>.From(errorInfo);
+
+            IWebHostBuilder hostBuilder = new WebHostBuilder()
                 .ConfigureServices(services =>
                 {
-                    services.AddZentientEndpointsHttp()
-                            .AddRouting();
+                    services.AddRouting();
+                    services.AddControllers()
+                            .AddNewtonsoftJson() // Ensure Newtonsoft.Json is used for MVC
+                            .AddApplicationPart(Assembly.GetExecutingAssembly());
+
+                    services.AddZentientEndpointsHttp();
                 })
                 .Configure(app =>
                 {
                     app.UseRouting();
                     app.UseEndpoints(endpoints =>
                     {
-                        ErrorInfo error = new ErrorInfo(ErrorCategory.NotFound, "RES_NOT_FOUND", "Resource not found.");
-                        endpoints.MapGet("/test-fail-endpoint", () => EndpointResult<Unit>.From(error))
+                        endpoints.MapGet("/test-fail-endpoint", () => endpointResult)
                                  .WithNormalizeEndpointResultFilter();
                     });
-                }));
+                });
 
-            HttpClient client = server.CreateClient();
+            using TestServer server = new TestServer(hostBuilder);
+            using HttpClient client = server.CreateClient();
 
             // Act
             HttpResponseMessage response = await client.GetAsync(new Uri("/test-fail-endpoint", UriKind.Relative));
+            string responseBody = await response.Content.ReadAsStringAsync();
 
             // Assert
-            ((int)response.StatusCode).Should().BeInRange(400, 499);
-            response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            response.Content.Headers.ContentType?.ToString().Should().Contain("application/problem+json");
 
-            string responseContent = await response.Content.ReadAsStringAsync();
-            responseContent.Should().Contain("\"status\":404");
-            responseContent.Should().Contain("\"title\":\"Not Found\"");
-            responseContent.Should().Contain("\"detail\":\"Resource not found.\"");
-            responseContent.Should().Contain("\"errorCode\":\"RES_NOT_FOUND\"");
-            responseContent.Should().Contain("\"traceId\":");
+            // FIX: Instead of deserializing directly to ProblemDetails for extensions,
+            // deserialize to a JObject or Dictionary<string, object?> to access all properties directly.
+            Dictionary<string, object?>? jsonObject = JsonConvert.DeserializeObject<Dictionary<string, object?>>(responseBody);
+
+            jsonObject.Should().NotBeNull();
+            jsonObject.Should().ContainKey("status");
+            jsonObject["status"].Should().Be(404);
+
+            jsonObject.Should().ContainKey("title");
+            jsonObject["title"].Should().Be("Not Found");
+
+            jsonObject.Should().ContainKey("detail");
+            jsonObject["detail"].Should().Be("Resource not found.");
+
+            jsonObject.Should().ContainKey("instance");
+            jsonObject["instance"].Should().Be("/test-fail-endpoint");
+
+            jsonObject.Should().ContainKey("code");
+            jsonObject["code"].Should().Be("RES_NOT_FOUND", "because the error code should be mapped as a top-level extension.");
+
+            jsonObject.Should().ContainKey("traceId");
+            jsonObject["traceId"].Should().NotBeNull("because the trace identifier should be included in the response for diagnostics.");
         }
+    }
+}
 
-        /// <summary>
-        /// Test controller for endpoint integration tests in <see cref="ServiceCollectionExtensionsTests"/>.
-        /// </summary>
-        [ApiController]
-        [Route("[controller]")]
-        internal sealed class TestEndpointController : ControllerBase
+/// <summary>
+/// A dummy controller for testing purposes within TestServer.
+/// This needs to be public for discovery by AddApplicationPart.
+/// </summary>
+[ApiController]
+[Route("[controller]")]
+internal sealed class TestEndpointController : ControllerBase
+{
+    /// <summary>
+    /// Static property to hold the next <see cref="IEndpointResult"/> for test cases.
+    /// </summary>
+    public static IEndpointResult? NextEndpointResultForTest { get; set; }
+
+    /// <summary>
+    /// Test endpoint that returns a successful <see cref="EndpointResult{TResult}"/>.
+    /// </summary>
+    /// <returns>An <see cref="ActionResult{T}"/> containing an <see cref="EndpointResult{TResult}"/> with a string value.</returns>
+    [HttpGet("test-endpoint")]
+    public static ActionResult<EndpointResult<string>> GetTestEndpoint()
+    {
+        // For the first test, return a successful EndpointResult
+        if (NextEndpointResultForTest is null)
         {
-            /// <summary>
-            /// Returns a successful <see cref="EndpointResult{TResult}"/> with a string payload.
-            /// </summary>
-            /// <returns>An <see cref="ActionResult{T}"/> containing a successful endpoint result.</returns>
-            [HttpGet("test-endpoint")]
-            public static ActionResult<EndpointResult<string>> Get()
-                => EndpointResult<string>.From("Hello World");
-
-            /// <summary>
-            /// Returns a failed <see cref="EndpointResult{TResult}"/> with a not found error.
-            /// </summary>
-            /// <returns>An <see cref="ActionResult{T}"/> containing a failed endpoint result.</returns>
-            [HttpGet("test-fail-endpoint")]
-            public static ActionResult<EndpointResult<Unit>> GetFail()
-                => EndpointResult<Unit>.From(new ErrorInfo(ErrorCategory.NotFound, "RES_NOT_FOUND", "Resource not found."));
+            // Default success for the first test, if not explicitly set
+            return EndpointResult<string>.From("Hello World");
         }
+        // For the failed test, return the pre-configured error result
+        return NextEndpointResultForTest as EndpointResult<string> ?? EndpointResult<string>.From("Fallback Success");
+    }
+
+    /// <summary>
+    /// Test endpoint that simulates a failure by returning a pre-set <see cref="IEndpointResult"/> for testing error handling.
+    /// </summary>
+    /// <returns>An <see cref="ActionResult{T}"/> containing the next <see cref="IEndpointResult"/> for test failure.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if <see cref="NextEndpointResultForTest"/> is not set.</exception>
+    [HttpGet("test-fail-endpoint")]
+    public static ActionResult<IEndpointResult> GetTestFailEndpoint()
+    {
+        // Always return the static value for the failed test, which should be pre-set.
+        if (TestEndpointController.NextEndpointResultForTest is null)
+        {
+            throw new InvalidOperationException("NextEndpointResultForTest was not set for failure test.");
+        }
+        return new ActionResult<IEndpointResult>(TestEndpointController.NextEndpointResultForTest);
+    }
+
+    // Reset static state after each test
+    public TestEndpointController()
+    {
+        NextEndpointResultForTest = null;
     }
 }
