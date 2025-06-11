@@ -1,4 +1,4 @@
-﻿<!-- Zentient.Endpoints.Grpc.Tests -->
+﻿<!-- Zentient Endpoints gRPC Tests Project File -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>

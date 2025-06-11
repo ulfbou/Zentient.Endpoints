@@ -1,4 +1,4 @@
-﻿<!-- Zentient.Endpoints.Http -->
+﻿<!-- Zentient Endpoints Http Project File -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
@@ -9,7 +9,6 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Zentient.Endpoints\Zentient.Endpoints.csproj" />
-		<PackageReference Include="System.Runtime" Version="4.3.0" />
 		<PackageReference Include="Zentient.Results" Version="[0.3.0, )" />
 	</ItemGroup>
 
