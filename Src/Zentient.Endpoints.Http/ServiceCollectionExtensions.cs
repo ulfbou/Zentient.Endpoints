@@ -1,53 +1,55 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="ServiceCollectionExtensions.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using Microsoft.AspNetCore.Builder; // For RouteHandlerBuilder
+using System.Diagnostics.CodeAnalysis;
+
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions; // For TryAddScoped
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Zentient.Endpoints.Http
 {
     /// <summary>
-    /// Provides extension methods for <see cref="Microsoft.Extensions.DependencyInjection.IServiceCollection"/> to configure
-    /// Zentient.Endpoints HTTP integration.
+    /// Provides extension methods for <see cref="IServiceCollection"/> to register Zentient.Endpoints.Http services.
     /// </summary>
     public static class ServiceCollectionExtensions
     {
         /// <summary>
-        /// Adds necessary services for Zentient.Endpoints HTTP integration, including
-        /// default Problem Details mapping and the Endpoint Result normalization filter.
+        /// Adds Zentient.Endpoints.Http services to the specified <see cref="IServiceCollection"/>.
+        /// This includes default implementations for <see cref="IProblemDetailsMapper"/> and <see cref="IEndpointResultToHttpResultMapper"/>.
         /// </summary>
-        /// <param name="services">The <see cref="Microsoft.Extensions.DependencyInjection.IServiceCollection"/> to add services to.</param>
-        /// <returns>The <see cref="Microsoft.Extensions.DependencyInjection.IServiceCollection"/> for chaining.</returns>
-        public static IServiceCollection AddZentientEndpointsHttp(this IServiceCollection services)
+        /// <param name="services">The <see cref="IServiceCollection"/> to add services to.</param>
+        /// <returns>The <see cref="IServiceCollection"/> so that additional calls can be chained.</returns>
+        public static IServiceCollection AddZentientEndpointsHttp(
+            [NotNull] this IServiceCollection services)
         {
-            // Register the default ProblemDetailsMapper, allowing it to be overridden by a custom implementation.
-            services.TryAddScoped<IProblemDetailsMapper, DefaultProblemDetailsMapper>();
+            ArgumentNullException.ThrowIfNull(services);
 
-            // Register the EndpointResultToHttpResultMapper, which uses the IProblemDetailsMapper.
+            services.TryAddScoped<IProblemTypeUriGenerator, DefaultProblemTypeUriGenerator>();
+            services.TryAddScoped<IProblemDetailsMapper, DefaultProblemDetailsMapper>();
             services.TryAddScoped<IEndpointResultToHttpResultMapper, EndpointResultHttpMapper>();
 
-            // The NormalizeEndpointResultFilter is typically registered as a global endpoint filter
-            // using the WithNormalizeEndpointResultFilter extension on RouteHandlerBuilder for Minimal APIs,
-            // or implicitly handled in MVC by returning IEndpointResult.
-            // No direct registration of the filter as a scoped service is needed here for its intended use case.
             return services;
         }
 
         /// <summary>
-        /// Adds the <see cref="NormalizeEndpointResultFilter"/> as an endpoint filter
-        /// to a <see cref="Microsoft.AspNetCore.Builder.RouteHandlerBuilder"/> (e.g., for Minimal APIs).
+        /// Adds the <see cref="NormalizeEndpointResultFilter"/> to the <see cref="RouteHandlerBuilder"/>,
+        /// ensuring that any <see cref="Zentient.Endpoints.Core.IEndpointResult"/> returned by the endpoint
+        /// is correctly mapped to an ASP.NET Core <see cref="IResult"/>.
         /// </summary>
-        /// <param name="builder">The <see cref="Microsoft.AspNetCore.Builder.RouteHandlerBuilder"/> to add the filter to.</param>
-        /// <returns>The updated <see cref="Microsoft.AspNetCore.Builder.RouteHandlerBuilder"/>.</returns>
-        public static RouteHandlerBuilder WithNormalizeEndpointResultFilter(this RouteHandlerBuilder builder)
+        /// <param name="builder">The <see cref="RouteHandlerBuilder"/> to add the filter to.</param>
+        /// <returns>The <see cref="RouteHandlerBuilder"/> so that additional calls can be chained.</returns>
+        public static RouteHandlerBuilder WithNormalizeEndpointResultFilter(
+            [NotNull] this RouteHandlerBuilder builder)
         {
-            ArgumentNullException.ThrowIfNull(builder, nameof(builder));
-            return builder.AddEndpointFilter<NormalizeEndpointResultFilter>();
+            ArgumentNullException.ThrowIfNull(builder);
+
+            builder.AddEndpointFilter<NormalizeEndpointResultFilter>();
+            return builder;
         }
     }
 }
