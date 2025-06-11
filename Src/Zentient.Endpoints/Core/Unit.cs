@@ -1,131 +1,148 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="Unit.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System; // For IEquatable, IComparable
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
+
+using Zentient.Endpoints.Core.Serialization;
 
 namespace Zentient.Endpoints.Core
 {
     /// <summary>
-    /// Represents a type with a single, unique value.
-    /// This is used to indicate the absence of a meaningful return value
-    /// in generic functional programming contexts, similar to void but
-    /// allowing for type consistency in generic results (e.g., EndpointResult&lt;Unit&gt;).
+    /// Represents a type with a single value, used to indicate the absence of a specific value.
+    /// This is equivalent to <c>void</c> in methods that return a value.
+    /// It is primarily used in functional programming patterns (e.g., in <c>Result</c> or <c>Option</c> types)
+    /// where a value is always expected, but sometimes that value is merely "nothingness" or "success without data".
     /// </summary>
     /// <remarks>
-    /// The Unit type is a common construct in functional programming to represent
-    /// operations that produce no observable result, effectively acting as a
-    /// type-safe alternative to void in generic contexts.
+    /// The <see cref="Unit"/> struct is a singleton. Its only value is <see cref="Value"/>.
     /// </remarks>
-    public readonly struct Unit : IEquatable<Unit>, IComparable<Unit>
+    [DataContract]
+    [JsonConverter(typeof(UnitJsonConverter))]
+    public readonly struct Unit : IEquatable<Unit>, IComparable<Unit>, IComparable
     {
-        /// <summary>
-        /// Gets the single instance of the <see cref="Unit"/> type.
-        /// </summary>
-        public static readonly Unit Value = new();
+        /// <summary>Gets the single instance of the <see cref="Unit"/> struct.</summary>
+        /// <value>The singleton instance of <see cref="Unit"/>.</value>
+        public static Unit Value { get; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Unit"/> struct.
+        /// Determines whether two specified <see cref="Unit"/> instances are equal.
         /// </summary>
-        public Unit()
+        /// <param name="left">The first <see cref="Unit"/> to compare.</param>
+        /// <param name="right">The second <see cref="Unit"/> to compare.</param>
+        /// <returns><c>true</c> if <paramref name="left"/> and <paramref name="right"/> are equal; otherwise, <c>false</c>.</returns>
+        public static bool operator ==(Unit left, Unit right)
         {
+            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
+            _ = left;
+            _ = right;
+            return true; // All Unit instances are equal to each other
         }
 
         /// <summary>
-        /// Implements the equality operator for <see cref="Unit"/> instances.
+        /// Determines whether two specified <see cref="Unit"/> instances are not equal.
         /// </summary>
-        /// <param name="left">The left <see cref="Unit"/> instance.</param>
-        /// <param name="right">The right <see cref="Unit"/> instance.</param>
-        /// <returns><see langword="true"/>.</returns>
-        public static bool operator ==(Unit left, Unit right)
-            => true;
-
-        /// <summary>
-        /// Implements the inequality operator for <see cref="Unit"/> instances.
-        /// </summary>
-        /// <param name="left">The left <see cref="Unit"/> instance.</param>
-        /// <param name="right">The right <see cref="Unit"/> instance.</param>
-        /// <returns><see langword="false"/>.</returns>
+        /// <param name="left">The first <see cref="Unit"/> to compare.</param>
+        /// <param name="right">The second <see cref="Unit"/> to compare.</param>
+        /// <returns><c>true</c> if <paramref name="left"/> is not equal to <paramref name="right"/>; otherwise, <c>false</c>.</returns>
         public static bool operator !=(Unit left, Unit right)
-            => false;
+        {
+            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
+            _ = left;
+            _ = right;
+            return false; // All Unit instances are equal, so they are never not equal
+        }
 
         /// <summary>
-        /// Implements the less than operator for <see cref="Unit"/> instances.
+        /// Compares two <see cref="Unit"/> instances to determine if the first is less than the second.
         /// </summary>
-        /// <param name="left">The left <see cref="Unit"/> instance.</param>
-        /// <param name="right">The right <see cref="Unit"/> instance.</param>
-        /// <returns><see langword="false"/>.</returns>
+        /// <param name="left">The first <see cref="Unit"/> to compare.</param>
+        /// <param name="right">The second <see cref="Unit"/> to compare.</param>
+        /// <returns><c>true</c> if <paramref name="left"/> is less than <paramref name="right"/>; otherwise, <c>false</c>.</returns>
         public static bool operator <(Unit left, Unit right)
-            => false;
+        {
+            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
+            _ = left;
+            _ = right;
+            return false; // All Unit instances are equal, so none is less than another
+        }
 
         /// <summary>
-        /// Implements the less than or equal operator for <see cref="Unit"/> instances.
+        /// Compares two <see cref="Unit"/> instances to determine if the first is greater than the second.
         /// </summary>
-        /// <param name="left">The left <see cref="Unit"/> instance.</param>
-        /// <param name="right">The right <see cref="Unit"/> instance.</param>
-        /// <returns><see langword="true"/>.</returns>
-        public static bool operator <=(Unit left, Unit right)
-            => true;
-
-        /// <summary>
-        /// Implements the greater than operator for <see cref="Unit"/> instances.
-        /// </summary>
-        /// <param name="left">The left <see cref="Unit"/> instance.</param>
-        /// <param name="right">The right <see cref="Unit"/> instance.</param>
-        /// <returns><see langword="false"/>.</returns>
+        /// <param name="left">The first <see cref="Unit"/> to compare.</param>
+        /// <param name="right">The second <see cref="Unit"/> to compare.</param>
+        /// <returns><c>true</c> if <paramref name="left"/> is greater than <paramref name="right"/>; otherwise, <c>false</c>.</returns>
         public static bool operator >(Unit left, Unit right)
-            => false;
+        {
+            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
+            _ = left;
+            _ = right;
+            return false; // All Unit instances are equal, so none is greater than another
+        }
 
         /// <summary>
-        /// Implements the greater than or equal operator for <see cref="Unit"/> instances.
+        /// Compares two <see cref="Unit"/> instances to determine if the first is less than or equal to the second.
         /// </summary>
-        /// <param name="left">The left <see cref="Unit"/> instance.</param>
-        /// <param name="right">The right <see cref="Unit"/> instance.</param>
-        /// <returns><see langword="true"/>.</returns>
+        /// <param name="left">The first <see cref="Unit"/> to compare.</param>
+        /// <param name="right">The second <see cref="Unit"/> to compare.</param>
+        /// <returns><c>true</c> if <paramref name="left"/> is less than or equal to <paramref name="right"/>; otherwise, <c>false</c>.</returns>
+        public static bool operator <=(Unit left, Unit right)
+        {
+            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
+            _ = left;
+            _ = right;
+            return true; // All Unit instances are equal, so any is less than or equal to another
+        }
+
+        /// <summary>
+        /// Compares two <see cref="Unit"/> instances to determine if the first is greater than or equal to the second.
+        /// </summary>
+        /// <param name="left">The first <see cref="Unit"/> to compare.</param>
+        /// <param name="right">The second <see cref="Unit"/> to compare.</param>
+        /// <returns><c>true</c> if <paramref name="left"/> is greater than or equal to <paramref name="right"/>; otherwise, <c>false</c>.</returns>
         public static bool operator >=(Unit left, Unit right)
-            => true;
+        {
+            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
+            _ = left;
+            _ = right;
+            return true;
+        }
 
-        /// <summary>
-        /// Returns a string representation of the <see cref="Unit"/> value.
-        /// </summary>
-        /// <returns>A string representing the <see cref="Unit"/> value (always "()").</returns>
-        public override string ToString()
-            => "()";
+        /// <inheritdoc />
+        public override bool Equals([NotNullWhen(true)] object? obj) => obj is Unit;
 
-        /// <summary>
-        /// Determines whether the current <see cref="Unit"/> instance is equal to another <see cref="Unit"/> instance.
-        /// As there is only one possible value for <see cref="Unit"/>, all instances are considered equal.
-        /// </summary>
-        /// <param name="other">An object to compare with this instance.</param>
-        /// <returns><see langword="true"/> if the other object is a <see cref="Unit"/>; otherwise, <see langword="false"/>.</returns>
-        public bool Equals(Unit other)
-            => true;
+        /// <inheritdoc />
+        public bool Equals(Unit other) => true;
 
-        /// <summary>
-        /// Determines whether the current <see cref="Unit"/> instance is equal to a specified object.
-        /// </summary>
-        /// <param name="obj">The object to compare with this instance.</param>
-        /// <returns><see langword="true"/> if the specified object is a <see cref="Unit"/>; otherwise, <see langword="false"/>.</returns>
-        public override bool Equals(object? obj)
-            => obj is Unit;
+        /// <inheritdoc />
+        public override int GetHashCode() => 0;
 
-        /// <summary>
-        /// Returns the hash code for this <see cref="Unit"/> instance.
-        /// As there is only one possible value for <see cref="Unit"/>, all instances have the same hash code.
-        /// </summary>
-        /// <returns>A hash code for the current object.</returns>
-        public override int GetHashCode()
-            => 0;
+        /// <inheritdoc />
+        public override string ToString() => "()";
 
-        /// <summary>
-        /// Compares the current instance with another object of the same type and returns an integer that indicates whether the current instance precedes, follows, or occurs in the same position in the sort order as the other object.
-        /// </summary>
-        /// <param name="other">An object to compare with this instance.</param>
-        /// <returns>A value that indicates the relative order of the objects being compared.
-        /// As there is only one possible value for <see cref="Unit"/>, this method always returns 0.</returns>
-        public int CompareTo(Unit other)
-            => 0;
+        /// <inheritdoc />
+        public int CompareTo(Unit other) => 0;
+
+        /// <inheritdoc />
+        public int CompareTo(object? obj)
+        {
+            if (obj is null)
+            {
+                return 1;
+            }
+
+            if (obj is Unit)
+            {
+                return 0;
+            }
+
+            throw new ArgumentException($"Object must be of type {nameof(Unit)}.", nameof(obj));
+        }
     }
 }
