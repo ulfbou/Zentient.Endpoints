@@ -17,11 +17,14 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
+    - name: Set working directory
+      run: echo "REPO_ROOT=$GITHUB_WORKSPACE/Zentient.Endpoints" >> $GITHUB_ENV
+
     - name: Print working directory
       run: pwd
 
     - name: List all files and folders in workspace
-      run: ls -Rlah
+      run: ls -Rlah "$REPO_ROOT"
 
     - name: Print environment variables
       run: env
@@ -34,14 +37,15 @@ jobs:
         echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
 
     - name: Find all .csproj files
-      run: find . -name "*.csproj"
+      run: find "$REPO_ROOT" -name "*.csproj"
 
     - name: Print contents of solution file
       run: |
-        if [ -f Zentient.Endpoints.sln ]; then
-          cat Zentient.Endpoints.sln
+        SOLUTION="$REPO_ROOT/Zentient.Endpoints.sln"
+        if [ -f "$SOLUTION" ]; then
+          cat "$SOLUTION"
         else
-          echo "No solution file found!"
+          echo "No solution file found at $SOLUTION!"
         fi
 
     - name: Enable detailed dotnet CLI debug output
@@ -58,10 +62,10 @@ jobs:
       run: dotnet --info
 
     - name: Restore dependencies
-      run: dotnet restore Zentient.Endpoints.sln --verbosity diagnostic
+      run: dotnet restore "$REPO_ROOT/Zentient.Endpoints.sln" --verbosity diagnostic
 
     - name: Build
-      run: dotnet build Zentient.Endpoints.sln --no-restore --verbosity diagnostic
+      run: dotnet build "$REPO_ROOT/Zentient.Endpoints.sln" --no-restore --verbosity diagnostic
 
     - name: Test
-      run: dotnet test Zentient.Endpoints.sln --no-build --verbosity normal
+      run: dotnet test "$REPO_ROOT/Zentient.Endpoints.sln" --no-build --verbosity normal
