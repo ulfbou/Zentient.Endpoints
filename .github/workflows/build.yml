@@ -11,27 +11,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout Zentient.Endpoints repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive # Keep this, essential if 'Results' or other dependencies are submodules
+        # Checkout the primary repository into a subdirectory named 'Zentient.Endpoints'
+        repository: ulfbou/Zentient.Endpoints # Corrected repository path
+        path: Zentient.Endpoints
+        submodules: recursive # Keep this if Zentient.Endpoints has submodules
         fetch-depth: 0
 
-    - name: Set working directory
-      # REPO_ROOT should point to the base directory of your primary repository
-      # Based on ls output, GITHUB_WORKSPACE seems to be the correct location for Zentient.Endpoints.sln and its direct children (Src, Tests, etc.)
-      run: echo "REPO_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+    - name: Checkout Zentient.Results repository
+      uses: actions/checkout@v4
+      with:
+        # Corrected repository path for Zentient.Results
+        repository: ulfbou/Zentient.Results # Corrected repository path
+        # This will clone it into /home/runner/work/your-repo-name/Results,
+        # making it a sibling to Zentient.Endpoints
+        path: Results
+        fetch-depth: 0
+
+    - name: Set working directory for the main solution
+      # REPO_ROOT should point to the directory where Zentient.Endpoints.sln resides.
+      # Which is now GITHUB_WORKSPACE/Zentient.Endpoints
+      run: echo "REPO_ROOT=$GITHUB_WORKSPACE/Zentient.Endpoints" >> $GITHUB_ENV
 
     - name: Print current directory and REPO_ROOT
       run: |
         pwd
         echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
-        echo "REPO_ROOT: $REPO_ROOT" # This should now be identical to GITHUB_WORKSPACE
+        echo "REPO_ROOT: $REPO_ROOT" # This should be GITHUB_WORKSPACE/Zentient.Endpoints
 
-    - name: List contents of GITHUB_WORKSPACE (full recursive list)
+    - name: List contents of workspace (full recursive list)
+      # This will now clearly show 'Zentient.Endpoints' and 'Results' as siblings
       run: |
         echo "--- Listing contents of GITHUB_WORKSPACE (full recursive list) ---"
-        ls -Rlah "$GITHUB_WORKSPACE" # Use -Rlah for detailed recursive listing
+        ls -Rlah "$GITHUB_WORKSPACE"
         echo "------------------------------------------------------------------"
 
     - name: Print important GitHub Actions environment variables
@@ -44,16 +58,17 @@ jobs:
         echo "RUNNER_OS: $RUNNER_OS"
         env # Print all environment variables
 
-    - name: Find all .csproj files (verify expected paths)
-      run: find "$REPO_ROOT" -name "*.csproj"
+    - name: Find all .csproj files (verify expected paths across workspace)
+      # Search the entire GITHUB_WORKSPACE now to confirm all projects are found
+      run: find "$GITHUB_WORKSPACE" -name "*.csproj"
 
     - name: Print contents of solution file for path verification
       run: |
         SOLUTION_FILE_NAME="Zentient.Endpoints.sln"
         SOLUTION_PATH="$REPO_ROOT/$SOLUTION_FILE_NAME"
         if [ -f "$SOLUTION_PATH" ]; then
-          echo "Solution file found at $SOLUTION_PATH. Contents:"
-          cat "$SOLUTION_PATH" | grep 'Project(' # Only show lines with Project definitions
+          echo "Solution file found at $SOLUTION_PATH. Contents (Project lines):"
+          cat "$SOLUTION_PATH" | grep 'Project(' # Show only project definition lines
         else
           echo "##[error]No solution file found at $SOLUTION_PATH!"
           exit 1
@@ -70,12 +85,11 @@ jobs:
       run: dotnet --info
 
     - name: Restore dependencies
-      # Now, try restoring from the REPO_ROOT directly.
-      # The problem is likely in how the .sln file references projects.
-      run: dotnet restore "$REPO_ROOT/Zentient.Endpoints.sln" --verbosity diagnostic
+      # Run restore using the full path to the solution file
+      run: dotnet restore "$REPO_ROOT/$SOLUTION_FILE_NAME" --verbosity diagnostic
 
     - name: Build
-      run: dotnet build "$REPO_ROOT/Zentient.Endpoints.sln" --no-restore --verbosity diagnostic
+      run: dotnet build "$REPO_ROOT/$SOLUTION_FILE_NAME" --no-restore --verbosity diagnostic
 
     - name: Test
-      run: dotnet test "$REPO_ROOT/Zentient.Endpoints.sln" --no-build --verbosity normal
+      run: dotnet test "$REPO_ROOT/$SOLUTION_FILE_NAME" --no-build --verbosity normal
