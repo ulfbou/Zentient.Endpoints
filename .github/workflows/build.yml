@@ -38,9 +38,7 @@ jobs:
 
     - name: Print contents of solution file
       run: |
-        if [ -f Zentient.Endpoints/Zentient.Endpoints.sln ]; then
-          cat Zentient.Endpoints/Zentient.Endpoints.sln
-        elif [ -f Zentient.Endpoints.sln ]; then
+        if [ -f Zentient.Endpoints.sln ]; then
           cat Zentient.Endpoints.sln
         else
           echo "No solution file found!"
@@ -60,10 +58,10 @@ jobs:
       run: dotnet --info
 
     - name: Restore dependencies
-      run: dotnet restore Zentient.Endpoints/Zentient.Endpoints.sln --verbosity diagnostic
+      run: dotnet restore Zentient.Endpoints.sln --verbosity diagnostic
 
     - name: Build
-      run: dotnet build Zentient.Endpoints/Zentient.Endpoints.sln --no-restore --verbosity diagnostic
+      run: dotnet build Zentient.Endpoints.sln --no-restore --verbosity diagnostic
 
     - name: Test
-      run: dotnet test Zentient.Endpoints/Zentient.Endpoints.sln --no-build --verbosity normal
+      run: dotnet test Zentient.Endpoints.sln --no-build --verbosity normal
