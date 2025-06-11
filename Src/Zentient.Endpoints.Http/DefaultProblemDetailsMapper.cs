@@ -1,4 +1,4 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="DefaultProblemDetailsMapper.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +27,30 @@ namespace Zentient.Endpoints.Http
     /// </remarks>
     public sealed class DefaultProblemDetailsMapper : IProblemDetailsMapper
     {
+        /// <summary>The key used in <see cref="ProblemDetails.Extensions"/> to store the error code.</summary>
+        public const string ErrorCode = "code";
+
+        /// <summary>The key used in <see cref="ProblemDetails.Extensions"/> to store additional error details.</summary>
+        public const string ErrorDetail = "detail";
+
+        /// <summary>The key used in <see cref="ProblemDetails.Extensions"/> to store additional error data.</summary>
+        public const string ErrorData = "data";
+
+        /// <summary>The key used in <see cref="ProblemDetails.Extensions"/> to store inner errors.</summary>
+        public const string InnerErrors = "innerErrors";
+
+        /// <summary>The key used in <see cref="ProblemDetails.Extensions"/> to store the trace identifier.</summary>
+        public const string TraceId = "traceId";
+
+        private readonly IProblemTypeUriGenerator? _problemTypeUriGenerator;
+
+        /// <summary>Initializes a new instance of the <see cref="DefaultProblemDetailsMapper"/> class.</summary>
+        /// <param name="problemTypeUriGenerator">An optional <see cref="IProblemTypeUriGenerator"/> to generate URIs for problem types.</param>
+        public DefaultProblemDetailsMapper(IProblemTypeUriGenerator? problemTypeUriGenerator = null)
+        {
+            this._problemTypeUriGenerator = problemTypeUriGenerator;
+        }
+
         /// <summary>
         /// Maps an <see cref="ErrorInfo"/> object to a <see cref="ProblemDetails"/> instance.
         /// </summary>
@@ -38,118 +63,113 @@ namespace Zentient.Endpoints.Http
 
             if (errorInfo == null)
             {
+                // If no error information is provided, return a generic error ProblemDetails.
+                // However, this should be handled carefully as it may indicate a logic error upstream.
+                // Check if TraceId is set to provide some context in the response.
                 return new ProblemDetails
                 {
-                    Status = (int)HttpStatusCode.InternalServerError,
-                    Title = "Internal Server Error",
-                    Detail = "An unexpected error occurred.",
+                    // TODO: Change ResultStatuses.Error to ResultStatuses.InternalServerError
+                    Status = ResultStatuses.Error.Code,
+                    Title = ResultStatuses.Error.Description,
+                    Detail = "No error information was provided.",
                     Instance = httpContext.Request.Path,
+                    Type = this._problemTypeUriGenerator?.GenerateProblemTypeUri(null)?.ToString(),
+                    Extensions = new Dictionary<string, object?>
+                    {
+                        { TraceId, httpContext.TraceIdentifier },
+                    },
                 };
             }
 
             ErrorInfo actualErrorInfo = (ErrorInfo)errorInfo;
-            HttpStatusCode statusCode = GetHttpStatusCode(actualErrorInfo.Category);
+
+            if (actualErrorInfo.Category == ErrorCategory.None)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot map ErrorCategory.None to ProblemDetails. " +
+                    $"The '{nameof(DefaultProblemDetailsMapper)}' expects an actual error category. " +
+                    $"This indicates an issue in the upstream result handling where a non-error was passed for problem mapping. " +
+                    $"ErrorInfo Code: {actualErrorInfo.Code ?? "N/A"}, Message: {actualErrorInfo.Message ?? "N/A"}");
+            }
+
+            int statusCode = GetHttpStatusCode(actualErrorInfo.Category);
 
             ProblemDetails problemDetails = new ProblemDetails
             {
-                Status = (int)statusCode,
-                Title = GetDefaultTitle(statusCode),
+                Status = statusCode,
+                Title = ResultStatuses.GetStatus(statusCode, "An Error Occurred").Description,
                 Detail = actualErrorInfo.Message,
-                Type = GetProblemTypeUri(actualErrorInfo.Code),
+                Type = this._problemTypeUriGenerator?.GenerateProblemTypeUri(actualErrorInfo.Code)?.ToString(),
                 Instance = httpContext.Request.Path,
+                Extensions = new Dictionary<string, object?>(),
             };
 
             IDictionary<string, object?> extensions = problemDetails.Extensions;
 
             if (!string.IsNullOrEmpty(actualErrorInfo.Code))
             {
-                extensions["code"] = actualErrorInfo.Code;
+                extensions[ErrorCode] = actualErrorInfo.Code;
             }
 
             if (!string.IsNullOrEmpty(actualErrorInfo.Detail))
             {
-                extensions["detail"] = actualErrorInfo.Detail;
+                extensions[ErrorDetail] = actualErrorInfo.Detail;
             }
 
             if (actualErrorInfo.Data is IReadOnlyList<object> dataList && dataList.Count > 0)
             {
-                extensions["data"] = dataList;
+                extensions[ErrorData] = dataList;
             }
 
             if (actualErrorInfo.InnerErrors is IReadOnlyList<ErrorInfo> innerErrorsList && innerErrorsList.Count > 0)
             {
-                extensions["innerErrors"] = innerErrorsList;
+                extensions[InnerErrors] = innerErrorsList;
             }
 
             if (!string.IsNullOrEmpty(httpContext.TraceIdentifier))
             {
-                extensions["traceId"] = httpContext.TraceIdentifier;
+                extensions[TraceId] = httpContext.TraceIdentifier;
+            }
+
+            foreach (KeyValuePair<string, object?> kvp in actualErrorInfo.Extensions)
+            {
+                if (!extensions.ContainsKey(kvp.Key))
+                {
+                    extensions[kvp.Key] = kvp.Value;
+                }
             }
 
             return problemDetails;
         }
 
-        /// <summary>
-        /// Converts an <see cref="ErrorCategory"/> to an appropriate <see cref="HttpStatusCode"/>.
-        /// </summary>
+        /// <summary>Converts an <see cref="ErrorCategory"/> to an appropriate <see cref="HttpStatusCode"/>.</summary>
         /// <param name="category">The error category.</param>
         /// <returns>The corresponding HTTP status code.</returns>
-        private static HttpStatusCode GetHttpStatusCode(ErrorCategory category)
+        private static int GetHttpStatusCode(ErrorCategory category) => category switch
         {
-            return category switch
-            {
-                ErrorCategory.Validation => HttpStatusCode.BadRequest,
-                ErrorCategory.NotFound => HttpStatusCode.NotFound,
-                ErrorCategory.Conflict => HttpStatusCode.Conflict,
-                ErrorCategory.Unauthorized => HttpStatusCode.Unauthorized,
-                ErrorCategory.Forbidden => HttpStatusCode.Forbidden,
-                ErrorCategory.Concurrency => HttpStatusCode.Conflict,
-                ErrorCategory.ServiceUnavailable => HttpStatusCode.ServiceUnavailable,
-                ErrorCategory.InternalServerError => HttpStatusCode.InternalServerError,
-                _ => HttpStatusCode.InternalServerError,
-            };
-        }
-
-        /// <summary>
-        /// Gets a default title for the <see cref="ProblemDetails"/> based on the HTTP status code.
-        /// </summary>
-        /// <param name="statusCode">The HTTP status code.</param>
-        /// <returns>A descriptive title string.</returns>
-        private static string GetDefaultTitle(HttpStatusCode statusCode)
-        {
-            return statusCode switch
-            {
-                HttpStatusCode.BadRequest => "Bad Request",
-                HttpStatusCode.Unauthorized => "Unauthorized",
-                HttpStatusCode.Forbidden => "Forbidden",
-                HttpStatusCode.NotFound => "Not Found",
-                HttpStatusCode.Conflict => "Conflict",
-                HttpStatusCode.InternalServerError => "Internal Server Error",
-                HttpStatusCode.ServiceUnavailable => "ServiceUnavailable",
-                _ => "An Error Occurred",
-            };
-        }
-
-        /// <summary>
-        /// Generates a URI for the problem type based on the error code.
-        /// </summary>
-        /// <param name="errorCode">The specific error code (e.g., "InvalidInput").</param>
-        /// <returns>A URI string or null if no code is provided.</returns>
-        private static string? GetProblemTypeUri(string? errorCode)
-        {
-            if (string.IsNullOrEmpty(errorCode))
-            {
-                return null; // Or a generic URI like "about:blank" or a configurable base URI
-            }
-
-            // SA1515: A single-line comment within C# code is not preceded by a blank line.
-            // A blank line is added before this comment in the actual file.
-
-            // CA1308: Strings should be normalized to uppercase for round-trip safety.
-            // Using ToUpperInvariant() as requested to satisfy CA1308, while acknowledging
-            // lowercase is common for URIs. This is a pragmatic choice for v0.1.0 to pass analyzers.
-            // Note: The 'https:' in the original prompt was a syntax error.
-            return $"https://yourdomain.com/errors/{errorCode.ToUpperInvariant().Replace(" ", "-", StringComparison.Ordinal)}";
-        }
+            ErrorCategory.Validation => ResultStatuses.BadRequest.Code,
+            ErrorCategory.NotFound => ResultStatuses.NotFound.Code,
+            ErrorCategory.Conflict => ResultStatuses.Conflict.Code,
+            ErrorCategory.Unauthorized => ResultStatuses.Unauthorized.Code,
+            ErrorCategory.Forbidden => ResultStatuses.Forbidden.Code,
+            ErrorCategory.Concurrency => ResultStatuses.Conflict.Code,
+            ErrorCategory.ServiceUnavailable => ResultStatuses.ServiceUnavailable.Code,
+            ErrorCategory.Timeout => ResultStatuses.RequestTimeout.Code,
+            ErrorCategory.TooManyRequests => ResultStatuses.TooManyRequests.Code,
+            ErrorCategory.InternalServerError => ResultStatuses.Error.Code,
+            ErrorCategory.None => ResultStatuses.Error.Code,
+            ErrorCategory.General => ResultStatuses.Error.Code,
+            ErrorCategory.Authentication => ResultStatuses.Unauthorized.Code,
+            ErrorCategory.Authorization => ResultStatuses.Forbidden.Code,
+            ErrorCategory.Exception => ResultStatuses.Error.Code,
+            ErrorCategory.Network => ResultStatuses.ServiceUnavailable.Code,
+            ErrorCategory.Database => ResultStatuses.Error.Code,
+            ErrorCategory.Security => ResultStatuses.Forbidden.Code,
+            ErrorCategory.Request => ResultStatuses.BadRequest.Code,
+            ErrorCategory.ExternalService => 502,
+            ErrorCategory.BusinessLogic => ResultStatuses.BadRequest.Code,
+            ErrorCategory.ProblemDetails => ResultStatuses.BadRequest.Code,
+            _ => ResultStatuses.Error.Code,
+        };
     }
 }
