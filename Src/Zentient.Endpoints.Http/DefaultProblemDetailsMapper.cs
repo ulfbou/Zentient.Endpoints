@@ -27,21 +27,6 @@ namespace Zentient.Endpoints.Http
     /// </remarks>
     public sealed class DefaultProblemDetailsMapper : IProblemDetailsMapper
     {
-        /// <summary>The key used in <see cref="ProblemDetails.Extensions"/> to store the error code.</summary>
-        public const string ErrorCode = "code";
-
-        /// <summary>The key used in <see cref="ProblemDetails.Extensions"/> to store additional error details.</summary>
-        public const string ErrorDetail = "detail";
-
-        /// <summary>The key used in <see cref="ProblemDetails.Extensions"/> to store additional error data.</summary>
-        public const string ErrorData = "data";
-
-        /// <summary>The key used in <see cref="ProblemDetails.Extensions"/> to store inner errors.</summary>
-        public const string InnerErrors = "innerErrors";
-
-        /// <summary>The key used in <see cref="ProblemDetails.Extensions"/> to store the trace identifier.</summary>
-        public const string TraceId = "traceId";
-
         private readonly IProblemTypeUriGenerator? _problemTypeUriGenerator;
 
         /// <summary>Initializes a new instance of the <see cref="DefaultProblemDetailsMapper"/> class.</summary>
@@ -71,7 +56,7 @@ namespace Zentient.Endpoints.Http
 
                 if (!string.IsNullOrEmpty(httpContext.TraceIdentifier))
                 {
-                    defaultExtensions[TraceId] = httpContext.TraceIdentifier;
+                    defaultExtensions[ProblemDetailsConstants.Extensions.TraceId] = httpContext.TraceIdentifier;
                 }
 
                 return new ProblemDetails
@@ -97,32 +82,31 @@ namespace Zentient.Endpoints.Http
             }
 
             int statusCode = GetHttpStatusCode(actualErrorInfo.Category);
-
             var populatedExtensions = new Dictionary<string, object?>();
 
             if (!string.IsNullOrEmpty(actualErrorInfo.Code))
             {
-                populatedExtensions[ErrorCode] = actualErrorInfo.Code;
+                populatedExtensions[ProblemDetailsConstants.Extensions.ErrorCode] = actualErrorInfo.Code;
             }
 
             if (!string.IsNullOrEmpty(actualErrorInfo.Detail))
             {
-                populatedExtensions[ErrorDetail] = actualErrorInfo.Detail;
+                populatedExtensions[ProblemDetailsConstants.Extensions.Detail] = actualErrorInfo.Detail;
             }
 
             if (actualErrorInfo.Data is IReadOnlyList<object> dataList && dataList.Count > 0)
             {
-                populatedExtensions[ErrorData] = dataList;
+                populatedExtensions[ProblemDetailsConstants.Extensions.Data] = dataList;
             }
 
             if (actualErrorInfo.InnerErrors is IReadOnlyList<ErrorInfo> innerErrorsList && innerErrorsList.Count > 0)
             {
-                populatedExtensions[InnerErrors] = innerErrorsList;
+                populatedExtensions[ProblemDetailsConstants.Extensions.InnerErrors] = innerErrorsList;
             }
 
             if (!string.IsNullOrEmpty(httpContext.TraceIdentifier))
             {
-                populatedExtensions[TraceId] = httpContext.TraceIdentifier;
+                populatedExtensions[ProblemDetailsConstants.Extensions.TraceId] = httpContext.TraceIdentifier;
             }
 
             foreach (KeyValuePair<string, object?> kvp in actualErrorInfo.Extensions)
