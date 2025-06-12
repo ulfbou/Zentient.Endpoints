@@ -33,8 +33,8 @@ jobs:
         run: |
           echo "REPO_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
           echo "MAIN_SOLUTION_PATH=$GITHUB_WORKSPACE/$SOLUTION_FILE_NAME" >> $GITHUB_ENV
-          echo "SRC_DIR=$GITHUB_WORKSPACE/Src" >> $GITHUB_ENV
-          echo "TESTS_DIR=$GITHUB_WORKSPACE/Tests" >> $GITHUB_ENV
+          echo "SRC_DIR=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+          echo "TESTS_DIR=$GITHUB_WORKSPACE/tests" >> $GITHUB_ENV
 
       - name: 🧪 Validate Structure
         run: |
@@ -89,21 +89,22 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ matrix.dotnet-version }}-${{ hashFiles('**/*.csproj') }}
           restore-keys: |
+            ${{ runner.os }}-nuget-${{ matrix.dotnet-version }}-
             ${{ runner.os }}-nuget-
 
       - name: 🔧 Restore solution
-        run: dotnet restore "$MAIN_SOLUTION_PATH"
+        run: dotnet restore "$MAIN_SOLUTION_PATH" --no-cache ${{ matrix.dotnet-version == '8.0.x' && '--property:TargetFramework=net8.0' || '' }}
 
       - name: 🔍 Format Check
         run: dotnet format "$MAIN_SOLUTION_PATH" --verify-no-changes --severity error
 
       - name: 🔧 Build
-        run: dotnet build "$MAIN_SOLUTION_PATH" --no-restore -warnaserror
+        run: dotnet build "$MAIN_SOLUTION_PATH" --no-restore -warnaserror ${{ matrix.dotnet-version == '8.0.x' && '--property:TargetFramework=net8.0' || '' }}
 
       - name: 🧪 Run Tests
-        run: dotnet test "$MAIN_SOLUTION_PATH" --no-build --verbosity normal --logger "trx"
+        run: dotnet test "$MAIN_SOLUTION_PATH" --no-build --verbosity normal --logger "trx" ${{ matrix.dotnet-version == '8.0.x' && '--property:TargetFramework=net8.0' || '' }}
 
       - name: 📤 Upload Test Results
         if: always()
