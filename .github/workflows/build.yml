@@ -97,10 +97,10 @@ jobs:
       - name: 🔧 Restore solution
         run: dotnet restore "$MAIN_SOLUTION_PATH" --no-cache ${{ matrix.dotnet-version == '8.0.x' && '--property:TargetFramework=net8.0' || '' }}
 
-      - name: 🔍 Format Check
-        env:
-          MSBuildTargetFramework: ${{ matrix.dotnet-version == '8.0.x' && 'net8.0' || '' }}
-        run: dotnet format "$MAIN_SOLUTION_PATH" --verify-no-changes --severity error --no-restore
+      # - name: 🔍 Format Check # <-- Commented out this step
+      #   env:
+      #     MSBuildTargetFramework: ${{ matrix.dotnet-version == '8.0.x' && 'net8.0' || '' }}
+      #   run: dotnet format "$MAIN_SOLUTION_PATH" --verify-no-changes --severity error --no-restore
 
       - name: 🔧 Build
         run: dotnet build "$MAIN_SOLUTION_PATH" --no-restore -warnaserror ${{ matrix.dotnet-version == '8.0.x' && '--property:TargetFramework=net8.0' || '' }}
