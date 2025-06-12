@@ -1,141 +1,31 @@
-name: Simplified CI/CD Pipeline
+name: Build and Test (.NET 8 + 9)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ develop/cicd ]
   pull_request:
-    branches: [ main ]
+    branches: [ develop/cicd ]
   workflow_dispatch:
 
 jobs:
-  build_and_test:
-    name: Build and Test .NET Application
+  build:
+    name: Build & Test Matrix
     runs-on: ubuntu-latest
 
-    env:
-      SOLUTION_FILE_NAME: Zentient.Endpoints.sln
-      DOTNET_CLI_TELEMETRY_OPTOUT: 1
-      DOTNET_CLI_UI_LANGUAGE: en
-      NUGET_XMLDOC_MODE: skip
+    strategy:
+      matrix:
+        dotnet-version: ['8.0.x', '9.0.x']
 
     steps:
-      - name: 🧾 Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
 
-      - name: 📁 Define Paths for Debugging
-        run: |
-          REPO_ROOT="$GITHUB_WORKSPACE"
-          MAIN_SOLUTION_PATH="$GITHUB_WORKSPACE/$SOLUTION_FILE_NAME"
-          SRC_DIR="$GITHUB_WORKSPACE/Src"
-          TESTS_DIR="$GITHUB_WORKSPACE/Tests"
-
-          echo "REPO_ROOT=$REPO_ROOT" >> $GITHUB_ENV
-          echo "MAIN_SOLUTION_PATH=$MAIN_SOLUTION_PATH" >> $GITHUB_ENV
-          echo "SRC_DIR=$SRC_DIR" >> $GITHUB_ENV
-          echo "TESTS_DIR=$TESTS_DIR" >> $GITHUB_ENV
-
-          echo "--- Current Working Directory ---"
-          pwd
-          echo "--- Content of GITHUB_WORKSPACE ---"
-          ls -F "$GITHUB_WORKSPACE"
-
-          echo "--- Value of SRC_DIR: ${SRC_DIR} ---"
-          echo "--- Content of SRC_DIR (if it exists) ---"
-          ls -F "${SRC_DIR}" || echo "SRC_DIR does not exist or is empty, despite being listed in GITHUB_WORKSPACE."
-
-          echo "--- Value of TESTS_DIR: ${TESTS_DIR} ---"
-          echo "--- Content of TESTS_DIR (if it exists) ---"
-          ls -F "${TESTS_DIR}" || echo "TESTS_DIR does not exist or is empty, despite being listed in GITHUB_WORKSPACE."
-
-      - name: 🧪 Validate Structure for Debugging
-        run: |
-          echo "🗂 Validating paths..."
-          echo "MAIN_SOLUTION_PATH (for validation): $MAIN_SOLUTION_PATH"
-          test -f "$MAIN_SOLUTION_PATH" || (echo "❌ Missing solution file: $MAIN_SOLUTION_PATH" && exit 1)
-
-          echo "SRC_DIR (for validation): $SRC_DIR"
-          test -d "$SRC_DIR" || echo "⚠️ Missing source dir: $SRC_DIR - This might be the cause of project file errors!"
-
-          echo "TESTS_DIR (for validation): $TESTS_DIR"
-          test -d "$TESTS_DIR" || echo "⚠️ Missing test dir: $TESTS_DIR - This might be the cause of project file errors!"
-          echo "Validation complete."
-
-      - name: 🔍 Debug Case Sensitivity of Project Paths
-        working-directory: ${{ env.REPO_ROOT }}
-        run: |
-          echo "--- Checking actual casing of project files ---"
-          find . -type f -name "*.csproj" | sort
-
-          echo ""
-          echo "--- Grepping for 'src/' (lowercase) and 'Src/' (capitalized) in csproj paths ---"
-          find . -type f -name "*.csproj" | grep -i 'src/' | sort
-
-          echo ""
-          echo "--- Checking existence of 'src' vs 'Src' directories ---"
-          if [ -d "./src" ]; then
-            echo "✅ Directory './src' (lowercase) exists."
-          else
-            echo "❌ Directory './src' (lowercase) does NOT exist."
-          fi
-
-          if [ -d "./Src" ]; then
-            echo "✅ Directory './Src' (capitalized) exists."
-          else
-            echo "❌ Directory './Src' (capitalized) does NOT exist."
-          fi
-
-          echo ""
-          echo "--- Checking existence of 'tests' vs 'Tests' directories ---"
-          if [ -d "./tests" ]; then
-            echo "✅ Directory './tests' (lowercase) exists."
-          else
-            echo "❌ Directory './tests' (lowercase) does NOT exist."
-          fi
-
-          if [ -d "./Tests" ]; then
-            echo "✅ Directory './Tests' (capitalized) exists."
-          else
-            echo "❌ Directory './Tests' (capitalized) does NOT exist."
-          fi
-
-      - name: ✍️ Fix Solution and Project File Casing for Linux
-        working-directory: ${{ env.REPO_ROOT }}
-        run: |
-          echo "--- Correcting casing in solution file ---"
-          sed -i 's|src\\|Src\\|g' "${MAIN_SOLUTION_PATH}"
-          sed -i 's|tests\\|Tests\\|g' "${MAIN_SOLUTION_PATH}"
-          echo "Solution file casing updated."
-
-          echo "--- Correcting casing in all .csproj files ---"
-          find . -type f -name "*.csproj" -exec sed -i \
-            -e 's|src\\|Src\\|g' \
-            -e 's|tests\\|Tests\\|g' \
-            -e 's|\\src\\|\\Src\\|g' \
-            -e 's|\\tests\\|\\Tests\\|g' \
-            {} +
-          echo "All .csproj files casing updated."
-
-      - name: ⚙️ Setup .NET SDKs (8.0.x and 9.0.x)
+      - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            8.0.x
-            9.0.x
-          include-prerelease: true
+          dotnet-version: ${{ matrix.dotnet-version }}
 
-      - name: 🔍 Diagnose .NET Installations
-        run: |
-          echo "--- Listing installed .NET SDKs ---"
-          dotnet --list-sdks
-          echo "--- Listing installed .NET Runtimes ---"
-          dotnet --list-runtimes
-          echo "--- Checking specific ASP.NET Core Runtimes ---"
-          ls /usr/share/dotnet/shared/Microsoft.AspNetCore.App || true
-
-      - name: 📦 Cache NuGet packages
+      - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
@@ -143,38 +33,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: 🔧 Restore Dependencies
-        working-directory: ${{ env.REPO_ROOT }}
-        run: dotnet restore ${{ env.MAIN_SOLUTION_PATH }}
+      - name: Restore dependencies
+        run: dotnet restore
 
-      - name: 🔧 Build Solution
-        working-directory: ${{ env.REPO_ROOT }}
-        run: dotnet build ${{ env.MAIN_SOLUTION_PATH }} --no-restore --configuration Release /p:EnableNETAnalyzers=false
+      - name: Format check
+        run: dotnet format --verify-no-changes --severity error
 
-      - name: 🔍 Diagnose Zentient.Utilities Build Output
-        working-directory: ${{ env.REPO_ROOT }}
-        run: |
-          echo "--- Checking Zentient.Utilities build output for net8.0 ---"
-          ls -F Src/Zentient.Utilities/bin/Release/net8.0/ || echo "Zentient.Utilities net8.0 output not found or empty."
-          echo "--- Checking Zentient.Utilities build output for net9.0 ---"
-          ls -F Src/Zentient.Utilities/bin/Release/net9.0/ || echo "Zentient.Utilities net9.0 output not found or empty."
+      - name: Build with warnings as errors
+        run: dotnet build --no-restore -warnaserror
 
-      - name: 🧪 Run Tests (net8.0)
-        working-directory: ${{ env.REPO_ROOT }}
-        run: |
-          find Tests -type f -name "*.csproj" | while read proj; do
-            if grep -q '<TargetFramework>net8.0</TargetFramework>' "$proj" || grep -q '<TargetFrameworks>.*net8.0.*</TargetFrameworks>' "$proj"; then
-              echo "Running tests for $proj (net8.0)"
-              dotnet test "$proj" --no-build --configuration Release --framework net8.0 /p:EnableNETAnalyzers=false
-            fi
-          done
+      - name: Run tests
+        run: dotnet test --no-build --verbosity normal
 
-      - name: 🧪 Run Tests (net9.0)
-        working-directory: ${{ env.REPO_ROOT }}
-        run: |
-          find Tests -type f -name "*.csproj" | while read proj; do
-            if grep -q '<TargetFramework>net9.0</TargetFramework>' "$proj" || grep -q '<TargetFrameworks>.*net9.0.*</TargetFrameworks>' "$proj"; then
-              echo "Running tests for $proj (net9.0)"
-              dotnet test "$proj" --no-build --configuration Release --framework net9.0 /p:EnableNETAnalyzers=false
-            fi
-          done
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.dotnet-version }}
+          path: '**/TestResults/*.trx'

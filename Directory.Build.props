@@ -1,4 +1,4 @@
-<!-- Directory.Build.props -->
+<!-- Directory Build Properties for Zentient.Endpoints solution -->
 <Project>
 	<PropertyGroup>
 		<!--
