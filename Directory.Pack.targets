@@ -1,4 +1,4 @@
-<!-- Directory.Pack.targets -->
+<!-- Directory Pack Targets for Zentient.Endpoints solution -->
 <Project>
 
 	<!-- Centralized packing metadata -->
