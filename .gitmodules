@@ -1,0 +1,3 @@
+[submodule "Src/Zentient.Results"]
+	path = Src/Zentient.Results
+	url = https://github.com/ulfbou/Zentient.Results
