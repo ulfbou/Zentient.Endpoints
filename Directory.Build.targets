@@ -1,4 +1,4 @@
-<!-- Directory.Build.targets -->
+<!-- Directory Build Targets for Zentient.Endpoints solution -->
 <Project>
 
 	<!-- Unified output structure -->
