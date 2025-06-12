@@ -56,6 +56,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
+      - name: 🔧 Restore solution
+        run: dotnet restore "$MAIN_SOLUTION_PATH"
+
       - name: 🔍 Format Check
         run: dotnet format "$MAIN_SOLUTION_PATH" --verify-no-changes --severity error
 
