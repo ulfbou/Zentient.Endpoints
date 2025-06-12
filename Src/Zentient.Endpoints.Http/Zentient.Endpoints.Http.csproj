@@ -5,10 +5,12 @@
 		<RootNamespace>Zentient.Endpoints.Http</RootNamespace>
 		<Description>ASP.NET Core HTTP integration for Zentient.Endpoints.</Description>
 		<IsPackable>true</IsPackable>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\Zentient.Endpoints\Zentient.Endpoints.csproj" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="Zentient.Results" Version="[0.3.0, )" />
 	</ItemGroup>
 
