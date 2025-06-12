@@ -25,6 +25,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 using Xunit;
 
@@ -42,7 +43,7 @@ namespace Zentient.Endpoints.Http.Tests
     {
         /// <summary>
         /// Tests that <see cref="ServiceCollectionExtensions.AddZentientEndpointsHttp"/>
-        /// correctly registers <see cref="IProblemDetailsMapper"/> as scoped.
+        /// correctly registers <see cref="IProblemTypeUriGenerator"/> as scoped.
         /// </summary>
         [Fact]
         public void AddZentientEndpointsHttp_RegistersIProblemDetailsMapperAsScoped()
@@ -202,16 +203,19 @@ namespace Zentient.Endpoints.Http.Tests
         [SuppressMessage("Minor Code Smell", "CA1506:Avoid excessive class coupling", Justification = "Integration test inherently has high coupling.")]
         public async Task WithNormalizeEndpointResultFilter_AppliesFilterCorrectly_FailedResult()
         {
-            // Arrange
-            ErrorInfo errorInfo = new ErrorInfo(ErrorCategory.NotFound, "RES_NOT_FOUND", "Resource not found.");
-            var endpointResult = EndpointResult<object>.From(errorInfo);
+            const string ResNotFound = "RES_NOT_FOUND";
+            const string ResNotFoundDescription = "Resource not found.";
+            const string TestFailEndpoint = "/test-fail-endpoint";
 
+            // Arrange
+            ErrorInfo errorInfo = new ErrorInfo(ErrorCategory.NotFound, ResNotFound, ResNotFoundDescription);
+            var endpointResult = EndpointResult<object>.From(errorInfo);
             IWebHostBuilder hostBuilder = new WebHostBuilder()
                 .ConfigureServices(services =>
                 {
                     services.AddRouting();
                     services.AddControllers()
-                            .AddNewtonsoftJson() // Ensure Newtonsoft.Json is used for MVC
+                            .AddNewtonsoftJson()
                             .AddApplicationPart(Assembly.GetExecutingAssembly());
 
                     services.AddZentientEndpointsHttp();
@@ -230,35 +234,47 @@ namespace Zentient.Endpoints.Http.Tests
             using HttpClient client = server.CreateClient();
 
             // Act
-            HttpResponseMessage response = await client.GetAsync(new Uri("/test-fail-endpoint", UriKind.Relative));
+            HttpResponseMessage response = await client.GetAsync(new Uri(TestFailEndpoint, UriKind.Relative));
             string responseBody = await response.Content.ReadAsStringAsync();
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
             response.Content.Headers.ContentType?.ToString().Should().Contain("application/problem+json");
 
-            // FIX: Instead of deserializing directly to ProblemDetails for extensions,
-            // deserialize to a JObject or Dictionary<string, object?> to access all properties directly.
             Dictionary<string, object?>? jsonObject = JsonConvert.DeserializeObject<Dictionary<string, object?>>(responseBody);
-
             jsonObject.Should().NotBeNull();
-            jsonObject.Should().ContainKey("status");
-            jsonObject["status"].Should().Be(404);
 
-            jsonObject.Should().ContainKey("title");
-            jsonObject["title"].Should().Be("Not Found");
+            jsonObject.Should().ContainKey(ProblemDetailsConstants.Status);
+            jsonObject[ProblemDetailsConstants.Status]
+                .Should().Be(ResultStatuses.NotFound.Code, "because the status code should be mapped as a top-level property.");
 
-            jsonObject.Should().ContainKey("detail");
-            jsonObject["detail"].Should().Be("Resource not found.");
+            jsonObject.Should().ContainKey(ProblemDetailsConstants.Title);
+            jsonObject[ProblemDetailsConstants.Title]
+                .Should().Be(ResultStatuses.NotFound.Description, "because the title should be mapped as a top-level property.");
 
-            jsonObject.Should().ContainKey("instance");
-            jsonObject["instance"].Should().Be("/test-fail-endpoint");
+            jsonObject.Should().ContainKey(ProblemDetailsConstants.Detail);
+            jsonObject[ProblemDetailsConstants.Detail]
+                .Should().Be(ResNotFoundDescription, "because the detail should be mapped as a top-level property.");
 
-            jsonObject.Should().ContainKey("code");
-            jsonObject["code"].Should().Be("RES_NOT_FOUND", "because the error code should be mapped as a top-level extension.");
+            jsonObject.Should().ContainKey(ProblemDetailsConstants.Instance);
+            jsonObject[ProblemDetailsConstants.Title]
+                .Should().Be(ResultStatuses.NotFound.Description, "because the title should be mapped as a top-level property.");
 
-            jsonObject.Should().ContainKey("traceId");
-            jsonObject["traceId"].Should().NotBeNull("because the trace identifier should be included in the response for diagnostics.");
+            // Extensions properties
+            jsonObject.Should().ContainKey(nameof(ProblemDetailsConstants.Extensions));
+
+            var extensions = jsonObject[nameof(ProblemDetailsConstants.Extensions)] as Newtonsoft.Json.Linq.JObject;
+            extensions.Should().NotBeNull();
+
+            extensions.Should().ContainKey(ProblemDetailsConstants.Extensions.ErrorCode);
+            extensions[ProblemDetailsConstants.Extensions.ErrorCode]!
+                .Value<string>()
+                .Should().Be(ResNotFound, "because the error code should be mapped as an extension.");
+
+            extensions.Should().ContainKey(ProblemDetailsConstants.Extensions.TraceId);
+            extensions[ProblemDetailsConstants.Extensions.TraceId]!
+                .Value<string>()
+                .Should().NotBeNull("because the trace identifier should be included in the response for diagnostics.");
         }
     }
 }
