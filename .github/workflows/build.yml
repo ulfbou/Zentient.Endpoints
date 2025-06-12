@@ -56,6 +56,30 @@ jobs:
           ls -l "$TESTS_DIR"
           echo "🗂 Debug Info ending..."
 
+      - name: 🧪 Debug Detailed Project Paths
+        run: |
+          echo "🗂 Debugging specific project paths..."
+          HTTP_PROJ_DIR="$SRC_DIR/Zentient.Endpoints.Http"
+          HTTP_PROJ_FILE="$HTTP_PROJ_DIR/Zentient.Endpoints.Http.csproj"
+
+          echo "Checking HTTP_PROJ_DIR: $HTTP_PROJ_DIR"
+          ls -l "$HTTP_PROJ_DIR" || echo "❌ Directory not found or inaccessible: $HTTP_PROJ_DIR"
+
+          echo "Checking HTTP_PROJ_FILE: $HTTP_PROJ_FILE"
+          if [ -f "$HTTP_PROJ_FILE" ]; then
+            echo "✅ Project file exists: $HTTP_PROJ_FILE"
+            echo "--- Contents of $HTTP_PROJ_FILE (first 10 lines) ---"
+            head -n 10 "$HTTP_PROJ_FILE"
+            echo "----------------------------------------------------"
+          else
+            echo "❌ Project file NOT found: $HTTP_PROJ_FILE"
+            echo "Listing contents of $SRC_DIR recursively:"
+            ls -R "$SRC_DIR"
+            exit 1
+          fi
+
+          echo "🗂 Debugging specific project paths ending..."
+
       - name: ⚙️ Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
