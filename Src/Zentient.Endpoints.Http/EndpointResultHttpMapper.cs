@@ -7,6 +7,7 @@
 using System;
 using System.Linq;
 using System.Net;
+using System.Net.Mime;
 using System.Reflection;
 using System.Text.Json;
 
@@ -72,11 +73,13 @@ namespace Zentient.Endpoints.Http
         {
             object? value = null;
             Type? resultType = null;
+            int httpStatusCode;
 
             Type endpointResultType = endpointResult.GetType();
             Type? iEndpointResultGeneric = endpointResultType
                 .GetInterfaces()
                 .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEndpointResult<>));
+
             if (iEndpointResultGeneric != null)
             {
                 resultType = iEndpointResultGeneric.GetGenericArguments()[0];
@@ -93,62 +96,14 @@ namespace Zentient.Endpoints.Http
                 value = null;
             }
 
-            var httpStatusCode = endpointResult.BaseTransport.HttpStatusCode ?? (int)HttpStatusCode.OK;
-
             if (value is Unit || value == null)
             {
-                return Microsoft.AspNetCore.Http.Results.StatusCode(httpStatusCode == (int)HttpStatusCode.OK ? (int)HttpStatusCode.NoContent : httpStatusCode);
+                httpStatusCode = endpointResult.BaseTransport.HttpStatusCode ?? ResultStatuses.NoContent.Code;
+                return new EmptyResultWithStatusCode(httpStatusCode, MediaTypeNames.Application.Json);
             }
 
-            if (resultType != null)
-            {
-                MethodInfo? method = typeof(Microsoft.AspNetCore.Http.Results)
-                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
-                    .Where(m => m.Name == "Json" && m.IsGenericMethod && m.GetParameters().Length == 4)
-                    .FirstOrDefault(m =>
-                    {
-                        ParameterInfo[] p = m.GetParameters();
-
-                        if (!p[0].ParameterType.IsGenericParameter)
-                        {
-                            return false;
-                        }
-
-                        if (p[1].ParameterType != typeof(JsonSerializerOptions) || !p[1].IsOptional)
-                        {
-                            return false;
-                        }
-
-                        if (p[2].ParameterType != typeof(string) || !p[2].IsOptional)
-                        {
-                            return false;
-                        }
-
-                        if (p[3].ParameterType != typeof(int?) || !p[3].IsOptional)
-                        {
-                            return false;
-                        }
-
-                        return true;
-                    });
-
-                MethodInfo? genericMethod = null;
-                if (method != null)
-                {
-                    genericMethod = method.MakeGenericMethod(resultType);
-                }
-
-                if (genericMethod != null)
-                {
-                    return (Microsoft.AspNetCore.Http.IResult)genericMethod.Invoke(
-                        null,
-                        new object?[] { value, null, null, httpStatusCode })!;
-                }
-            }
-
-            // Fallback: should ideally not be hit for properly structured generic endpoint results
-            // This will use Results.Json(object?, int? statusCode) which returns JsonHttpResult<object>
-            return Microsoft.AspNetCore.Http.Results.Json(value, statusCode: httpStatusCode);
+            httpStatusCode = endpointResult.BaseTransport.HttpStatusCode ?? ResultStatuses.Success.Code;
+            return new NewtonsoftJsonResult(value, httpStatusCode, MediaTypeNames.Application.Json);
         }
 
         /// <summary>
@@ -158,7 +113,7 @@ namespace Zentient.Endpoints.Http
         /// <param name="endpointResult">The failed endpoint result.</param>
         /// <param name="httpContext">The current <see cref="HttpContext"/>.</param>
         /// <returns>An <see cref="Microsoft.AspNetCore.Http.IResult"/> for a failed operation.</returns>
-        private Microsoft.AspNetCore.Http.IResult HandleFailedResult(IEndpointResult endpointResult, HttpContext httpContext)
+        private NewtonsoftJsonResult HandleFailedResult(IEndpointResult endpointResult, HttpContext httpContext)
         {
             ErrorInfo errorInfo = endpointResult.BaseResult.Errors != null && endpointResult.BaseResult.Errors.Count > 0
                 ? endpointResult.BaseResult.Errors[0]
@@ -167,11 +122,7 @@ namespace Zentient.Endpoints.Http
             ProblemDetails problemDetails = endpointResult.BaseTransport.ProblemDetails
                 ?? this._problemDetailsMapper.Map(errorInfo, httpContext);
 
-            // FIX CS0266: Explicitly cast ObjectResult to IResult
-            return (Microsoft.AspNetCore.Http.IResult)new ObjectResult(problemDetails)
-            {
-                StatusCode = problemDetails.Status,
-            };
+            return new NewtonsoftJsonResult(problemDetails, problemDetails.Status);
         }
     }
 }
