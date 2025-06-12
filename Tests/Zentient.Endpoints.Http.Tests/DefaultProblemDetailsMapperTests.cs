@@ -35,13 +35,9 @@ namespace Zentient.Endpoints.Http.Tests
         public DefaultProblemDetailsMapperTests()
         {
             this._mockProblemTypeUriGenerator = new Mock<IProblemTypeUriGenerator>();
-
-            // Default setup for the generator to return "about:blank" URI if code is null/empty
             this._mockProblemTypeUriGenerator
                 .Setup(g => g.GenerateProblemTypeUri(It.Is<string?>(s => string.IsNullOrEmpty(s))))
-                .Returns(new Uri("about:blank"));
-
-            // Setup for when an error code is provided, to return a specific test URI
+                .Returns(new Uri(ProblemDetailsConstants.DefaultBaseUri));
             this._mockProblemTypeUriGenerator
                 .Setup(g => g.GenerateProblemTypeUri(It.Is<string>(s => !string.IsNullOrEmpty(s))))
                 .Returns((string code) => new Uri(DefaultTestProblemTypeBaseUri, code!.ToUpperInvariant().Replace(' ', '-')));
@@ -53,9 +49,12 @@ namespace Zentient.Endpoints.Http.Tests
         [Fact]
         public void Map_NullErrorInfo_ReturnsInternalServerErrorProblemDetails()
         {
+            const string TraceId = "trace-123";
+            const string ApiResource = "/api/resource";
+
             // Arrange
             DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
-            DefaultHttpContext context = CreateHttpContext("trace-123", "/api/resource");
+            DefaultHttpContext context = CreateHttpContext(TraceId, ApiResource);
 
             // Act
             ProblemDetails result = mapper.Map(null, context);
@@ -66,10 +65,10 @@ namespace Zentient.Endpoints.Http.Tests
             result.Title.Should().Be(ResultStatuses.Error.Description);
             result.Detail.Should().Be("No error information was provided.");
             result.Instance.Should().Be("/api/resource");
-            result.Extensions.Should().NotContainKey("errorCode");
-            result.Extensions.Should().NotContainKey("detail");
-            result.Extensions["traceId"].Should().Be("trace-123");
-            result.Type.Should().Be("about:blank");
+            result.Extensions.Should().NotContainKey(ProblemDetailsConstants.Extensions.ErrorCode);
+            result.Extensions.Should().NotContainKey(ProblemDetailsConstants.Extensions.Detail);
+            result.Extensions[ProblemDetailsConstants.Extensions.TraceId].Should().Be(TraceId);
+            result.Type.Should().Be(ProblemDetailsConstants.DefaultBaseUri);
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri(null), Times.Once);
         }
 
@@ -92,9 +91,9 @@ namespace Zentient.Endpoints.Http.Tests
             result.Title.Should().Be("Bad Request");
             result.Detail.Should().Be("Validation failed.");
             result.Instance.Should().Be("/api/validate");
-            result.Extensions[DefaultProblemDetailsMapper.ErrorCode].Should().Be("VAL001");
-            result.Extensions[DefaultProblemDetailsMapper.ErrorDetail].Should().Be("Field X is required.");
-            result.Extensions[DefaultProblemDetailsMapper.TraceId].Should().Be("trace-456");
+            result.Extensions[ProblemDetailsConstants.Extensions.ErrorCode].Should().Be("VAL001");
+            result.Extensions[ProblemDetailsConstants.Extensions.Detail].Should().Be("Field X is required.");
+            result.Extensions[ProblemDetailsConstants.Extensions.TraceId].Should().Be("trace-456");
             result.Type.Should().Be($"{DefaultTestProblemTypeBaseUri}VAL001");
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("VAL001"), Times.Once);
         }
@@ -123,7 +122,7 @@ namespace Zentient.Endpoints.Http.Tests
             var mockGenerator = new Mock<IProblemTypeUriGenerator>();
             mockGenerator
                 .Setup(g => g.GenerateProblemTypeUri(It.IsAny<string?>()))
-                .Returns((string? code) => code == null ? new Uri("about:blank") : new Uri($"https://testdomain.com/errors/{code.ToUpperInvariant().Replace(' ', '-')}"));
+                .Returns((string? code) => code == null ? new Uri(ProblemDetailsConstants.DefaultBaseUri) : new Uri($"https://testdomain.com/errors/{code.ToUpperInvariant().Replace(' ', '-')}"));
             DefaultProblemDetailsMapper mapper = new DefaultProblemDetailsMapper(mockGenerator.Object);
             DefaultHttpContext context = CreateHttpContext();
 
@@ -173,8 +172,8 @@ namespace Zentient.Endpoints.Http.Tests
             result.Extensions.Should().ContainKey("customKey2");
             result.Extensions["customKey2"].Should().Be(123);
 
-            result.Extensions.Should().ContainKey("innerErrors");
-            result.Extensions["innerErrors"].Should().BeEquivalentTo(innerErrors);
+            result.Extensions.Should().ContainKey(ProblemDetailsConstants.Extensions.InnerErrors);
+            result.Extensions[ProblemDetailsConstants.Extensions.InnerErrors].Should().BeEquivalentTo(innerErrors);
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("CONFLICT"), Times.Once);
         }
 
@@ -240,7 +239,7 @@ namespace Zentient.Endpoints.Http.Tests
             result.Extensions.Should().NotContainKey("errorCode");
             result.Detail.Should().Be("Validation failed");
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri(string.Empty), Times.Once);
-            result.Type.Should().Be("about:blank");
+            result.Type.Should().Be(ProblemDetailsConstants.DefaultBaseUri);
         }
 
         /// <summary>
