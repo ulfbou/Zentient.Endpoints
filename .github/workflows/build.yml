@@ -100,7 +100,7 @@ jobs:
       - name: 🔍 Format Check
         env:
           MSBuildTargetFramework: ${{ matrix.dotnet-version == '8.0.x' && 'net8.0' || '' }}
-        run: dotnet format "$MAIN_SOLUTION_PATH" --verify-no-changes --severity error
+        run: dotnet format "$MAIN_SOLUTION_PATH" --verify-no-changes --severity error --no-restore
 
       - name: 🔧 Build
         run: dotnet build "$MAIN_SOLUTION_PATH" --no-restore -warnaserror ${{ matrix.dotnet-version == '8.0.x' && '--property:TargetFramework=net8.0' || '' }}
