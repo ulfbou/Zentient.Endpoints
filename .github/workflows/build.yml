@@ -1,95 +1,73 @@
-name: .NET Build with Debug Logging
+﻿name: Zentient.Endpoints CI
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
+    name: Build and Test (.NET 8/9)
     runs-on: ubuntu-latest
 
+    env:
+      SOLUTION_FILE_NAME: Zentient.Endpoints.sln
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_CLI_UI_LANGUAGE: en
+      NUGET_XMLDOC_MODE: skip
+
+    strategy:
+      matrix:
+        dotnet-version: ['8.0.x', '9.0.x']
+
     steps:
-    - name: Checkout Zentient.Endpoints repository
-      uses: actions/checkout@v4
-      with:
-        # Checkout the primary repository into a subdirectory named 'Zentient.Endpoints'
-        repository: ulfbou/Zentient.Endpoints # Corrected repository path
-        path: Zentient.Endpoints
-        submodules: recursive # Keep this if Zentient.Endpoints has submodules
-        fetch-depth: 0
+      - name: 🧾 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
 
-    - name: Checkout Zentient.Results repository
-      uses: actions/checkout@v4
-      with:
-        # Corrected repository path for Zentient.Results
-        repository: ulfbou/Zentient.Results # Corrected repository path
-        # This will clone it into /home/runner/work/your-repo-name/Results,
-        # making it a sibling to Zentient.Endpoints
-        path: Results
-        fetch-depth: 0
+      - name: 📁 Define Paths
+        run: |
+          echo "REPO_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          echo "MAIN_SOLUTION_PATH=$GITHUB_WORKSPACE/$SOLUTION_FILE_NAME" >> $GITHUB_ENV
+          echo "SRC_DIR=$GITHUB_WORKSPACE/Src" >> $GITHUB_ENV
+          echo "TESTS_DIR=$GITHUB_WORKSPACE/Tests" >> $GITHUB_ENV
 
-    - name: Set working directory for the main solution
-      # REPO_ROOT should point to the directory where Zentient.Endpoints.sln resides.
-      # Which is now GITHUB_WORKSPACE/Zentient.Endpoints
-      run: echo "REPO_ROOT=$GITHUB_WORKSPACE/Zentient.Endpoints" >> $GITHUB_ENV
+      - name: 🧪 Validate Structure
+        run: |
+          echo "🗂 Validating paths..."
+          test -f "$MAIN_SOLUTION_PATH" || (echo "❌ Missing solution file: $MAIN_SOLUTION_PATH" && exit 1)
+          test -d "$SRC_DIR" || echo "⚠️ Missing source dir: $SRC_DIR"
+          test -d "$TESTS_DIR" || echo "⚠️ Missing test dir: $TESTS_DIR"
 
-    - name: Print current directory and REPO_ROOT
-      run: |
-        pwd
-        echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
-        echo "REPO_ROOT: $REPO_ROOT" # This should be GITHUB_WORKSPACE/Zentient.Endpoints
+      - name: ⚙️ Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
 
-    - name: List contents of workspace (full recursive list)
-      # This will now clearly show 'Zentient.Endpoints' and 'Results' as siblings
-      run: |
-        echo "--- Listing contents of GITHUB_WORKSPACE (full recursive list) ---"
-        ls -Rlah "$GITHUB_WORKSPACE"
-        echo "------------------------------------------------------------------"
+      - name: 📦 Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
-    - name: Print important GitHub Actions environment variables
-      run: |
-        echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
-        echo "GITHUB_REF: $GITHUB_REF"
-        echo "GITHUB_SHA: $GITHUB_SHA"
-        echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
-        echo "GITHUB_ACTOR: $GITHUB_ACTOR"
-        echo "RUNNER_OS: $RUNNER_OS"
-        env # Print all environment variables
+      - name: 🔍 Format Check
+        run: dotnet format "$MAIN_SOLUTION_PATH" --verify-no-changes --severity error
 
-    - name: Find all .csproj files (verify expected paths across workspace)
-      # Search the entire GITHUB_WORKSPACE now to confirm all projects are found
-      run: find "$GITHUB_WORKSPACE" -name "*.csproj"
+      - name: 🔧 Build
+        run: dotnet build "$MAIN_SOLUTION_PATH" --no-restore -warnaserror
 
-    - name: Print contents of solution file for path verification
-      run: |
-        SOLUTION_FILE_NAME="Zentient.Endpoints.sln"
-        SOLUTION_PATH="$REPO_ROOT/$SOLUTION_FILE_NAME"
-        if [ -f "$SOLUTION_PATH" ]; then
-          echo "Solution file found at $SOLUTION_PATH. Contents (Project lines):"
-          cat "$SOLUTION_PATH" | grep 'Project(' # Show only project definition lines
-        else
-          echo "##[error]No solution file found at $SOLUTION_PATH!"
-          exit 1
-        fi
+      - name: 🧪 Run Tests
+        run: dotnet test "$MAIN_SOLUTION_PATH" --no-build --verbosity normal --logger "trx"
 
-    - name: Enable detailed dotnet CLI debug output
-      run: |
-        echo "Setting .NET CLI environment variables for detailed logging."
-        echo "DOTNET_CLI_TELEMETRY_OPTOUT=1" >> $GITHUB_ENV
-        echo "DOTNET_CLI_UI_LANGUAGE=en" >> $GITHUB_ENV
-        echo "NUGET_XMLDOC_MODE=skip" >> $GITHUB_ENV
-
-    - name: Run dotnet --info
-      run: dotnet --info
-
-    - name: Restore dependencies
-      # Run restore using the full path to the solution file
-      run: dotnet restore "$REPO_ROOT/$SOLUTION_FILE_NAME" --verbosity diagnostic
-
-    - name: Build
-      run: dotnet build "$REPO_ROOT/$SOLUTION_FILE_NAME" --no-restore --verbosity diagnostic
-
-    - name: Test
-      run: dotnet test "$REPO_ROOT/$SOLUTION_FILE_NAME" --no-build --verbosity normal
+      - name: 📤 Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.dotnet-version }}
+          path: '**/TestResults/*.trx'
