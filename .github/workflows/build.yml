@@ -2,115 +2,80 @@
 
 on:
   push:
-    branches: [ develop/cicd ]
+    branches: [ develop/cicd ] 
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ main ]  
+  workflow_dispatch:    
 
 jobs:
   build:
-    name: Build and Test (.NET 8/9)
+    name: Build and Test (.NET ${{ matrix.dotnet-version }}) 
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/zentient-endpoints-ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
     env:
+      ZENTIENT_CI_BUILD: true
+      ZENTIENT_CI_VERSION: ${{ github.run_number }}
+      ZENTIENT_CI_COMMIT_SHA: ${{ github.sha }}
+      ZENTIENT_CI_COMMIT_SHORT_SHA: ${{ github.sha_short }}
+      ZENTIENT_CI_BRANCH: ${{ github.ref_name }}
+      ZENTIENT_CI_EVENT_NAME: ${{ github.event_name }}
+      ZENTIENT_CI_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      ZENTIENT_CI_RUN_ID: ${{ github.run_id }}
+      ZENTIENT_CI_WORKFLOW: ${{ github.workflow }}
       SOLUTION_FILE_NAME: Zentient.Endpoints.sln
-      DOTNET_CLI_TELEMETRY_OPTOUT: 1
-      DOTNET_CLI_UI_LANGUAGE: en
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1 
+      DOTNET_CLI_UI_LANGUAGE: en    
       NUGET_XMLDOC_MODE: skip
 
     strategy:
       matrix:
-        dotnet-version: ['8.0.x', '9.0.x']
+        dotnet-version: ['8.0.15', '9.0.6']
 
     steps:
-      - name: 🧾 Checkout
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
 
       - name: 📁 Define Paths
         run: |
-          echo "REPO_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-          echo "MAIN_SOLUTION_PATH=$GITHUB_WORKSPACE/$SOLUTION_FILE_NAME" >> $GITHUB_ENV
-          echo "SRC_DIR=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
-          echo "TESTS_DIR=$GITHUB_WORKSPACE/tests" >> $GITHUB_ENV
-
-      - name: 🧪 Validate Structure
-        run: |
-          echo "🗂 Validating paths..."
-          test -f "$MAIN_SOLUTION_PATH" || (echo "❌ Missing solution file: $MAIN_SOLUTION_PATH" && exit 1)
-          test -d "$SRC_DIR" || echo "⚠️ Missing source dir: $SRC_DIR"
-          test -d "$TESTS_DIR" || echo "⚠️ Missing test dir: $TESTS_DIR"
-
-      - name: 🧪 Debug Info
-        run: |
-          echo "🗂 Debug Info..."
-          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
-          ls -l "$GITHUB_WORKSPACE"
-          echo "MAIN_SOLUTION_PATH: $MAIN_SOLUTION_PATH"
-          ls -l "$MAIN_SOLUTION_PATH"
-          echo "SRC_DIR: $SRC_DIR"
-          ls -l "$SRC_DIR"
-          echo "TESTS_DIR: $TESTS_DIR"
-          ls -l "$TESTS_DIR"
-          echo "🗂 Debug Info ending..."
-
-      - name: 🧪 Debug Detailed Project Paths
-        run: |
-          echo "🗂 Debugging specific project paths..."
-          HTTP_PROJ_DIR="$SRC_DIR/Zentient.Endpoints.Http"
-          HTTP_PROJ_FILE="$HTTP_PROJ_DIR/Zentient.Endpoints.Http.csproj"
-
-          echo "Checking HTTP_PROJ_DIR: $HTTP_PROJ_DIR"
-          ls -l "$HTTP_PROJ_DIR" || echo "❌ Directory not found or inaccessible: $HTTP_PROJ_DIR"
-
-          echo "Checking HTTP_PROJ_FILE: $HTTP_PROJ_FILE"
-          if [ -f "$HTTP_PROJ_FILE" ]; then
-            echo "✅ Project file exists: $HTTP_PROJ_FILE"
-            echo "--- Contents of $HTTP_PROJ_FILE (first 10 lines) ---"
-            head -n 10 "$HTTP_PROJ_FILE"
-            echo "----------------------------------------------------"
-          else
-            echo "❌ Project file NOT found: $HTTP_PROJ_FILE"
-            echo "Listing contents of $SRC_DIR recursively:"
-            ls -R "$SRC_DIR"
-            exit 1
-          fi
-
-          echo "🗂 Debugging specific project paths ending..."
-
-      - name: ⚙️ Setup .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ matrix.dotnet-version }}
+          echo "REPO_ROOT=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+          echo "MAIN_SOLUTION_PATH=${GITHUB_WORKSPACE}/${SOLUTION_FILE_NAME}" >> $GITHUB_ENV
+          echo "SRC_DIR=${GITHUB_WORKSPACE}/src" >> $GITHUB_ENV
+          echo "TESTS_DIR=${GITHUB_WORKSPACE}/tests" >> $GITHUB_ENV
 
       - name: 📦 Cache NuGet packages
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ matrix.dotnet-version }}-${{ hashFiles('**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ matrix.dotnet-version }}-${{ hashFiles('**/packages.lock.json', SOLUTION_FILE_NAME) }}
           restore-keys: |
             ${{ runner.os }}-nuget-${{ matrix.dotnet-version }}-
             ${{ runner.os }}-nuget-
 
       - name: 🔧 Restore solution
-        run: dotnet restore "$MAIN_SOLUTION_PATH" --no-cache ${{ matrix.dotnet-version == '8.0.x' && '--property:TargetFramework=net8.0' || '' }}
+        run: dotnet restore "${MAIN_SOLUTION_PATH}" --verbosity normal
 
-      # - name: 🔍 Format Check # <-- Commented out this step
-      #   env:
-      #     MSBuildTargetFramework: ${{ matrix.dotnet-version == '8.0.x' && 'net8.0' || '' }}
-      #   run: dotnet format "$MAIN_SOLUTION_PATH" --verify-no-changes --severity error --no-restore
-
-      - name: 🔧 Build
-        run: dotnet build "$MAIN_SOLUTION_PATH" --no-restore -warnaserror ${{ matrix.dotnet-version == '8.0.x' && '--property:TargetFramework=net8.0' || '' }}
+      - name: 🔧 Build solution
+        run: dotnet build "${MAIN_SOLUTION_PATH}" --no-restore -warnaserror
 
       - name: 🧪 Run Tests
-        run: dotnet test "$MAIN_SOLUTION_PATH" --no-build --verbosity normal --logger "trx" ${{ matrix.dotnet-version == '8.0.x' && '--property:TargetFramework=net8.0' || '' }}
+        run: dotnet test "${MAIN_SOLUTION_PATH}" --no-build --verbosity normal --logger "trx"
+
+      - name: 🔍 Debug .NET Runtimes
+        run: |
+          echo "Listing installed .NET SDKs and Runtimes for debugging:"
+          dotnet --list-sdks
+          dotnet --list-runtimes
+          echo "Contents of DOTNET_ROOT/shared/Microsoft.AspNetCore.App:"
+          ls -l "${DOTNET_INSTALL_DIR}/shared/Microsoft.AspNetCore.App"
 
       - name: 📤 Upload Test Results
-        if: always()
+        if: always() 
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.dotnet-version }}
-          path: '**/TestResults/*.trx'
+          path: '**/TestResults/*.trx' 
