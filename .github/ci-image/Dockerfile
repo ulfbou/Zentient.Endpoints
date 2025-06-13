@@ -27,19 +27,17 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     # .NET Runtime Performance Environment Variables:
-    # These configure .NET runtime behavior for optimal performance in a containerized environment.
-    # DOTNET_gcServer=1: Enables server garbage collection for throughput.
-    # DOTNET_ThreadPool_MinThreads=100: Increases minimum worker threads for concurrency.
-    # DOTNET_TC_QuickJitForLoops=1: Enables quick JIT for loops for faster startup.
-    # DOTNET_TieredPGO=1: Enables Tiered Profile-Guided Optimization for sustained performance.
-    # ASPNETCORE_ENVIRONMENT=Production: Ensures production optimizations for web components (if any).
     DOTNET_gcServer=1 \
     DOTNET_ThreadPool_MinThreads=100 \
     DOTNET_TC_QuickJitForLoops=1 \
     DOTNET_TieredPGO=1 \
     ASPNETCORE_ENVIRONMENT=Production \
     # Define the base .NET installation directory. This will be added to PATH later.
-    DOTNET_INSTALL_DIR="/usr/share/dotnet"
+    DOTNET_INSTALL_DIR="/usr/share/dotnet" \
+    # Expose UID, GID, and USER_NAME as environment variables for the entrypoint script
+    USER_UID=$USER_UID \
+    USER_GID=$USER_GID \
+    USER_NAME=$USER_NAME
 
 # Install common system dependencies and perform deep apt-get cleanup.
 # This minimizes image size by removing cached package files and lists.
@@ -49,14 +47,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb
 
 # Download the dotnet-install script, verify its integrity, execute it, then remove the script.
-# This ensures the .NET 9.0 SDK/Runtime (ASP.NET Core component) is installed.
 RUN curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh && \
-    # OPTIONAL: Integrity Verification for dotnet-install.sh script.
-    # Replace 'YOUR_CALCULATED_SHA256_HERE' with the actual SHA256 hash of the script
-    # obtained by manually downloading and hashing it. Uncomment to enable.
-    # This provides strong protection against script tampering, but requires manual updates
-    # if the script's hash changes.
-    # echo "YOUR_CALCULATED_SHA256_HERE  /tmp/dotnet-install.sh" | sha256sum -c - && \
     bash /tmp/dotnet-install.sh \
         --version $DOTNET_VERSION_9 \
         --install-dir "$DOTNET_INSTALL_DIR" \
@@ -64,17 +55,14 @@ RUN curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh && 
         --runtime aspnetcore && \
     rm /tmp/dotnet-install.sh
 
-# Ensure the main .NET installation directory is in the system's PATH for root user.
+# Ensure the main .NET installation directory is in the system's PATH for root user initially.
 ENV PATH="${DOTNET_INSTALL_DIR}:${PATH}"
 
-# Validate the core .NET SDK and runtime installation by outputting info.
-# This also confirms the current target architecture determined by Docker Buildx.
+# Validate the core .NET SDK and runtime installation.
 RUN dotnet --info && \
     echo "Current Target Architecture: $TARGETARCH"
 
 # Conditional installation of debugging tools based on the BUILD ARG 'INCLUDE_DEBUG_TOOLS'.
-# These tools (e.g., strace, gdb, dotnet-dump) are only installed if explicitly requested,
-# keeping the default image lean.
 RUN if [ "$INCLUDE_DEBUG_TOOLS" = "true" ]; then \
     echo "Installing debug tools for $TARGETARCH..."; \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -83,7 +71,6 @@ RUN if [ "$INCLUDE_DEBUG_TOOLS" = "true" ]; then \
         iputils-ping \
         net-tools \
         procps && \
-    # Install .NET global tools. '|| true' prevents build failure if tool is already installed.
     dotnet tool install --global dotnet-dump || true && \
     dotnet tool install --global dotnet-trace || true && \
     dotnet tool install --global dotnet-format --version 8.* || true && \
@@ -95,10 +82,9 @@ fi
 # Set the working directory inside the container for your application code.
 WORKDIR /app
 
-# --- Security Enhancement: Create and switch to a non-root user ---
-# Running containers as non-root users is a critical security best practice,
-# reducing the attack surface if the container is compromised.
-
+# --- Security Enhancement: Create non-root user and set *image-internal* permissions ---
+# Running containers as non-root users is a critical security best practice.
+# The chown operations here are ONLY for directories *within the image* itself.
 RUN groupadd --gid $USER_GID $USER_NAME && \
     useradd --uid $USER_UID --gid $USER_GID -m $USER_NAME && \
     chown -R $USER_NAME:$USER_NAME /app && \
@@ -108,46 +94,22 @@ RUN groupadd --gid $USER_GID $USER_NAME && \
         chown -R $USER_NAME:$USER_NAME /root/.dotnet && \
         chmod -R ug+rwx /root/.dotnet/tools; \
     fi && \
-    \
-    # --- IMPORTANT: Grant appuser write permissions for GitHub Actions runner directories ---
-    # These directories are mounted by the GitHub Actions runner and need write access
-    # for actions like 'checkout' and 'cache' to function correctly when running as a non-root user.
-    chown -R $USER_NAME:$USER_NAME /__w && \
-    chown -R $USER_NAME:$USER_NAME /github/home && \
-    # Also ensure the /tmp directory has proper permissions (sometimes needed by tools)
-    chmod 1777 /tmp
+    chmod 1777 /tmp # Ensure /tmp is generally writable
 
-# Switch to the non-root user for all subsequent commands and default container execution.
-USER $USER_NAME
+# Install 'su-exec' for secure privilege dropping in the entrypoint.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends su-exec && \
+    rm -rf /var/lib/apt/lists/*
 
-# Set the HOME directory explicitly for the non-root user. This is a good practice.
-ENV HOME=/home/$USER_NAME
+# Copy and set up the entrypoint script.
+# This script will run as root, fix permissions on mounted volumes, and then
+# switch to the non-root user before running the main command.
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# IMPORTANT: Adjust the PATH for the non-root user.
-# This ensures that both the main .NET installation and (conditionally) the global tools
-# installed by root are accessible to the 'appuser'.
-# Having a non-existent directory in PATH is harmless; it just won't be used.
-ENV PATH="/root/.dotnet/tools:${PATH}"
+# The ENTRYPOINT will now be our custom script.
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
-# Final validation of the environment setup after user switch and PATH adjustments.
-# This confirms everything is correctly configured for the non-root user.
-RUN echo "Final PATH: $PATH" && \
-    echo "Current User: $(whoami)" && \
-    dotnet --list-sdks && \
-    dotnet --list-runtimes
-
-# --- Usage Instructions (Comments) ---
-# These comments provide guidance on how to build and run the image.
-# EXPOSE instructions are typically for application images, not CI base images,
-# so they are omitted or kept commented out for clarity.
-# ENTRYPOINT is also usually defined in application-specific Dockerfiles or
-# overridden by CI/CD pipelines.
-
-# You can build this image (e.g., for AMD64 with debug tools) using buildx:
-# docker buildx build --platform linux/amd64 --build-arg INCLUDE_DEBUG_TOOLS=true -t zentient-ci-image-debug:latest .
-
-# To build the lean default image (e.g., for AMD64):
-# docker buildx build --platform linux/amd64 -t zentient-ci-image:latest .
-
-# To run a container from the built image for interactive testing:
-# docker run --rm -it zentient-ci-image:latest
+# Set a default command if no command is provided (useful for interactive `docker run`).
+# This CMD will be executed by entrypoint.sh as the appuser.
+CMD ["tail", "-f", "/dev/null"]
