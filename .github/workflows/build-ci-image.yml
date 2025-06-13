@@ -21,13 +21,8 @@ jobs:
       - name: 🔢 Extract Git metadata and Build Date
         id: meta
         run: |
-          # Extract short SHA for commit-specific tagging
           echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          
-          # Extract semantic version tag. Fallback to '0.0.0' if no tags are found.
           echo "semver_tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' || echo 'v0.1.0')" >> $GITHUB_OUTPUT
-          
-          # Generate a build date tag (YYYYMMDD-HHMM) for better traceability
           echo "build_date=$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
 
       - name: 🏷 Docker Login to GHCR
@@ -40,7 +35,6 @@ jobs:
       - name: 🏗 Set up Docker Buildx (for multi-platform builds and caching)
         uses: docker/setup-buildx-action@v3
 
-      # Build and push the standard (lean) CI Docker image
       - name: 🏗 Build and push Standard CI Image
         uses: docker/build-push-action@v5
         with:
@@ -51,14 +45,11 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/zentient-endpoints-ci:latest
             ghcr.io/${{ github.repository_owner }}/zentient-endpoints-ci:${{ steps.meta.outputs.short_sha }}
             ghcr.io/${{ github.repository_owner }}/zentient-endpoints-ci:${{ steps.meta.outputs.build_date }}
-          # Use GHCR as a cache backend for faster subsequent builds
           cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/zentient-endpoints-ci:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/zentient-endpoints-ci:buildcache,mode=max
-          # Pass INCLUDE_DEBUG_TOOLS=false explicitly for the lean image
           build-args: |
             INCLUDE_DEBUG_TOOLS=false
       
-      # Build and push the debug CI Docker image
       - name: 🏗 Build and push Debug CI Image
         uses: docker/build-push-action@v5
         with:
