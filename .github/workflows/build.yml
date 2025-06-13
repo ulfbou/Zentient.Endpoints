@@ -2,14 +2,14 @@
 
 on:
   push:
-    branches: [ develop/cicd ] 
+    branches: [ develop/cicd ]
   pull_request:
-    branches: [ main ]  
-  workflow_dispatch:    
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
-    name: Build and Test (.NET ${{ matrix.dotnet-version }}) 
+    name: Build and Test (.NET ${{ matrix.dotnet-version }})
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/${{ github.repository_owner }}/zentient-endpoints-ci:latest
@@ -18,6 +18,10 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     env:
+      # Define SOLUTION_FILE_NAME here so it's accessible to expressions
+      # for the cache key, and also available as a shell env var.
+      SOLUTION_FILE_NAME: Zentient.Endpoints.sln
+
       ZENTIENT_CI_BUILD: true
       ZENTIENT_CI_VERSION: ${{ github.run_number }}
       ZENTIENT_CI_COMMIT_SHA: ${{ github.sha }}
@@ -27,14 +31,13 @@ jobs:
       ZENTIENT_CI_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
       ZENTIENT_CI_RUN_ID: ${{ github.run_id }}
       ZENTIENT_CI_WORKFLOW: ${{ github.workflow }}
-      SOLUTION_FILE_NAME: Zentient.Endpoints.sln
-      DOTNET_CLI_TELEMETRY_OPTOUT: 1 
-      DOTNET_CLI_UI_LANGUAGE: en    
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_CLI_UI_LANGUAGE: en
       NUGET_XMLDOC_MODE: skip
 
     strategy:
       matrix:
-        dotnet-version: ['8.0.15', '9.0.6']
+        dotnet-version: ['8.0.17', '9.0.6'] 
 
     steps:
       - name: 🧾 Checkout repository
@@ -43,7 +46,7 @@ jobs:
       - name: 📁 Define Paths
         run: |
           echo "REPO_ROOT=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
-          echo "MAIN_SOLUTION_PATH=${GITHUB_WORKSPACE}/${SOLUTION_FILE_NAME}" >> $GITHUB_ENV
+          echo "MAIN_SOLUTION_PATH=${GITHUB_WORKSPACE}/${{ env.SOLUTION_FILE_NAME }}" >> $GITHUB_ENV
           echo "SRC_DIR=${GITHUB_WORKSPACE}/src" >> $GITHUB_ENV
           echo "TESTS_DIR=${GITHUB_WORKSPACE}/tests" >> $GITHUB_ENV
 
@@ -51,7 +54,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ matrix.dotnet-version }}-${{ hashFiles('**/packages.lock.json', SOLUTION_FILE_NAME) }}
+          key: ${{ runner.os }}-nuget-${{ matrix.dotnet-version }}-${{ hashFiles('**/packages.lock.json', env.SOLUTION_FILE_NAME) }}
           restore-keys: |
             ${{ runner.os }}-nuget-${{ matrix.dotnet-version }}-
             ${{ runner.os }}-nuget-
