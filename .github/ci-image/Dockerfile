@@ -99,22 +99,23 @@ WORKDIR /app
 # Running containers as non-root users is a critical security best practice,
 # reducing the attack surface if the container is compromised.
 
-# Create a non-root user and group using the defined ARGs.
 RUN groupadd --gid $USER_GID $USER_NAME && \
     useradd --uid $USER_UID --gid $USER_GID -m $USER_NAME && \
-    # Ensure the non-root user owns the /app directory where application code will reside.
     chown -R $USER_NAME:$USER_NAME /app && \
-    # Ensure the non-root user can access and execute the main .NET SDK/Runtime installation.
     chown -R $USER_NAME:$USER_NAME "$DOTNET_INSTALL_DIR" && \
-    \
-    # Conditionally set ownership and permissions for the global .NET tools directory.
-    # This directory (/root/.dotnet) only exists if debug tools were installed (INCLUDE_DEBUG_TOOLS=true).
-    # This 'if' block prevents 'No such file or directory' errors when debug tools are not included.
     if [ "$INCLUDE_DEBUG_TOOLS" = "true" ]; then \
         echo "Setting permissions for /root/.dotnet/tools for non-root user..."; \
         chown -R $USER_NAME:$USER_NAME /root/.dotnet && \
         chmod -R ug+rwx /root/.dotnet/tools; \
-    fi
+    fi && \
+    \
+    # --- IMPORTANT: Grant appuser write permissions for GitHub Actions runner directories ---
+    # These directories are mounted by the GitHub Actions runner and need write access
+    # for actions like 'checkout' and 'cache' to function correctly when running as a non-root user.
+    chown -R $USER_NAME:$USER_NAME /__w && \
+    chown -R $USER_NAME:$USER_NAME /github/home && \
+    # Also ensure the /tmp directory has proper permissions (sometimes needed by tools)
+    chmod 1777 /tmp
 
 # Switch to the non-root user for all subsequent commands and default container execution.
 USER $USER_NAME
