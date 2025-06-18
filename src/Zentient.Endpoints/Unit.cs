@@ -14,49 +14,19 @@ using Zentient.Endpoints.Core.Serialization;
 namespace Zentient.Endpoints.Core
 {
     /// <summary>
-    /// Represents a type with a single value, used to indicate the absence of a specific value.
-    /// This is equivalent to <c>void</c> in methods that return a value.
-    /// It is primarily used in functional programming patterns (e.g., in <c>Result</c> or <c>Option</c> types)
-    /// where a value is always expected, but sometimes that value is merely "nothingness" or "success without data".
+    /// Represents a void type or the absence of a value.
+    /// Useful for representing results of operations that do not return any specific data,
+    /// similar to the 'void' keyword but allows for generic type parameters.
     /// </summary>
     /// <remarks>
-    /// The <see cref="Unit"/> struct is a singleton. Its only value is <see cref="Value"/>.
+    /// This is a singleton struct to avoid unnecessary allocations.
     /// </remarks>
     [DataContract]
-    [JsonConverter(typeof(UnitJsonConverter))]
-    public readonly struct Unit : IEquatable<Unit>, IComparable<Unit>, IComparable
+    public readonly struct Unit : IEquatable<Unit>
     {
-        /// <summary>Gets the single instance of the <see cref="Unit"/> struct.</summary>
-        /// <value>The singleton instance of <see cref="Unit"/>.</value>
+        /// <summary>Gets the singleton instance of <see cref="Unit"/>.</summary>
+        /// <value>A singleton instance of <see cref="Unit"/>.</value>
         public static Unit Value { get; }
-
-        /// <summary>
-        /// Determines whether two specified <see cref="Unit"/> instances are equal.
-        /// </summary>
-        /// <param name="left">The first <see cref="Unit"/> to compare.</param>
-        /// <param name="right">The second <see cref="Unit"/> to compare.</param>
-        /// <returns><c>true</c> if <paramref name="left"/> and <paramref name="right"/> are equal; otherwise, <c>false</c>.</returns>
-        public static bool operator ==(Unit left, Unit right)
-        {
-            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
-            _ = left;
-            _ = right;
-            return true; // All Unit instances are equal to each other
-        }
-
-        /// <summary>
-        /// Determines whether two specified <see cref="Unit"/> instances are not equal.
-        /// </summary>
-        /// <param name="left">The first <see cref="Unit"/> to compare.</param>
-        /// <param name="right">The second <see cref="Unit"/> to compare.</param>
-        /// <returns><c>true</c> if <paramref name="left"/> is not equal to <paramref name="right"/>; otherwise, <c>false</c>.</returns>
-        public static bool operator !=(Unit left, Unit right)
-        {
-            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
-            _ = left;
-            _ = right;
-            return false; // All Unit instances are equal, so they are never not equal
-        }
 
         /// <summary>
         /// Compares two <see cref="Unit"/> instances to determine if the first is less than the second.
@@ -97,7 +67,7 @@ namespace Zentient.Endpoints.Core
             // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
             _ = left;
             _ = right;
-            return true; // All Unit instances are equal, so any is less than or equal to another
+            return true;
         }
 
         /// <summary>
@@ -114,22 +84,41 @@ namespace Zentient.Endpoints.Core
             return true;
         }
 
-        /// <inheritdoc />
-        public override bool Equals([NotNullWhen(true)] object? obj) => obj is Unit;
+        /// <summary>Compares two <see cref="Unit"/> instances for equality.</summary>
+        /// <param name="left">The first <see cref="Unit"/> to compare.</param>
+        /// <param name="right">The second <see cref="Unit"/> to compare.</param>
+        /// <returns><see langword="true" /> if <paramref name="left"/> is equal to <paramref name="right"/>; otherwise, <see langword="false" />.</returns>
+        public static bool operator ==(Unit left, Unit right)
+            => left.Equals(right);
+
+        /// <summary>Compares two <see cref="Unit"/> instances for inequality.</summary>
+        /// <param name="left">The first <see cref="Unit"/> to compare.</param>
+        /// <param name="right">The second <see cref="Unit"/> to compare.</param>
+        /// <returns><see langword="true" /> if <paramref name="left"/> is not equal to <paramref name="right"/>; otherwise, <see langword="false" />.</returns>
+        public static bool operator !=(Unit left, Unit right)
+            => !(left == right);
 
         /// <inheritdoc />
-        public bool Equals(Unit other) => true;
+        public override bool Equals([NotNullWhen(true)] object? obj)
+            => obj is Unit;
 
         /// <inheritdoc />
-        public override int GetHashCode() => 0;
+        public bool Equals(Unit other)
+            => true;
 
         /// <inheritdoc />
-        public override string ToString() => "()";
+        public override int GetHashCode()
+            => 0;
 
         /// <inheritdoc />
-        public int CompareTo(Unit other) => 0;
+        public override string ToString()
+            => "()";
 
-        /// <inheritdoc />
+        /// <summary>Compares this instance with another object of the same type.</summary>
+        /// <param name="obj">The object to compare with this instance.</param>
+        /// <returns>1 if this instance is greater than the specified object; 0 if they are equal; -1 if this instance is less than the specified object.</returns>
+        /// <exception cref="ArgumentException">Thrown when the specified object is not of type <see cref="Unit"/>.</exception>
+        /// <remarks>This method is primarily used for compatibility with interfaces that require comparison, such as <see cref="IComparable"/>.</remarks>
         public int CompareTo(object? obj)
         {
             if (obj is null)
