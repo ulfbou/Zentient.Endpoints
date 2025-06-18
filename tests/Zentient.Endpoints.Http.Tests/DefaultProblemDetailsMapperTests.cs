@@ -4,10 +4,6 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Collections.Generic;
-using System.Net;
-
 using FluentAssertions;
 
 using Microsoft.AspNetCore.Http;
@@ -15,23 +11,24 @@ using Microsoft.AspNetCore.Mvc;
 
 using Moq;
 
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Threading.Tasks;
+
 using Xunit;
 
+using Zentient.Endpoints.Http;
 using Zentient.Results;
 
+#pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
 {
-    /// <summary>
-    /// Contains unit tests for the <see cref="DefaultProblemDetailsMapper"/> class.
-    /// </summary>
     public sealed class DefaultProblemDetailsMapperTests
     {
         private static readonly Uri DefaultTestProblemTypeBaseUri = new Uri("https://testdomain.com/errors/");
         private readonly Mock<IProblemTypeUriGenerator> _mockProblemTypeUriGenerator;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DefaultProblemDetailsMapperTests"/> class.
-        /// </summary>
         public DefaultProblemDetailsMapperTests()
         {
             this._mockProblemTypeUriGenerator = new Mock<IProblemTypeUriGenerator>();
@@ -41,23 +38,23 @@ namespace Zentient.Endpoints.Http.Tests
             this._mockProblemTypeUriGenerator
                 .Setup(g => g.GenerateProblemTypeUri(It.Is<string>(s => !string.IsNullOrEmpty(s))))
                 .Returns((string code) => new Uri(DefaultTestProblemTypeBaseUri, code!.ToUpperInvariant().Replace(' ', '-')));
+            this._mockProblemTypeUriGenerator
+                .Setup(g => g.GenerateProblemTypeUri(null))
+                .Returns(new Uri(ProblemDetailsConstants.DefaultBaseUri));
         }
 
-        /// <summary>
-        /// Tests that mapping a null error info returns a 500 Internal Server Error problem details.
-        /// </summary>
         [Fact]
-        public void Map_NullErrorInfo_ReturnsInternalServerErrorProblemDetails()
+        public async Task Map_NullErrorInfo_ReturnsInternalServerErrorProblemDetailsAsync()
         {
             const string TraceId = "trace-123";
             const string ApiResource = "/api/resource";
 
             // Arrange
             DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
-            DefaultHttpContext context = CreateHttpContext(TraceId, ApiResource);
+            HttpContext context = CreateHttpContext(TraceId, ApiResource);
 
             // Act
-            ProblemDetails result = mapper.Map(null, context);
+            ProblemDetails result = await mapper.Map(null, context);
 
             // Assert
             result.Should().NotBeNull();
@@ -72,19 +69,16 @@ namespace Zentient.Endpoints.Http.Tests
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri(null), Times.Once);
         }
 
-        /// <summary>
-        /// Tests that a validation error maps to a 400 Bad Request problem details.
-        /// </summary>
         [Fact]
-        public void Map_ErrorInfo_ValidationCategory_MapsToBadRequest()
+        public async Task Map_ErrorInfo_ValidationCategory_MapsToBadRequestAsync()
         {
             // Arrange
             ErrorInfo error = new ErrorInfo(ErrorCategory.Validation, "VAL001", "Validation failed.", "Field X is required.");
             DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
-            DefaultHttpContext context = CreateHttpContext("trace-456", "/api/validate");
+            HttpContext context = CreateHttpContext("trace-456", "/api/validate");
 
             // Act
-            ProblemDetails result = mapper.Map(error, context);
+            ProblemDetails result = await mapper.Map(error, context);
 
             // Assert
             result.Status.Should().Be((int)HttpStatusCode.BadRequest);
@@ -98,12 +92,6 @@ namespace Zentient.Endpoints.Http.Tests
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("VAL001"), Times.Once);
         }
 
-        /// <summary>
-        /// Verifies that each error category maps to the expected status and title.
-        /// </summary>
-        /// <param name="category">The error category to test.</param>
-        /// <param name="expectedStatus">The expected HTTP status code.</param>
-        /// <param name="expectedTitle">The expected title for the problem details.</param>
         [Theory]
         [InlineData(ErrorCategory.NotFound, HttpStatusCode.NotFound, "Not Found")]
         [InlineData(ErrorCategory.Conflict, HttpStatusCode.Conflict, "Conflict")]
@@ -115,7 +103,7 @@ namespace Zentient.Endpoints.Http.Tests
         [InlineData(ErrorCategory.TooManyRequests, HttpStatusCode.TooManyRequests, "Too Many Requests")]
         [InlineData(ErrorCategory.Concurrency, HttpStatusCode.Conflict, "Conflict")]
         [InlineData(ErrorCategory.ProblemDetails, HttpStatusCode.BadRequest, "Bad Request")]
-        public void Map_ErrorInfo_Category_MapsToExpectedStatusAndTitle(ErrorCategory category, HttpStatusCode expectedStatus, string expectedTitle)
+        public async Task Map_ErrorInfo_Category_MapsToExpectedStatusAndTitleAsync(ErrorCategory category, HttpStatusCode expectedStatus, string expectedTitle)
         {
             // Arrange
             ErrorInfo error = new ErrorInfo(category, "ERR", "Error message", "Error detail");
@@ -124,10 +112,10 @@ namespace Zentient.Endpoints.Http.Tests
                 .Setup(g => g.GenerateProblemTypeUri(It.IsAny<string?>()))
                 .Returns((string? code) => code == null ? new Uri(ProblemDetailsConstants.DefaultBaseUri) : new Uri($"https://testdomain.com/errors/{code.ToUpperInvariant().Replace(' ', '-')}"));
             DefaultProblemDetailsMapper mapper = new DefaultProblemDetailsMapper(mockGenerator.Object);
-            DefaultHttpContext context = CreateHttpContext();
+            HttpContext context = CreateHttpContext();
 
             // Act
-            ProblemDetails result = mapper.Map(error, context);
+            ProblemDetails result = await mapper.Map(error, context);
 
             // Assert
             result.Status.Should().Be((int)expectedStatus);
@@ -135,11 +123,8 @@ namespace Zentient.Endpoints.Http.Tests
             mockGenerator.Verify(g => g.GenerateProblemTypeUri("ERR"), Times.Once);
         }
 
-        /// <summary>
-        /// Verifies that extensions and inner errors are mapped to problem details extensions.
-        /// </summary>
         [Fact]
-        public void Map_ErrorInfo_WithExtensionsAndInnerErrors_MapsExtensions()
+        public async Task Map_ErrorInfo_WithExtensionsAndInnerErrors_MapsExtensionsAsync()
         {
             // Arrange
             Dictionary<string, object?> customExtensions = new Dictionary<string, object?>
@@ -161,10 +146,10 @@ namespace Zentient.Endpoints.Http.Tests
                 extensions: customExtensions);
 
             DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
-            DefaultHttpContext context = CreateHttpContext();
+            HttpContext context = CreateHttpContext();
 
             // Act
-            ProblemDetails result = mapper.Map(error, context);
+            ProblemDetails result = await mapper.Map(error, context);
 
             // Assert
             result.Extensions.Should().ContainKey("customKey1");
@@ -177,11 +162,8 @@ namespace Zentient.Endpoints.Http.Tests
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("CONFLICT"), Times.Once);
         }
 
-        /// <summary>
-        /// Verifies that empty extensions and inner errors are not added to problem details extensions.
-        /// </summary>
         [Fact]
-        public void Map_ErrorInfo_EmptyExtensionsAndInnerErrors_DoesNotAddCustomExtensions()
+        public async Task Map_ErrorInfo_EmptyExtensionsAndInnerErrors_DoesNotAddCustomExtensionsAsync()
         {
             // Arrange
             ErrorInfo error = new ErrorInfo(
@@ -193,10 +175,10 @@ namespace Zentient.Endpoints.Http.Tests
                 innerErrors: new List<ErrorInfo>());
 
             DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
-            DefaultHttpContext context = CreateHttpContext();
+            HttpContext context = CreateHttpContext();
 
             // Act
-            ProblemDetails result = mapper.Map(error, context);
+            ProblemDetails result = await mapper.Map(error, context);
 
             // Assert
             result.Extensions.Should().NotContainKey("customKey1");
@@ -204,9 +186,6 @@ namespace Zentient.Endpoints.Http.Tests
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("NOTFOUND"), Times.Once);
         }
 
-        /// <summary>
-        /// Verifies that passing a null HttpContext throws an exception.
-        /// </summary>
         [Fact]
         public void Map_ErrorInfo_NullHttpContext_Throws()
         {
@@ -215,25 +194,22 @@ namespace Zentient.Endpoints.Http.Tests
             DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
 
             // Act
-            Action act = () => mapper.Map(error, null!);
+            Func<Task> act = () => mapper.Map(error, null!);
 
             // Assert
-            act.Should().Throw<ArgumentNullException>().WithParameterName("httpContext");
+            act.Should().ThrowAsync<ArgumentNullException>().WithParameterName("httpContext");
         }
 
-        /// <summary>
-        /// Verifies that null or empty code or detail are not added as extensions, but detail remains in Detail property.
-        /// </summary>
         [Fact]
-        public void Map_ErrorInfo_EmptyCodeOrDetail_DoesNotAddCodeToExtensions()
+        public async Task Map_ErrorInfo_EmptyCodeOrDetail_DoesNotAddCodeToExtensionsAsync()
         {
             // Arrange
             ErrorInfo error = new ErrorInfo(ErrorCategory.Validation, string.Empty, "Validation failed", string.Empty);
             DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
-            DefaultHttpContext context = CreateHttpContext();
+            HttpContext context = CreateHttpContext();
 
             // Act
-            ProblemDetails result = mapper.Map(error, context);
+            ProblemDetails result = await mapper.Map(error, context);
 
             // Assert
             result.Extensions.Should().NotContainKey("errorCode");
@@ -242,61 +218,39 @@ namespace Zentient.Endpoints.Http.Tests
             result.Type.Should().Be(ProblemDetailsConstants.DefaultBaseUri);
         }
 
-        /// <summary>
-        /// Verifies that the problem type URI is generated using the injected generator.
-        /// </summary>
         [Fact]
-        public void Map_ErrorInfo_ProblemTypeUri_UsesGenerator()
+        public async Task Map_ErrorInfo_ProblemTypeUri_UsesGeneratorAsync()
         {
             // Arrange
             ErrorInfo error = new ErrorInfo(ErrorCategory.Validation, "Invalid Input", "Validation failed");
             DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
-            DefaultHttpContext context = CreateHttpContext();
+            HttpContext context = CreateHttpContext();
 
             // Act
-            ProblemDetails result = mapper.Map(error, context);
+            ProblemDetails result = await mapper.Map(error, context);
 
             // Assert
             result.Type.Should().Be($"{DefaultTestProblemTypeBaseUri}INVALID-INPUT");
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("Invalid Input"), Times.Once);
         }
 
-        /// <summary>
-        /// Helper method to create a <see cref="DefaultProblemDetailsMapper"/> with a specific problem type URI generator.
-        /// </summary>
-        /// <param name="generator">The <see cref="IProblemTypeUriGenerator"/> to use.</param>
-        /// <returns>A new <see cref="DefaultProblemDetailsMapper"/> instance.</returns>
         private static DefaultProblemDetailsMapper CreateMapperWithMockGenerator(IProblemTypeUriGenerator generator)
             => new DefaultProblemDetailsMapper(generator);
 
-        /// <summary>
-        /// Helper method to create a <see cref="DefaultProblemDetailsMapper"/> with the default problem type URI generator.
-        /// </summary>
-        /// <returns>A new <see cref="DefaultProblemDetailsMapper"/> instance.</returns>
         private static DefaultProblemDetailsMapper CreateMapper()
             => new DefaultProblemDetailsMapper();
 
-        /// <summary>
-        /// Helper method to create a <see cref="DefaultHttpContext"/> for tests.
-        /// </summary>
-        /// <param name="traceId">Optional trace identifier.</param>
-        /// <param name="path">Optional request path.</param>
-        /// <returns>A configured <see cref="DefaultHttpContext"/>.</returns>
-        private static DefaultHttpContext CreateHttpContext(string? traceId = null, string? path = "/test")
+        private static HttpContext CreateHttpContext(string? traceId = null, string? path = "/test")
         {
-            DefaultHttpContext context = new DefaultHttpContext();
+            var mockHttpContext = new Mock<HttpContext>();
+            var mockHttpRequest = new Mock<HttpRequest>();
 
-            if (traceId != null)
-            {
-                context.TraceIdentifier = traceId;
-            }
+            mockHttpContext.SetupGet(c => c.Request).Returns(mockHttpRequest.Object);
+            mockHttpRequest.SetupGet(r => r.Path).Returns(new PathString(path));
+            mockHttpContext.SetupProperty(c => c.TraceIdentifier, traceId ?? Guid.NewGuid().ToString());
 
-            if (path != null)
-            {
-                context.Request.Path = path;
-            }
-
-            return context;
+            return mockHttpContext.Object;
         }
     }
 }
+#pragma warning restore CS1591
