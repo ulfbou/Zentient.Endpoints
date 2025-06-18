@@ -16,7 +16,7 @@
 
 	<ItemGroup>
 		<!-- Correctly reference the analyzer project being tested -->
-		<ProjectReference Include="..\..\src\Zentient.Endpoints.Analyzers\Zentient.Endpoints.Analyzers.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Analyzers\Zentient.Analyzers.csproj" />
 		<ProjectReference Include="..\..\src\Zentient.Endpoints.Tests.Shared\Zentient.Endpoints.Tests.Shared.csproj" />
 	</ItemGroup>
 
