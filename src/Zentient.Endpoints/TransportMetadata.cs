@@ -9,18 +9,22 @@ using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Zentient.Endpoints.Core
+namespace Zentient.Endpoints
 {
     /// <summary>
     /// Represents transport-agnostic metadata for endpoint results, such as HTTP status codes, gRPC status, and additional tags.
     /// </summary>
     public sealed class TransportMetadata
     {
-        /// <summary>
-        /// Gets the suggested HTTP status code for the response.
-        /// </summary>
-        /// <value>The HTTP status code, or <c>null</c> if not specified.</value>
+        /// <summary>Gets an optional HTTP status code hint for the response.</summary>
+        /// <remarks>This is a hint for HTTP-based transports; the final status code may be derived by a mapper.</remarks>
+        /// <value>The HTTP status code, or <see langword="null"/> if not specified.</value>
         public int? HttpStatusCode { get; init; }
+
+        /// <summary>Gets a pre-constructed ProblemDetails object for immediate error reporting.</summary>
+        /// <remarks>If set, this ProblemDetails instance will bypass standard error mapping.</remarks>
+        /// <value>The <see cref="ProblemDetails"/> instance, or <see langword="null"/> if not specified.</value>
+        public ProblemDetails? ProblemDetails { get; init; }
 
         /// <summary>
         /// Gets the suggested gRPC status code for the response.
@@ -33,12 +37,6 @@ namespace Zentient.Endpoints.Core
         /// </summary>
         /// <value>The Orleans grain error code, or <c>null</c> if not specified.</value>
         public string? OrleansGrainErrorCode { get; init; }
-
-        /// <summary>
-        /// Gets the <see cref="ProblemDetails"/> instance describing the error, if any.
-        /// </summary>
-        /// <value>The <see cref="ProblemDetails"/> instance, or <c>null</c> if not specified.</value>
-        public ProblemDetails? ProblemDetails { get; init; }
 
         /// <summary>
         /// Gets the collection of transport-level tags or metadata.
