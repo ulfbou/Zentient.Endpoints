@@ -1,8 +1,6 @@
-// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="EndpointResultHttpMapperTests.cs" company="Zentient Framework Team">
+// <copyright file="EndpointOutcomeHttpMapperTests.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
-// --------------------------------------------------------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -19,140 +17,133 @@ using Newtonsoft.Json;
 
 using Xunit;
 
-using Zentient.Endpoints.Core;
+using Zentient.Endpoints;
 using Zentient.Endpoints.Http;
 using Zentient.Results;
 
+#pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
 {
-    /// <summary>Unit tests for <see cref="EndpointResultHttpMapper"/>.</summary>
-    public class EndpointResultHttpMapperTests
+    public class EndpointOutcomeHttpMapperTests
     {
         private readonly Mock<IProblemDetailsMapper> _problemDetailsMapperMock;
-        private readonly EndpointResultHttpMapper _mapper;
-        private readonly DefaultHttpContext _httpContext;
+        private readonly EndpointOutcomeHttpMapper _mapper;
+        private readonly HttpContext _httpContext;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="EndpointResultHttpMapperTests"/> class.
-        /// Sets up the required mocks and test context for unit testing <see cref="EndpointResultHttpMapper"/>.
-        /// </summary>
-        public EndpointResultHttpMapperTests()
+        public EndpointOutcomeHttpMapperTests()
         {
             _problemDetailsMapperMock = new Mock<IProblemDetailsMapper>();
-            _mapper = new EndpointResultHttpMapper(_problemDetailsMapperMock.Object);
-            _httpContext = new DefaultHttpContext();
-            _httpContext.TraceIdentifier = "test_trace_id";
+            _mapper = new EndpointOutcomeHttpMapper(_problemDetailsMapperMock.Object);
+
+            var mockHttpContext = new Mock<HttpContext>();
+            var mockHttpRequest = new Mock<HttpRequest>();
+            mockHttpContext.SetupGet(c => c.Request).Returns(mockHttpRequest.Object);
+            mockHttpRequest.SetupGet(r => r.Path).Returns(new PathString("/test-path"));
+            mockHttpContext.SetupGet(c => c.TraceIdentifier).Returns("test_trace_id");
+            _httpContext = mockHttpContext.Object;
         }
 
-        /// <summary>
-        /// Tests that mapping a successful <see cref="EndpointResult{T}"/> with <see cref="Unit"/> value
-        /// and default status returns an appropriate <see cref="Microsoft.AspNetCore.Http.IResult"/> for "No Content".
-        /// </summary>
         [Fact]
-        public Task Map_Successful_UnitResult_ReturnsNoContentOrStatus()
+        public async Task Map_Successful_UnitResult_ReturnsNoContentOrStatus()
         {
             // Arrange
-            IResult<Unit> zentientResult = CreateZentientSuccessResultMock(Unit.Value);
-            IEndpointResult endpointResult = CreateGenericEndpointResult(zentientResult);
+            IResult<Unit> zentientResult = CreateZentientSuccessResultMock(Unit.Value, ResultStatuses.NoContent, new List<string>());
+            IEndpointOutcome endpointResult = CreateGenericEndpointOutcome(zentientResult);
 
             // Act
-            Microsoft.AspNetCore.Http.IResult result = _mapper.Map(endpointResult, _httpContext);
+            Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
             result.Should().BeOfType<EmptyResultWithStatusCode>()
-                  .Which.StatusCode.Should().Be(ResultStatuses.NoContent.Code);
-
-            return Task.CompletedTask;
+                .Which.StatusCode.Should().Be(ResultStatuses.NoContent.Code);
         }
 
-        /// <summary>
-        /// Tests that mapping a successful <see cref="EndpointResult{T}"/> with <see cref="Unit"/> value
-        /// and a custom HTTP status code returns an appropriate <see cref="Microsoft.AspNetCore.Http.IResult"/>.
-        /// </summary>
         [Fact]
-        public Task Map_Successful_Unit_WithCustomStatusCode()
+        public async Task Map_Successful_Unit_WithCustomStatusCode()
         {
             // Arrange
-            Results.IResult<Unit> zentientResult = CreateZentientSuccessResultMock(Unit.Value);
+            Results.IResult<Unit> zentientResult = CreateZentientSuccessResultMock(Unit.Value, ResultStatuses.Accepted, new List<string>());
             TransportMetadata transport = CreateTransportMetadata((int)HttpStatusCode.Accepted);
-            IEndpointResult endpointResult = CreateGenericEndpointResult(zentientResult, transport);
+            IEndpointOutcome endpointResult = CreateGenericEndpointOutcome(zentientResult, transport);
 
             // Act
-            Microsoft.AspNetCore.Http.IResult result = _mapper.Map(endpointResult, _httpContext);
+            Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
-            result.Should().BeOfType<EmptyResultWithStatusCode>()
-                  .Which.StatusCode.Should().Be(ResultStatuses.Accepted.Code);
+            result.Should().BeOfType<NewtonsoftJsonResult>();
+            NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
 
-            return Task.CompletedTask;
+            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
+            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
+            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
+
+            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
+            {
+                string responseBody = await reader.ReadToEndAsync();
+                SuccessResponse<object>? deserializedResponse = JsonConvert.DeserializeObject<SuccessResponse<object>>(responseBody);
+                deserializedResponse.Should().NotBeNull();
+                deserializedResponse!.Data.Should().BeNull();
+                deserializedResponse.StatusCode.Should().Be(ResultStatuses.Accepted.Code);
+                deserializedResponse.StatusDescription.Should().Be(ResultStatuses.Accepted.Description);
+                deserializedResponse.Messages.Should().BeEmpty();
+            }
         }
 
-        /// <summary>
-        /// Tests that mapping a successful <see cref="EndpointResult{TResult}"/> with a generic object value
-        /// returns a <see cref="NewtonsoftJsonResult"/> with the correct JSON content and status.
-        /// </summary>
         [Fact]
         public async Task Map_Successful_GenericObjectResult_ReturnsJsonWithStatus()
         {
             // Arrange
             string testData = "Test Data";
-            Results.IResult<string> zentientResult = CreateZentientSuccessResultMock(testData);
-            IEndpointResult endpointResult = CreateGenericEndpointResult(zentientResult);
+            Results.IResult<string> zentientResult = CreateZentientSuccessResultMock(testData, ResultStatuses.Success, new List<string>());
+            IEndpointOutcome endpointResult = CreateGenericEndpointOutcome(zentientResult);
 
             // Act
-            Microsoft.AspNetCore.Http.IResult result = _mapper.Map(endpointResult, _httpContext);
+            Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
             result.Should().BeOfType<NewtonsoftJsonResult>();
 
             NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
-            DefaultHttpContext tempHttpContext = CreateHttpContext();
-            tempHttpContext.Response.Body = new MemoryStream();
+            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
+            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
 
-            await newtonsoftResult.ExecuteAsync(tempHttpContext);
-
-            tempHttpContext.Response.Body.Seek(0, SeekOrigin.Begin);
-            using (StreamReader reader = new StreamReader(tempHttpContext.Response.Body))
+            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
+            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
             {
                 string responseBody = await reader.ReadToEndAsync();
-                responseBody.Should().Be("\"Test Data\"");
+                SuccessResponse<string>? deserializedResponse = JsonConvert.DeserializeObject<SuccessResponse<string>>(responseBody);
+
+                deserializedResponse.Should().NotBeNull();
+                deserializedResponse!.Data.Should().Be(testData);
+                deserializedResponse.StatusCode.Should().Be(ResultStatuses.Success.Code);
+                deserializedResponse.StatusDescription.Should().Be(ResultStatuses.Success.Description);
+                deserializedResponse.Messages.Should().BeEmpty();
             }
-            newtonsoftResult.StatusCode.Should().Be(ResultStatuses.Success.Code);
         }
 
-        /// <summary>
-        /// Tests that mapping a non-generic successful <see cref="EndpointResult{TResult}"/> returns an appropriate
-        /// <see cref="Microsoft.AspNetCore.Http.IResult"/> for "No Content".
-        /// </summary>
         [Fact]
-        public Task Map_Successful_NonGenericResult_ReturnsNoContent()
+        public async Task Map_Successful_NonGenericResult_ReturnsNoContent()
         {
             // Arrange
-            Zentient.Results.IResult zentientResult = CreateZentientResultMock(isSuccess: true);
-            IEndpointResult endpointResult = CreateEndpointResult(zentientResult);
+            Zentient.Results.IResult zentientResult = CreateZentientResultMock(isSuccess: true, status: ResultStatuses.NoContent, messages: new List<string>());
+            IEndpointOutcome endpointResult = CreateEndpointOutcome(zentientResult);
 
             // Act
-            Microsoft.AspNetCore.Http.IResult result = _mapper.Map(endpointResult, _httpContext);
+            Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
             result.Should().BeOfType<EmptyResultWithStatusCode>()
-                  .Which.StatusCode.Should().Be((int)HttpStatusCode.NoContent);
-
-            return Task.CompletedTask;
+                .Which.StatusCode.Should().Be((int)HttpStatusCode.NoContent);
         }
 
-        /// <summary>
-        /// Tests that mapping a failed <see cref="EndpointResult{TResult}"/> without transport-level problem details
-        /// uses the <see cref="IProblemDetailsMapper"/> to generate a <see cref="ProblemDetails"/> response.
-        /// </summary>
         [Fact]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "CA1506:Avoid excessive class coupling", Justification = "Integration test inherently has high coupling.")]
         public async Task Map_Failed_UsesProblemDetailsMapperIfNoTransportProblemDetails()
         {
             // Arrange
             ErrorInfo testError = new ErrorInfo(ErrorCategory.NotFound, "TEST_CODE", "Test message.");
-            Results.IResult<string> zentientResult = CreateZentientFailedResultMock<string>(new List<ErrorInfo> { testError });
-            IEndpointResult endpointResult = CreateGenericEndpointResult(zentientResult);
+            Results.IResult<string> zentientResult = CreateZentientFailedResultMock<string>(new List<ErrorInfo> { testError }, ResultStatuses.NotFound, new List<string>());
+            IEndpointOutcome endpointResult = CreateGenericEndpointOutcome(zentientResult);
 
             ProblemDetails mappedProblemDetails = new ProblemDetails
             {
@@ -165,22 +156,21 @@ namespace Zentient.Endpoints.Http.Tests
 
             _problemDetailsMapperMock
                 .Setup(m => m.Map(It.Is<ErrorInfo>(e => e.Code == "TEST_CODE"), It.IsAny<HttpContext>()))
-                .Returns(mappedProblemDetails)
+                .Returns(Task.FromResult(mappedProblemDetails))
                 .Verifiable();
 
             // Act
-            Microsoft.AspNetCore.Http.IResult result = _mapper.Map(endpointResult, _httpContext);
+            Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
             result.Should().BeOfType<NewtonsoftJsonResult>();
             _problemDetailsMapperMock.Verify(m => m.Map(It.IsAny<ErrorInfo>(), It.IsAny<HttpContext>()), Times.Once());
 
             NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
-            DefaultHttpContext tempHttpContext = CreateHttpContext();
-            tempHttpContext.Response.Body = new MemoryStream();
-            await newtonsoftResult.ExecuteAsync(tempHttpContext);
-            tempHttpContext.Response.Body.Seek(0, SeekOrigin.Begin);
-            using (StreamReader reader = new StreamReader(tempHttpContext.Response.Body))
+            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
+            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
+            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
+            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
             {
                 string responseBody = await reader.ReadToEndAsync();
                 ProblemDetails? deserializedProblem = JsonConvert.DeserializeObject<ProblemDetails>(responseBody);
@@ -193,10 +183,6 @@ namespace Zentient.Endpoints.Http.Tests
             }
         }
 
-        /// <summary>
-        /// Tests that mapping a failed <see cref="EndpointResult{TResult}"/> with existing transport-level problem details
-        /// uses those provided problem details directly, without invoking the <see cref="IProblemDetailsMapper"/>.
-        /// </summary>
         [Fact]
         public async Task Map_Failed_UsesProblemDetailsFromTransportIfPresent()
         {
@@ -209,23 +195,27 @@ namespace Zentient.Endpoints.Http.Tests
                 Instance = "/transport-instance"
             };
 
-            Results.IResult<string> zentientResult = CreateZentientFailedResultMock<string>(new List<ErrorInfo> { new ErrorInfo(ErrorCategory.General, "TransportFailure", "Generic transport failure") });
+            Results.IResult<string> zentientResult = CreateZentientFailedResultMock<string>(
+                new List<ErrorInfo> { new ErrorInfo(ErrorCategory.General, "TransportFailure", "Generic transport failure") },
+                ResultStatuses.Unauthorized,
+                new List<string>());
+
             TransportMetadata transport = CreateTransportMetadata(pd: transportProblemDetails);
-            IEndpointResult endpointResult = CreateGenericEndpointResult(zentientResult, transport);
+            IEndpointOutcome endpointResult = CreateGenericEndpointOutcome(zentientResult, transport);
 
             // Act
-            Microsoft.AspNetCore.Http.IResult result = _mapper.Map(endpointResult, _httpContext);
+            Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
             result.Should().BeOfType<NewtonsoftJsonResult>();
             _problemDetailsMapperMock.Verify(m => m.Map(It.IsAny<ErrorInfo>(), It.IsAny<HttpContext>()), Times.Never());
 
             NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
-            DefaultHttpContext tempHttpContext = CreateHttpContext();
-            tempHttpContext.Response.Body = new MemoryStream();
-            await newtonsoftResult.ExecuteAsync(tempHttpContext);
-            tempHttpContext.Response.Body.Seek(0, SeekOrigin.Begin);
-            using (StreamReader reader = new StreamReader(tempHttpContext.Response.Body))
+            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
+            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
+            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
+
+            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
             {
                 string responseBody = await reader.ReadToEndAsync();
                 ProblemDetails? deserializedProblem = JsonConvert.DeserializeObject<ProblemDetails>(responseBody);
@@ -236,41 +226,36 @@ namespace Zentient.Endpoints.Http.Tests
             }
         }
 
-        /// <summary>
-        /// Tests that mapping a failed <see cref="Zentient.Endpoints.Core.IEndpointResult"/> with no explicit errors in its base result
-        /// falls back to a default internal server error and uses the <see cref="IProblemDetailsMapper"/>.
-        /// </summary>
         [Fact]
         public async Task Map_Failed_NoErrors_ReturnsDefaultInternalServerError()
         {
             // Arrange
-            Results.IResult zentientResult = CreateZentientResultMock(isSuccess: false, errors: new List<ErrorInfo>());
-            IEndpointResult endpointResult = CreateEndpointResult(zentientResult);
+            Results.IResult zentientResult = CreateZentientResultMock(isSuccess: false, errors: new List<ErrorInfo>(), status: ResultStatuses.Error, messages: new List<string>());
+            IEndpointOutcome endpointResult = CreateEndpointOutcome(zentientResult);
 
             _problemDetailsMapperMock
                 .Setup(m => m.Map(It.Is<ErrorInfo>(e => e.Code == "InternalError"), It.IsAny<HttpContext>()))
-                .Returns(new ProblemDetails
+                .Returns(Task.FromResult(new ProblemDetails
                 {
                     Status = (int)HttpStatusCode.InternalServerError,
                     Title = "Internal Server Error",
                     Detail = "An unexpected error occurred.",
                     Extensions = new Dictionary<string, object?> { { "code", "InternalError" } }
-                })
+                }))
                 .Verifiable();
 
             // Act
-            Microsoft.AspNetCore.Http.IResult result = _mapper.Map(endpointResult, _httpContext);
+            Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
             result.Should().BeOfType<NewtonsoftJsonResult>();
             _problemDetailsMapperMock.Verify(m => m.Map(It.IsAny<ErrorInfo>(), It.IsAny<HttpContext>()), Times.Once());
 
             NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
-            DefaultHttpContext tempHttpContext = CreateHttpContext();
-            tempHttpContext.Response.Body = new MemoryStream();
-            await newtonsoftResult.ExecuteAsync(tempHttpContext);
-            tempHttpContext.Response.Body.Seek(0, SeekOrigin.Begin);
-            using (StreamReader reader = new StreamReader(tempHttpContext.Response.Body))
+            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
+            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
+            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
+            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
             {
                 string responseBody = await reader.ReadToEndAsync();
                 ProblemDetails? deserializedProblem = JsonConvert.DeserializeObject<ProblemDetails>(responseBody);
@@ -283,149 +268,153 @@ namespace Zentient.Endpoints.Http.Tests
             }
         }
 
-        /// <summary>
-        /// Tests that the <see cref="EndpointResultHttpMapper.Map"/> method throws <see cref="ArgumentNullException"/>
-        /// when provided with null arguments.
-        /// </summary>
         [Fact]
         public void Map_ThrowsOnNullArguments()
         {
             // Arrange
-            IEndpointResult? nullEndpointResult = null;
+            IEndpointOutcome? nullEndpointOutcome = null;
             HttpContext? nullHttpContext = null;
 
             // Act & Assert
-            Action act1 = () => _mapper.Map(nullEndpointResult!, _httpContext);
-            act1.Should().Throw<ArgumentNullException>().WithParameterName("endpointResult");
+            Func<Task> act1 = async () => await _mapper.Map(nullEndpointOutcome!, _httpContext).ConfigureAwait(false);
+            act1.Should().ThrowAsync<ArgumentNullException>().WithParameterName("endpointResult");
 
-            Action act2 = () => _mapper.Map(Mock.Of<IEndpointResult>(), nullHttpContext!);
-            act2.Should().Throw<ArgumentNullException>().WithParameterName("httpContext");
+            Func<Task> act2 = async () => await _mapper.Map(Mock.Of<IEndpointOutcome>(), nullHttpContext!).ConfigureAwait(false);
+            act2.Should().ThrowAsync<ArgumentNullException>().WithParameterName("httpContext");
         }
 
-        /// <summary>
-        /// Verifies that a successful result with a custom status code returns the correct status.
-        /// </summary>
         [Fact]
         public async Task Map_Successful_CustomStatusCode_ReturnsCustomStatus()
         {
             // Arrange
             TransportMetadata transport = CreateTransportMetadata(299);
-            Zentient.Results.IResult<string> baseResult = CreateZentientSuccessResultMock("bar");
-            IEndpointResult<string> endpointResult = CreateGenericEndpointResult(baseResult, transport);
-            EndpointResultHttpMapper mapper = new EndpointResultHttpMapper(Mock.Of<IProblemDetailsMapper>());
-            DefaultHttpContext context = CreateHttpContext();
+            Zentient.Results.IResult<string> baseResult = CreateZentientSuccessResultMock("bar", ResultStatuses.GetStatus(299, "Custom Status"), new List<string>());
+            IEndpointOutcome<string> endpointResult = CreateGenericEndpointOutcome(baseResult, transport);
+            EndpointOutcomeHttpMapper mapper = new EndpointOutcomeHttpMapper(Mock.Of<IProblemDetailsMapper>());
+            HttpContext context = CreateHttpContextForExecution();
 
             // Act
-            Microsoft.AspNetCore.Http.IResult result = mapper.Map(endpointResult, context);
+            Microsoft.AspNetCore.Http.IResult result = await mapper.Map(endpointResult, context);
 
             // Assert
             result.Should().BeOfType<NewtonsoftJsonResult>();
             NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
-            DefaultHttpContext tempHttpContext = CreateHttpContext();
-            tempHttpContext.Response.Body = new System.IO.MemoryStream();
+            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
+            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
+            tempHttpContextForExecution.Response.Body.Seek(0, System.IO.SeekOrigin.Begin);
 
-            await newtonsoftResult.ExecuteAsync(tempHttpContext);
-            tempHttpContext.Response.Body.Seek(0, System.IO.SeekOrigin.Begin);
-
-            using (System.IO.StreamReader reader = new System.IO.StreamReader(tempHttpContext.Response.Body))
+            using (System.IO.StreamReader reader = new System.IO.StreamReader(tempHttpContextForExecution.Response.Body))
             {
                 string responseBody = await reader.ReadToEndAsync();
-                responseBody.Should().Be("\"bar\"");
+                SuccessResponse<string>? deserializedResponse = JsonConvert.DeserializeObject<SuccessResponse<string>>(responseBody);
+
+                deserializedResponse.Should().NotBeNull();
+                deserializedResponse!.Data.Should().Be("bar");
+                deserializedResponse.StatusCode.Should().Be(299);
+                deserializedResponse.StatusDescription.Should().Be("Custom Status");
+                deserializedResponse.Messages.Should().BeEmpty();
             }
 
             newtonsoftResult.StatusCode.Should().Be(299);
         }
 
-        // --------------------------------------------------------------------------------
-        // Helper Methods
-        // --------------------------------------------------------------------------------
-        /// <summary>Creates a default HTTP context.</summary>
-        /// <returns>A new <see cref="DefaultHttpContext"/> instance.</returns>
-        private static DefaultHttpContext CreateHttpContext() => new();
+        private static DefaultHttpContext CreateHttpContextForExecution()
+        {
+            var context = new DefaultHttpContext();
+            context.Request.Path = "/mocked-path";
+            context.Response.Body = new MemoryStream();
+            return context;
+        }
 
-        /// <summary>Creates transport metadata with optional HTTP status code and problem details.</summary>
-        /// <param name="status">The HTTP status code.</param>
-        /// <param name="pd">The problem details.</param>
-        /// <returns>A new <see cref="TransportMetadata"/> instance.</returns>
         private static TransportMetadata CreateTransportMetadata(int? status = null, ProblemDetails? pd = null)
             => TransportMetadata.Default(status, pd);
 
-        /// <summary>Creates a mock for a non-generic <see cref="Results.IResult"/>.</summary>
-        /// <param name="isSuccess">Indicates if the result is successful.</param>
-        /// <param name="errors">A list of errors, if any.</param>
-        /// <returns>A mocked <see cref="Results.IResult"/> instance.</returns>
-        private static Results.IResult CreateZentientResultMock(bool isSuccess = true, List<ErrorInfo>? errors = null)
+        private static Results.IResult CreateZentientResultMock(
+            bool isSuccess = true,
+            List<ErrorInfo>? errors = null,
+            IResultStatus? status = null,
+            List<string>? messages = null)
         {
             Mock<Results.IResult> mock = new Mock<Results.IResult>();
             mock.SetupGet(r => r.IsSuccess).Returns(isSuccess);
             mock.SetupGet(r => r.Errors).Returns(errors ?? new List<ErrorInfo>());
+
+            mock.SetupGet(r => r.Status).Returns(status ?? (isSuccess ? ResultStatuses.Success : ResultStatuses.Error));
+            mock.SetupGet(r => r.Messages).Returns(messages ?? Array.Empty<string>().ToList());
+
             return mock.Object;
         }
 
-        /// <summary>Creates a mock for a generic successful <see cref="IResult{TValue}"/>.</summary>
-        /// <typeparam name="TValue">The type of the result's value.</typeparam>
-        /// <param name="value">The value to be returned by the successful result.</param>
-        /// <returns>A mocked <see cref="IResult{TValue}"/> instance.</returns>
-        private static IResult<TValue> CreateZentientSuccessResultMock<TValue>(TValue value)
+        private static IResult<TValue> CreateZentientSuccessResultMock<TValue>(
+            TValue value,
+            IResultStatus? status = null,
+            List<string>? messages = null)
             where TValue : notnull
         {
             Mock<IResult<TValue>> mock = new Mock<IResult<TValue>>();
             mock.SetupGet(r => r.IsSuccess).Returns(true);
             mock.SetupGet(r => r.Errors).Returns(new List<ErrorInfo>());
             mock.SetupGet(r => r.Value).Returns(value);
+            mock.SetupGet(r => r.Status).Returns(status ?? ResultStatuses.Success);
+            mock.SetupGet(r => r.Messages).Returns(messages ?? Array.Empty<string>().ToList());
+
             return mock.Object;
         }
 
-        /// <summary>Creates a mock for a generic failed <see cref="IResult{TValue}"/>.</summary>
-        /// <typeparam name="TValue">The type of the result's value.</typeparam>
-        /// <param name="errors">A list of errors.</param>
-        /// <returns>A mocked <see cref="IResult{TValue}"/> instance.</returns>
-        private static IResult<TValue> CreateZentientFailedResultMock<TValue>(List<ErrorInfo> errors)
+        private static IResult<TValue> CreateZentientFailedResultMock<TValue>(
+            List<ErrorInfo> errors,
+            IResultStatus? status = null,
+            List<string>? messages = null)
         {
             Mock<IResult<TValue>> mock = new Mock<IResult<TValue>>();
             mock.SetupGet(r => r.IsSuccess).Returns(false);
             mock.SetupGet(r => r.Errors).Returns(errors);
+            mock.SetupGet(r => r.Status).Returns(status ?? ResultStatuses.Error);
+            mock.SetupGet(r => r.Messages).Returns(messages ?? Array.Empty<string>().ToList());
+
             return mock.Object;
         }
 
-        /// <summary>Creates a mock for a non-generic <see cref="IEndpointResult"/>.</summary>
-        /// <param name="baseResult">The underlying <see cref="Results.IResult"/>.</param>
-        /// <param name="transport">The transport metadata.</param>
-        /// <returns>A mocked <see cref="IEndpointResult"/> instance.</returns>
-        private static IEndpointResult CreateEndpointResult(
-            Results.IResult baseResult,
+        private static IEndpointOutcome CreateEndpointOutcome(
+            Zentient.Results.IResult baseResult,
             TransportMetadata? transport = null)
         {
-            Mock<IEndpointResult> mock = new Mock<IEndpointResult>();
-            mock.SetupGet(e => e.BaseResult).Returns(baseResult);
-            mock.SetupGet(e => e.BaseTransport).Returns(transport ?? TransportMetadata.Default());
+            Mock<IEndpointOutcome> mock = new Mock<IEndpointOutcome>();
+            mock.SetupGet(e => e.IsSuccess).Returns(baseResult.IsSuccess);
+            mock.SetupGet(e => e.IsFailure).Returns(baseResult.IsFailure);
+            mock.SetupGet(e => e.Errors).Returns(baseResult.Errors);
+            mock.SetupGet(e => e.Messages).Returns(baseResult.Messages);
+            mock.SetupGet(e => e.ErrorMessage).Returns(baseResult.ErrorMessage);
+            mock.SetupGet(e => e.Status).Returns(baseResult.Status);
+            mock.SetupGet(e => e.TransportMetadata).Returns(transport ?? new TransportMetadata());
             return mock.Object;
         }
 
-        /// <summary>Creates a mock for a generic <see cref="IEndpointResult{TValue}"/>.</summary>
-        /// <typeparam name="TValue">The type of the endpoint result's value.</typeparam>
-        /// <param name="baseResult">The underlying <see cref="Zentient.Results.IResult{TValue}"/> that contains the value.</param>
-        /// <param name="transport">The transport metadata.</param>
-        /// <returns>A mocked <see cref="IEndpointResult{TValue}"/> instance.</returns>
-        private static IEndpointResult<TValue> CreateGenericEndpointResult<TValue>(
+        private static IEndpointOutcome<TValue> CreateGenericEndpointOutcome<TValue>(
             Zentient.Results.IResult<TValue> baseResult,
             TransportMetadata? transport = null)
             where TValue : notnull
         {
-            Mock<IEndpointResult<TValue>> mock = new Mock<IEndpointResult<TValue>>();
-            mock.SetupGet(e => e.BaseResult).Returns(baseResult);
-            mock.SetupGet(e => e.BaseTransport).Returns(transport ?? TransportMetadata.Default());
+            Mock<IEndpointOutcome<TValue>> mock = new Mock<IEndpointOutcome<TValue>>();
+            mock.SetupGet(e => e.IsSuccess).Returns(baseResult.IsSuccess);
+            mock.SetupGet(e => e.IsFailure).Returns(baseResult.IsFailure);
+            mock.SetupGet(e => e.Errors).Returns(baseResult.Errors);
+            mock.SetupGet(e => e.Messages).Returns(baseResult.Messages);
+            mock.SetupGet(e => e.ErrorMessage).Returns(baseResult.ErrorMessage);
+            mock.SetupGet(e => e.Status).Returns(baseResult.Status);
+            mock.SetupGet(e => e.TransportMetadata).Returns(transport ?? new TransportMetadata());
 
             if (baseResult.IsSuccess)
             {
-                mock.SetupGet(e => e.Result).Returns(baseResult.Value!);
+                mock.SetupGet(e => e.Value).Returns(baseResult.Value!);
             }
             else
             {
-                mock.SetupGet(e => e.Result).Throws<InvalidOperationException>();
+                mock.SetupGet(e => e.Value).Throws<InvalidOperationException>();
             }
 
             return mock.Object;
         }
     }
 }
+#pragma warning restore CS1591
