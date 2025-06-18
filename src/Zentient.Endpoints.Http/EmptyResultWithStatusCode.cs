@@ -1,8 +1,6 @@
-// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="EmptyResultWithStatusCode.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
-// --------------------------------------------------------------------------------------------------------------------
 
 using System;
 using System.Net.Mime;
@@ -13,10 +11,15 @@ using Microsoft.AspNetCore.Mvc;
 
 using Newtonsoft.Json;
 
+// TODO: Consider renaming this class to `NoContentResponse` or `EmptyResponseResult` for clarity.
+// TODO: Consider whether this class should provide an optional message in the HttpContext.Response.Body
 namespace Zentient.Endpoints.Http
 {
-    /// <summary>Represents an empty HTTP result with a specified status code.</summary>
-    public class EmptyResultWithStatusCode : IResult
+    /// <summary>
+    /// Represents an <see cref="Microsoft.AspNetCore.Http.IResult"/> that returns an empty response
+    /// with a specific HTTP status code and content type.
+    /// </summary>
+    internal sealed class EmptyResultWithStatusCode : Microsoft.AspNetCore.Http.IResult
     {
         private readonly int _statusCode;
         private readonly string? _contentType;
@@ -24,8 +27,8 @@ namespace Zentient.Endpoints.Http
         /// <summary>
         /// Initializes a new instance of the <see cref="EmptyResultWithStatusCode"/> class.
         /// </summary>
-        /// <param name="statusCode">The HTTP status code to set in the response.</param>
-        /// <param name="contentType">The Content-Type header value for the response.</param>
+        /// <param name="statusCode">The HTTP status code for the response.</param>
+        /// <param name="contentType">Optional: The content type for the response. Defaults to "application/json".</param>
         public EmptyResultWithStatusCode(
             int statusCode,
             string? contentType = null)
@@ -34,7 +37,9 @@ namespace Zentient.Endpoints.Http
             this._contentType = contentType;
         }
 
-        /// <summary>Gets the HTTP status code for this result.</summary>
+        /// <summary>
+        /// Gets the HTTP status code of the response.
+        /// </summary>
         /// <value>The HTTP status code.</value>
         public int StatusCode => this._statusCode;
 
