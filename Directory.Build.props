@@ -34,6 +34,7 @@
 
 		<!-- Build Behavior & Quality Gates -->
 		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
 		<!-- Enforce CS1591 (missing XML comment) as an error by default for packable projects. -->
 		<WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
 		<Deterministic>true</Deterministic>

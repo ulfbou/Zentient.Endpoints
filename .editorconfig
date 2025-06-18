@@ -67,8 +67,8 @@ max_line_length = 120
 
 # Analyzer severities (Consolidated and updated based on Zentient Guidelines)
 # Documentation
-dotnet_diagnostic.CS1591.severity = error     # Missing XML comments on public members (Updated: Error)
-dotnet_diagnostic.SA1600.severity = error     # Elements must be documented
+dotnet_diagnostic.CS1591.severity = warning    # Missing XML comments on public members (Updated: Error)
+dotnet_diagnostic.SA1600.severity = warning    # Elements must be documented
 
 # Maintainability & Design
 dotnet_diagnostic.CA1062.severity = error      # Validate arguments of public methods
