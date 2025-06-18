@@ -9,58 +9,62 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Microsoft.AspNetCore.Mvc;
+
 namespace Zentient.Endpoints.Http
 {
     /// <summary>
-    /// Constants for standard Problem Details fields and extensions. These constants are used to
-    /// ensure consistent naming across different implementations of Problem Details in the Zentient framework.
+    /// Provides constants related to <see cref="ProblemDetails"/> for consistent key naming
+    /// and default values.
     /// </summary>
     public static class ProblemDetailsConstants
     {
-        /// <summary>The status field name.</summary>
-        public const string Status = "Status";
+        /// <summary>The constant string for "Status" property name in ProblemDetails.</summary>
+        public const string Status = "status";
 
-        /// <summary>The title field name.</summary>
-        public const string Title = "Title";
+        /// <summary>The constant string for "Title" property name in ProblemDetails.</summary>
+        public const string Title = "title";
 
-        /// <summary>The detail field name.</summary>
-        public const string Detail = "Detail";
+        /// <summary>The constant string for "Detail" property name in ProblemDetails.</summary>
+        public const string Detail = "detail";
 
-        /// <summary>The type field name.</summary>
-        public const string Type = "Type";
+        /// <summary>The constant string for "Type" property name in ProblemDetails.</summary>
+        public const string Type = "type";
 
-        /// <summary>The instance field name.</summary>
-        public const string Instance = "Instance";
+        /// <summary>The constant string for "Instance" property name in ProblemDetails.</summary>
+        public const string Instance = "instance";
 
-        /// <summary>The base URI for Problem Details.</summary>
+        /// <summary>The default base URI for problem types as per RFC 7807.</summary>
         public const string DefaultBaseUri = "about:blank";
 
+        /// <summary>The constant string for the "Extensions" key in ProblemDetails.</summary>
+        public const string ExtensionsKey = "extensions";
+
         /// <summary>
-        /// Contains constants for ProblemDetails extension fields. This class is used for logical grouping
-        /// of extension constants related to ProblemDetails in the Zentient framework.
+        /// Provides constant strings for common extension keys used within <see cref="ProblemDetails.Extensions"/>.
         /// </summary>
         [SuppressMessage("Design", "CA1034:Do not nest type", Justification = "Intentional for logical grouping of ProblemDetails extension constants.")]
         [SuppressMessage("Naming", "CA1724:Type names should not match namespaces", Justification = "Extensions is a logical grouping for ProblemDetails extension constants.")]
         [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1600:Elements should be documented", Justification = "Documentation is provided at the class level.")]
         public static class Extensions
         {
-            /// <summary>The status code extension field name.</summary>
-            public const string StatusCode = nameof(StatusCode);
+            /// <summary>The constant string for "statusCode" extension key.</summary>
+            public const string StatusCode = "statuscode";
 
-            /// <summary>The error code extension field name.</summary>
-            public const string ErrorCode = nameof(ErrorCode);
+            /// <summary>The constant string for "errorCode" extension key.</summary>
+            public const string ErrorCode = "errorcode";
 
-            /// <summary>The detail extension field name.</summary>
-            public const string Detail = nameof(Detail);
+            /// <summary>The constant string for "detail" extension key.</summary>
+            public const string Detail = "detail";
 
-            /// <summary>The data extension field name.</summary>
-            public const string Data = nameof(Data);
+            /// <summary>The constant string for "data" extension key.</summary>
+            public const string Data = "data";
 
-            /// <summary>The inner errors extension field name.</summary>
-            public const string InnerErrors = nameof(InnerErrors);
+            /// <summary>The constant string for "innerErrors" extension key.</summary>
+            public const string InnerErrors = "innererrors";
 
-            /// <summary>The trace identifier extension field name.</summary>
-            public const string TraceId = nameof(TraceId);
+            /// <summary>The constant string for "traceId" extension key.</summary>
+            public const string TraceId = "traceid";
         }
     }
 }
