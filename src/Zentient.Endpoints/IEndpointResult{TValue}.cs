@@ -1,5 +1,5 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="IEndpointResult{TResult}.cs" company="Zentient Framework Team">
+// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="IEndpointResult{TValue}.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -14,7 +14,7 @@ namespace Zentient.Endpoints.Core
     /// This interface extends <see cref="IEndpointResult"/> to allow for generic handling
     /// of endpoint results with a specific result type.
     /// </summary>
-    /// <typeparam name="TResult">The type of the business result, which must be notnull.</typeparam>
+    /// <typeparam name="TValue">The type of the business result, which must be <see langword="notnull"/>.</typeparam>
     /// <remarks>
     /// <see cref="IEndpointResult{TResult}"/> serves as the bridge between internal <c>Zentient.Results</c> and
     /// external transport-specific responses, encapsulating the core business outcome
@@ -24,13 +24,13 @@ namespace Zentient.Endpoints.Core
     /// It is particularly useful in scenarios where the endpoint result needs to be processed
     /// by filters or adapters that require knowledge of the specific result type.
     /// </remarks>
-    public interface IEndpointResult<out TResult> : IEndpointResult
-        where TResult : notnull
+    public interface IEndpointResult<out TValue> : IEndpointResult
+        where TValue : notnull
     {
         /// <summary>
         /// Gets the strongly-typed value of the business result.
         /// </summary>
         /// <value>The value of the result, of type <c>TResult</c>.</value>
-        TResult Result { get; }
+        TValue Result { get; }
     }
 }

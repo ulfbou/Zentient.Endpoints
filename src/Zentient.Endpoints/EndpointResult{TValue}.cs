@@ -1,5 +1,5 @@
 // --------------------------------------------------------------------------------------------------------------------
-// <copyright file="EndpointResult{TResult}.cs" company="Zentient Framework Team">
+// <copyright file="EndpointResult{TValue}.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -15,15 +15,15 @@ namespace Zentient.Endpoints.Core
     /// <summary>
     /// Represents the result of an endpoint operation, including the business result and transport metadata.
     /// </summary>
-    /// <typeparam name="TResult">The type of the value returned by the operation.</typeparam>
-    public sealed class EndpointResult<TResult> : IEndpointResult<TResult>
-        where TResult : notnull
+    /// <typeparam name="TValue">The type of the value returned by the operation.</typeparam>
+    public sealed class EndpointResult<TValue> : IEndpointResult<TValue>
+        where TValue : notnull
     {
         /// <summary>
         /// Gets the internal <see cref="IResult{TResult}"/> representing the business outcome.
         /// </summary>
         /// <value>The internal <see cref="IResult{TResult}"/> instance that holds the business result and error information.</value>
-        required public IResult<TResult> InnerResult { get; init; }
+        required public IResult<TValue> InnerResult { get; init; }
 
         /// <summary>
         /// Gets the underlying business result of the operation in a non-generic form.
@@ -37,7 +37,7 @@ namespace Zentient.Endpoints.Core
         /// Implements <see cref="IEndpointResult{TResult}.Result"/>.
         /// </summary>
         /// <value>The strongly-typed value of the business result if successful; otherwise, throws an exception.</value>
-        public TResult Result => this.InnerResult.IsSuccess
+        public TValue Result => this.InnerResult.IsSuccess
             ? this.InnerResult.Value!
             : throw new InvalidOperationException("Cannot access Result.Value when InnerResult is not successful.");
 
@@ -72,9 +72,9 @@ namespace Zentient.Endpoints.Core
         /// <param name="value">The value to return.</param>
         /// <param name="meta">The transport metadata to use, or <c>null</c> for default.</param>
         /// <returns>A successful <see cref="EndpointResult{TResult}"/>.</returns>
-        public static EndpointResult<TResult> From(TResult value, TransportMetadata? meta = null)
+        public static EndpointResult<TValue> From(TValue value, TransportMetadata? meta = null)
         {
-            return new EndpointResult<TResult>
+            return new EndpointResult<TValue>
             {
                 InnerResult = Zentient.Results.Result.Success(value),
                 BaseTransport = meta ?? TransportMetadata.Default(),
@@ -90,11 +90,11 @@ namespace Zentient.Endpoints.Core
         /// An <see cref="EndpointResult{TResult}"/> containing the provided result and transport metadata.
         /// </returns>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="result"/> is <c>null</c>.</exception>
-        public static EndpointResult<TResult> From(IResult<TResult> result, TransportMetadata? meta = null)
+        public static EndpointResult<TValue> From(IResult<TValue> result, TransportMetadata? meta = null)
         {
             ArgumentNullException.ThrowIfNull(result, nameof(result));
 
-            return new EndpointResult<TResult>
+            return new EndpointResult<TValue>
             {
                 InnerResult = result,
                 BaseTransport = meta ?? TransportMetadata.Default(),
@@ -107,16 +107,16 @@ namespace Zentient.Endpoints.Core
         /// <param name="error">The error to return.</param>
         /// <param name="meta">The transport metadata to use, or <c>null</c> for default.</param>
         /// <returns>A failed <see cref="EndpointResult{TResult}"/>.</returns>
-        public static EndpointResult<TResult> From(ErrorInfo error, TransportMetadata? meta = null)
+        public static EndpointResult<TValue> From(ErrorInfo error, TransportMetadata? meta = null)
         {
             if (error.Equals(default))
             {
                 throw new ArgumentNullException(nameof(error), "Error cannot be null.");
             }
 
-            return new EndpointResult<TResult>
+            return new EndpointResult<TValue>
             {
-                InnerResult = Zentient.Results.Result.Failure<TResult>(error),
+                InnerResult = Zentient.Results.Result.Failure<TValue>(error),
                 BaseTransport = meta ?? TransportMetadata.Default(),
             };
         }
@@ -127,7 +127,7 @@ namespace Zentient.Endpoints.Core
         /// <typeparam name="TNewResult">The type to map the value to.</typeparam>
         /// <param name="map">The mapping function.</param>
         /// <returns>A new <see cref="EndpointResult{TNewResult}"/> with the mapped value and the same transport metadata.</returns>
-        public EndpointResult<TNewResult> Map<TNewResult>(Func<TResult, TNewResult> map)
+        public EndpointResult<TNewResult> Map<TNewResult>(Func<TValue, TNewResult> map)
             where TNewResult : notnull
         {
             ArgumentNullException.ThrowIfNull(map, nameof(map));
@@ -147,7 +147,7 @@ namespace Zentient.Endpoints.Core
         /// <returns>
         /// The result of the binder function if the operation was successful; otherwise, a failed <see cref="EndpointResult{TNewResult}"/>.
         /// </returns>
-        public EndpointResult<TNewResult> Bind<TNewResult>(Func<TResult, EndpointResult<TNewResult>> binder)
+        public EndpointResult<TNewResult> Bind<TNewResult>(Func<TValue, EndpointResult<TNewResult>> binder)
             where TNewResult : notnull
         {
             ArgumentNullException.ThrowIfNull(binder, nameof(binder));
@@ -167,7 +167,7 @@ namespace Zentient.Endpoints.Core
         /// from an <see cref="EndpointResult{TResult}"/> instance,
         /// facilitating pattern matching and tuple deconstruction.
         /// </remarks>
-        public void Deconstruct(out TResult value, out TransportMetadata metadata)
+        public void Deconstruct(out TValue value, out TransportMetadata metadata)
         {
             value = this.Result;
             metadata = this.BaseTransport;
