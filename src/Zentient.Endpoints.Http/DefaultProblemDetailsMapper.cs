@@ -1,8 +1,6 @@
-// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="DefaultProblemDetailsMapper.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
-// --------------------------------------------------------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -25,33 +23,33 @@ namespace Zentient.Endpoints.Http
     /// and populates <see cref="ProblemDetails"/> fields like Title, Detail, and Extensions
     /// with information from the <see cref="ErrorInfo"/>.
     /// </remarks>
-    public sealed class DefaultProblemDetailsMapper : IProblemDetailsMapper
+    internal sealed class DefaultProblemDetailsMapper : IProblemDetailsMapper
     {
-        private readonly IProblemTypeUriGenerator? _problemTypeUriGenerator;
+        private readonly IProblemTypeUriGenerator _problemTypeUriGenerator;
 
-        /// <summary>Initializes a new instance of the <see cref="DefaultProblemDetailsMapper"/> class.</summary>
-        /// <param name="problemTypeUriGenerator">An optional <see cref="IProblemTypeUriGenerator"/> to generate URIs for problem types.</param>
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DefaultProblemDetailsMapper"/> class.
+        /// </summary>
+        /// <param name="problemTypeUriGenerator">The problem type URI generator to use. If <c>null</c>, a default <see cref="DefaultProblemTypeUriGenerator"/> is used.</param>
         public DefaultProblemDetailsMapper(IProblemTypeUriGenerator? problemTypeUriGenerator = null)
         {
-            this._problemTypeUriGenerator = problemTypeUriGenerator;
+            this._problemTypeUriGenerator = problemTypeUriGenerator ?? new DefaultProblemTypeUriGenerator();
         }
 
         /// <summary>
-        /// Maps an <see cref="ErrorInfo"/> object to a <see cref="ProblemDetails"/> instance.
+        /// Maps an <see cref="ErrorInfo"/> object to a <see cref="ProblemDetails"/> instance asynchronously.
         /// </summary>
-        /// <param name="errorInfo">The <see cref="ErrorInfo"/> to map.</param>
+        /// <param name="errorInfo">The <see cref="ErrorInfo"/> to map. If <c>null</c>, a generic internal server error ProblemDetails will be returned.</param>
         /// <param name="httpContext">The current <see cref="HttpContext"/>, providing additional context.</param>
-        /// <returns>A <see cref="ProblemDetails"/> instance.</returns>
-        public ProblemDetails Map(ErrorInfo? errorInfo, HttpContext httpContext)
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation, containing the <see cref="ProblemDetails"/> instance.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="httpContext"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if <paramref name="errorInfo"/> has <see cref="ErrorCategory.None"/>, indicating an issue in upstream result handling.</exception>
+        public async Task<Microsoft.AspNetCore.Mvc.ProblemDetails> Map(ErrorInfo? errorInfo, HttpContext httpContext)
         {
             ArgumentNullException.ThrowIfNull(httpContext, nameof(httpContext));
 
             if (errorInfo == null)
             {
-                // If no error information is provided, return a generic error ProblemDetails.
-                // However, this should be handled carefully as it may indicate a logic error upstream.
-                // Check if TraceId is set to provide some context in the response.
-                // TODO: Change ResultStatuses.Error to ResultStatuses.InternalServerError
                 var defaultExtensions = new Dictionary<string, object?>();
 
                 if (!string.IsNullOrEmpty(httpContext.TraceIdentifier))
@@ -59,7 +57,7 @@ namespace Zentient.Endpoints.Http
                     defaultExtensions[ProblemDetailsConstants.Extensions.TraceId] = httpContext.TraceIdentifier;
                 }
 
-                return new ProblemDetails
+                return await Task.FromResult(new Microsoft.AspNetCore.Mvc.ProblemDetails
                 {
                     Status = ResultStatuses.Error.Code,
                     Title = ResultStatuses.Error.Description,
@@ -67,7 +65,7 @@ namespace Zentient.Endpoints.Http
                     Instance = httpContext.Request.Path,
                     Type = this._problemTypeUriGenerator?.GenerateProblemTypeUri(null)?.ToString(),
                     Extensions = defaultExtensions,
-                };
+                }).ConfigureAwait(false);
             }
 
             ErrorInfo actualErrorInfo = (ErrorInfo)errorInfo;
@@ -117,21 +115,25 @@ namespace Zentient.Endpoints.Http
                 }
             }
 
-            ProblemDetails problemDetails = new ProblemDetails
+            string? problemTypeUriString = this._problemTypeUriGenerator?.GenerateProblemTypeUri(actualErrorInfo.Code)?.ToString();
+
+            Microsoft.AspNetCore.Mvc.ProblemDetails problemDetails = new Microsoft.AspNetCore.Mvc.ProblemDetails
             {
                 Status = statusCode,
                 Title = ResultStatuses.GetStatus(statusCode, "An Error Occurred").Description,
                 Detail = actualErrorInfo.Message,
-                Type = this._problemTypeUriGenerator?.GenerateProblemTypeUri(actualErrorInfo.Code)?.ToString(),
+                Type = problemTypeUriString,
                 Instance = httpContext.Request.Path,
                 Extensions = populatedExtensions,
             };
 
-            return problemDetails;
+            return await Task.FromResult(problemDetails).ConfigureAwait(false);
         }
 
-        /// <summary>Converts an <see cref="ErrorCategory"/> to an appropriate <see cref="HttpStatusCode"/>.</summary>
-        /// <param name="category">The error category.</param>
+        /// <summary>
+        /// Converts an <see cref="ErrorCategory"/> to an appropriate HTTP status code.
+        /// </summary>
+        /// <param name="category">The error category from <see cref="Zentient.Results.ErrorInfo"/>.</param>
         /// <returns>The corresponding HTTP status code.</returns>
         private static int GetHttpStatusCode(ErrorCategory category) => category switch
         {
