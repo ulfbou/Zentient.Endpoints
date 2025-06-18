@@ -1,8 +1,6 @@
-// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="NewtonsoftJsonResult.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
-// --------------------------------------------------------------------------------------------------------------------
 
 using System;
 using System.Net.Mime;
@@ -16,10 +14,9 @@ using Newtonsoft.Json;
 namespace Zentient.Endpoints.Http
 {
     /// <summary>
-    /// A custom <see cref="IResult"/> implementation that serializes a given object
-    /// to the HTTP response using Newtonsoft.Json.
+    /// Represents an <see cref="Microsoft.AspNetCore.Http.IResult"/> that returns JSON content using Newtonsoft.Json.
     /// </summary>
-    public class NewtonsoftJsonResult : IResult
+    internal sealed class NewtonsoftJsonResult : Microsoft.AspNetCore.Http.IResult
     {
         private readonly object? _value;
         private readonly int? _statusCode;
@@ -29,10 +26,10 @@ namespace Zentient.Endpoints.Http
         /// <summary>
         /// Initializes a new instance of the <see cref="NewtonsoftJsonResult"/> class.
         /// </summary>
-        /// <param name="value">The object to serialize to the response body.</param>
-        /// <param name="statusCode">The HTTP status code to set for the response.</param>
-        /// <param name="contentType">The Content-Type header value for the response.</param>
-        /// <param name="serializerSettings">Optional Newtonsoft.Json serializer settings.</param>
+        /// <param name="value">The object to be serialized to JSON.</param>
+        /// <param name="statusCode">Optional: The HTTP status code to set for the response. Defaults to 200 OK.</param>
+        /// <param name="contentType">Optional: The content type for the response. Defaults to "application/json" or "application/problem+json" for ProblemDetails.</param>
+        /// <param name="serializerSettings">Optional: <see cref="JsonSerializerSettings"/> to use for serialization.</param>
         public NewtonsoftJsonResult(
             object? value,
             int? statusCode = null,
@@ -45,8 +42,10 @@ namespace Zentient.Endpoints.Http
             this._serializerSettings = serializerSettings;
         }
 
-        /// <summary>Gets the HTTP status code for this result.</summary>
-        /// <value>The HTTP status code.</value>
+        /// <summary>
+        /// Gets the HTTP status code of the response.
+        /// </summary>
+        /// <value>The HTTP status code, defaults to 200 OK if not specified.</value>
         public int StatusCode => this._statusCode ?? StatusCodes.Status200OK;
 
         /// <inheritdoc />
