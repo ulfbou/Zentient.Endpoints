@@ -9,9 +9,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
 
-using Zentient.Endpoints.Core.Serialization;
+using Zentient.Endpoints.Serialization;
 
-namespace Zentient.Endpoints.Core
+namespace Zentient.Endpoints
 {
     /// <summary>
     /// Represents a void type or the absence of a value.
@@ -112,7 +112,7 @@ namespace Zentient.Endpoints.Core
 
         /// <inheritdoc />
         public override string ToString()
-            => "()";
+            => "Unit";
 
         /// <summary>Compares this instance with another object of the same type.</summary>
         /// <param name="obj">The object to compare with this instance.</param>

@@ -8,9 +8,9 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Zentient.Endpoints.Core;
+using Zentient.Endpoints;
 
-namespace Zentient.Endpoints.Core.Serialization
+namespace Zentient.Endpoints.Serialization
 {
     /// <summary>A JSON converter for the <see cref="Unit"/> type.</summary>
     public class UnitJsonConverter : JsonConverter<Unit>
