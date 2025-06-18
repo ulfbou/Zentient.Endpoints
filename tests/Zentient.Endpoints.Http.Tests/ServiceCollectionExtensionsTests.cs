@@ -1,14 +1,13 @@
-// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="ServiceCollectionExtensionsTests.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
-// --------------------------------------------------------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
+using System.Net.Mime;
 using System.Reflection;
 using System.Runtime;
 
@@ -29,22 +28,13 @@ using Newtonsoft.Json.Linq;
 
 using Xunit;
 
-using Zentient.Endpoints.Core;
 using Zentient.Results;
 
+#pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
 {
-    /// <summary>
-    /// Contains sophisticated and exhaustive unit tests for the <see cref="ServiceCollectionExtensions"/> class.
-    /// These tests ensure that the correct services are registered with the expected lifetimes
-    /// and that the extension methods for <see cref="RouteHandlerBuilder"/> work as intended.
-    /// </summary>
     public sealed partial class ServiceCollectionExtensionsTests
     {
-        /// <summary>
-        /// Tests that <see cref="ServiceCollectionExtensions.AddZentientEndpointsHttp"/>
-        /// correctly registers <see cref="IProblemTypeUriGenerator"/> as scoped.
-        /// </summary>
         [Fact]
         public void AddZentientEndpointsHttp_RegistersIProblemDetailsMapperAsScoped()
         {
@@ -66,12 +56,8 @@ namespace Zentient.Endpoints.Http.Tests
             mapper.Should().NotBeNull();
         }
 
-        /// <summary>
-        /// Tests that <see cref="ServiceCollectionExtensions.AddZentientEndpointsHttp"/>
-        /// correctly registers <see cref="IEndpointResultToHttpResultMapper"/> as scoped.
-        /// </summary>
         [Fact]
-        public void AddZentientEndpointsHttp_RegistersIEndpointResultToHttpResultMapperAsScoped()
+        public void AddZentientEndpointsHttp_RegistersIEndpointOutcomeToHttpResultMapperAsScoped()
         {
             // Arrange
             IServiceCollection services = new ServiceCollection();
@@ -81,20 +67,16 @@ namespace Zentient.Endpoints.Http.Tests
             using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
             // Assert
-            ServiceDescriptor? descriptor = services.FirstOrDefault(s => s.ServiceType == typeof(IEndpointResultToHttpResultMapper));
-            descriptor.Should().NotBeNull("because IEndpointResultToHttpResultMapper should be registered.");
-            descriptor!.ImplementationType.Should().Be<EndpointResultHttpMapper>();
+            ServiceDescriptor? descriptor = services.FirstOrDefault(s => s.ServiceType == typeof(IEndpointOutcomeToHttpMapper));
+            descriptor.Should().NotBeNull("because IEndpointOutcomeToHttpResultMapper should be registered.");
+            descriptor!.ImplementationType.Should().Be<EndpointOutcomeHttpMapper>();
             descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
 
-            IEndpointResultToHttpResultMapper? mapper = serviceProvider.GetService<IEndpointResultToHttpResultMapper>();
-            mapper.Should().BeOfType<EndpointResultHttpMapper>();
+            IEndpointOutcomeToHttpMapper? mapper = serviceProvider.GetService<IEndpointOutcomeToHttpMapper>();
+            mapper.Should().BeOfType<EndpointOutcomeHttpMapper>();
             mapper.Should().NotBeNull();
         }
 
-        /// <summary>
-        /// Tests that <see cref="ServiceCollectionExtensions.AddZentientEndpointsHttp"/>
-        /// uses <c>TryAddScoped</c> for <see cref="IProblemDetailsMapper"/>, not replacing an existing registration.
-        /// </summary>
         [Fact]
         public void AddZentientEndpointsHttp_DoesNotReplaceExistingProblemDetailsMapper()
         {
@@ -112,16 +94,12 @@ namespace Zentient.Endpoints.Http.Tests
             resolvedMapper.Should().BeSameAs(mockMapper, "because TryAddScoped should not replace an existing registration.");
         }
 
-        /// <summary>
-        /// Tests that <see cref="ServiceCollectionExtensions.AddZentientEndpointsHttp"/>
-        /// uses <c>TryAddScoped</c> for <see cref="IEndpointResultToHttpResultMapper"/>, not replacing an existing registration.
-        /// </summary>
         [Fact]
-        public void AddZentientEndpointsHttp_DoesNotReplaceExistingEndpointResultToHttpResultMapper()
+        public void AddZentientEndpointsHttp_DoesNotReplaceExistingEndpointOutcomeToHttpResultMapper()
         {
             // Arrange
             IServiceCollection services = new ServiceCollection();
-            IEndpointResultToHttpResultMapper mockMapper = Mock.Of<IEndpointResultToHttpResultMapper>();
+            IEndpointOutcomeToHttpMapper mockMapper = Mock.Of<IEndpointOutcomeToHttpMapper>();
             services.AddSingleton(mockMapper);
 
             // Act
@@ -129,43 +107,32 @@ namespace Zentient.Endpoints.Http.Tests
             using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
             // Assert
-            IEndpointResultToHttpResultMapper? resolvedMapper = serviceProvider.GetService<IEndpointResultToHttpResultMapper>();
+            IEndpointOutcomeToHttpMapper? resolvedMapper = serviceProvider.GetService<IEndpointOutcomeToHttpMapper>();
             resolvedMapper.Should().BeSameAs(mockMapper, "because TryAddScoped should not replace an existing registration.");
         }
 
-        /// <summary>
-        /// Tests that <see cref="ServiceCollectionExtensions.WithNormalizeEndpointResultFilter"/>
-        /// throws <see cref="ArgumentNullException"/> if the <see cref="RouteHandlerBuilder"/> parameter is null.
-        /// </summary>
         [Fact]
-        public void WithNormalizeEndpointResultFilter_NullBuilder_ThrowsArgumentNullException()
+        public void WithNormalizeEndpointOutcomeFilter_NullBuilder_ThrowsArgumentNullException()
         {
             // Arrange
             RouteHandlerBuilder nullBuilder = null!;
 
             // Act
-            Action act = () => nullBuilder.WithNormalizeEndpointResultFilter();
+            Action act = () => nullBuilder.WithNormalizeEndpointOutcomeFilter();
 
             // Assert
             act.Should().Throw<ArgumentNullException>().WithParameterName("builder");
         }
 
-        /// <summary>
-        /// Verifies that <see cref="ServiceCollectionExtensions.WithNormalizeEndpointResultFilter"/>
-        /// correctly adds the <see cref="NormalizeEndpointResultFilter"/> to a Minimal API endpoint.
-        /// This is an integration test to verify the filter's application and effect.
-        /// </summary>
-        /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
         [Fact]
-        [SuppressMessage("Minor Code Smell", "CA1506:Avoid excessive class coupling", Justification = "Integration test inherently has high coupling.")]
-        public async Task WithNormalizeEndpointResultFilter_AppliesFilterCorrectly()
+        [SuppressMessage("Maintainability", "CA1506:Avoid excessive class coupling", Justification = "Integration test for filter application requires setting up a full ASP.NET Core host, involving multiple types.")]
+        public async Task WithNormalizeEndpointOutcomeFilter_AppliesFilterCorrectly()
         {
             // Arrange
-            // FIX "Use explicit type instead of 'var'": Use WebHostBuilder
             IWebHostBuilder hostBuilder = new WebHostBuilder()
                 .ConfigureServices(services =>
                 {
-                    services.AddZentientEndpointsHttp(); // Only register the services here
+                    services.AddZentientEndpointsHttp();
                     services.AddRouting();
                     services.AddControllers()
                             .AddNewtonsoftJson()
@@ -176,9 +143,9 @@ namespace Zentient.Endpoints.Http.Tests
                     app.UseRouting();
                     app.UseEndpoints(endpoints =>
                     {
-                        // Apply the filter to the specific Minimal API endpoint
-                        endpoints.MapGet("/test-endpoint", () => EndpointResult<string>.From("Hello World"))
-                                 .WithNormalizeEndpointResultFilter(); // Apply the filter here
+                        IResult<string> result = Result<string>.Success("Hello World");
+                        endpoints.MapGet("/test-endpoint", () => EndpointOutcome<string>.From(result))
+                                 .WithNormalizeEndpointOutcomeFilter();
                     });
                 });
 
@@ -187,21 +154,24 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Act
             HttpResponseMessage response = await client.GetAsync(new Uri("/test-endpoint", UriKind.Relative));
+            string responseBody = await response.Content.ReadAsStringAsync();
 
             // Assert
-            response.IsSuccessStatusCode.Should().BeTrue("because the EndpointResult should be successfully converted to HTTP 200 OK.");
-            (await response.Content.ReadAsStringAsync()).Should().Be("\"Hello World\"", "because the filter should have mapped the EndpointResult to the correct JSON string.");
+            response.IsSuccessStatusCode.Should().BeTrue("because the EndpointOutcome should be successfully converted to HTTP 200 OK.");
             response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            SuccessResponse<string>? deserializedResponse = JsonConvert.DeserializeObject<SuccessResponse<string>>(responseBody);
+            deserializedResponse.Should().NotBeNull("because the response body should be a deserializable SuccessResponse.");
+            deserializedResponse!.Data.Should().Be("Hello World", "because the filter should have mapped the EndpointOutcome's value into the 'data' field.");
+            deserializedResponse.StatusCode.Should().Be(ResultStatuses.Success.Code, "because the status code in the response object should match the mapped HTTP status.");
+            deserializedResponse.StatusDescription.Should().Be(ResultStatuses.Success.Description, "because the status description in the response object should reflect the success.");
+            deserializedResponse.Messages.Should().BeEmpty("because no messages were provided in the successful result.");
+
+            response.Content.Headers.ContentType?.MediaType.Should().Be(MediaTypeNames.Application.Json);
         }
 
-        /// <summary>
-        /// Verifies that <see cref="ServiceCollectionExtensions.WithNormalizeEndpointResultFilter"/>
-        /// correctly handles a failed <see cref="EndpointResult{TResult}"/> by mapping it to <see cref="ProblemDetails"/>.
-        /// This test uses <see cref="TestServer"/> for end-to-end validation.
-        /// </summary>
         [Fact]
-        [SuppressMessage("Minor Code Smell", "CA1506:Avoid excessive class coupling", Justification = "Integration test inherently has high coupling.")]
-        public async Task WithNormalizeEndpointResultFilter_AppliesFilterCorrectly_FailedResult()
+        public async Task WithNormalizeEndpointOutcomeFilter_AppliesFilterCorrectly_FailedResult()
         {
             const string ResNotFound = "RES_NOT_FOUND";
             const string ResNotFoundDescription = "Resource not found.";
@@ -209,7 +179,7 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Arrange
             ErrorInfo errorInfo = new ErrorInfo(ErrorCategory.NotFound, ResNotFound, ResNotFoundDescription);
-            var endpointResult = EndpointResult<object>.From(errorInfo);
+            IEndpointOutcome<object> endpointResult = EndpointOutcome<object>.From(errorInfo);
             IWebHostBuilder hostBuilder = new WebHostBuilder()
                 .ConfigureServices(services =>
                 {
@@ -226,7 +196,7 @@ namespace Zentient.Endpoints.Http.Tests
                     app.UseEndpoints(endpoints =>
                     {
                         endpoints.MapGet("/test-fail-endpoint", () => endpointResult)
-                                 .WithNormalizeEndpointResultFilter();
+                                 .WithNormalizeEndpointOutcomeFilter();
                     });
                 });
 
@@ -241,29 +211,30 @@ namespace Zentient.Endpoints.Http.Tests
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
             response.Content.Headers.ContentType?.ToString().Should().Contain("application/problem+json");
 
-            Dictionary<string, object?>? jsonObject = JsonConvert.DeserializeObject<Dictionary<string, object?>>(responseBody);
+            Newtonsoft.Json.Linq.JObject jsonObject = JsonConvert.DeserializeObject<Newtonsoft.Json.Linq.JObject>(responseBody)!;
             jsonObject.Should().NotBeNull();
 
             jsonObject.Should().ContainKey(ProblemDetailsConstants.Status);
-            jsonObject[ProblemDetailsConstants.Status]
+            jsonObject[ProblemDetailsConstants.Status]!.Value<int>()
                 .Should().Be(ResultStatuses.NotFound.Code, "because the status code should be mapped as a top-level property.");
 
             jsonObject.Should().ContainKey(ProblemDetailsConstants.Title);
-            jsonObject[ProblemDetailsConstants.Title]
+            jsonObject[ProblemDetailsConstants.Title]!
+                .Value<string>()
                 .Should().Be(ResultStatuses.NotFound.Description, "because the title should be mapped as a top-level property.");
 
             jsonObject.Should().ContainKey(ProblemDetailsConstants.Detail);
-            jsonObject[ProblemDetailsConstants.Detail]
+            jsonObject[ProblemDetailsConstants.Detail]!
+                .Value<string>()
                 .Should().Be(ResNotFoundDescription, "because the detail should be mapped as a top-level property.");
 
             jsonObject.Should().ContainKey(ProblemDetailsConstants.Instance);
-            jsonObject[ProblemDetailsConstants.Title]
-                .Should().Be(ResultStatuses.NotFound.Description, "because the title should be mapped as a top-level property.");
+            jsonObject[ProblemDetailsConstants.Instance]!
+                .Value<string>()
+                .Should().Be(TestFailEndpoint, "because the instance should be the request path.");
 
-            // Extensions properties
-            jsonObject.Should().ContainKey(nameof(ProblemDetailsConstants.Extensions));
-
-            var extensions = jsonObject[nameof(ProblemDetailsConstants.Extensions)] as Newtonsoft.Json.Linq.JObject;
+            jsonObject.Should().ContainKey("extensions");
+            var extensions = jsonObject["extensions"] as Newtonsoft.Json.Linq.JObject;
             extensions.Should().NotBeNull();
 
             extensions.Should().ContainKey(ProblemDetailsConstants.Extensions.ErrorCode);
@@ -274,60 +245,49 @@ namespace Zentient.Endpoints.Http.Tests
             extensions.Should().ContainKey(ProblemDetailsConstants.Extensions.TraceId);
             extensions[ProblemDetailsConstants.Extensions.TraceId]!
                 .Value<string>()
-                .Should().NotBeNull("because the trace identifier should be included in the response for diagnostics.");
+                .Should().NotBeNullOrEmpty("because the trace identifier should be included in the response for diagnostics.");
+        }
+    }
+
+    [ApiController]
+    [Route("[controller]")]
+    internal sealed class TestEndpointController : ControllerBase
+    {
+        public static IEndpointOutcome? NextEndpointOutcomeForTest { get; set; }
+
+        [HttpGet("test-endpoint")]
+        // Change the return type from ActionResult<EndpointOutcome<string>> to IEndpointOutcome
+        // This allows the NormalizeEndpointResultFilter to correctly intercept and process the outcome.
+        public static IEndpointOutcome GetTestEndpoint()
+        {
+            if (NextEndpointOutcomeForTest is null)
+            {
+                return EndpointOutcome<string>.Success("Hello World");
+            }
+
+            // Return the pre-configured outcome directly.
+            // Since NextEndpointOutcomeForTest is already IEndpointOutcome,
+            // no further casting or fallback creation is needed at this point for the return.
+            // The logic within the filter will handle the specific type (e.e.g, IEndpointOutcome<string>)
+            // and transform it into an IResult.
+            return NextEndpointOutcomeForTest;
+        }
+
+        [HttpGet("test-fail-endpoint")]
+        public static ActionResult<IEndpointOutcome> GetTestFailEndpoint()
+        {
+            if (TestEndpointController.NextEndpointOutcomeForTest is null)
+            {
+                throw new InvalidOperationException("NextEndpointOutcomeForTest was not set for failure test.");
+            }
+
+            return new ActionResult<IEndpointOutcome>(TestEndpointController.NextEndpointOutcomeForTest);
+        }
+
+        public TestEndpointController()
+        {
+            NextEndpointOutcomeForTest = null;
         }
     }
 }
-
-/// <summary>
-/// A dummy controller for testing purposes within TestServer.
-/// This needs to be public for discovery by AddApplicationPart.
-/// </summary>
-[ApiController]
-[Route("[controller]")]
-internal sealed class TestEndpointController : ControllerBase
-{
-    /// <summary>
-    /// Static property to hold the next <see cref="IEndpointResult"/> for test cases.
-    /// </summary>
-    public static IEndpointResult? NextEndpointResultForTest { get; set; }
-
-    /// <summary>
-    /// Test endpoint that returns a successful <see cref="EndpointResult{TResult}"/>.
-    /// </summary>
-    /// <returns>An <see cref="ActionResult{T}"/> containing an <see cref="EndpointResult{TResult}"/> with a string value.</returns>
-    [HttpGet("test-endpoint")]
-    public static ActionResult<EndpointResult<string>> GetTestEndpoint()
-    {
-        // For the first test, return a successful EndpointResult
-        if (NextEndpointResultForTest is null)
-        {
-            // Default success for the first test, if not explicitly set
-            return EndpointResult<string>.From("Hello World");
-        }
-        // For the failed test, return the pre-configured error result
-        return NextEndpointResultForTest as EndpointResult<string> ?? EndpointResult<string>.From("Fallback Success");
-    }
-
-    /// <summary>
-    /// Test endpoint that simulates a failure by returning a pre-set <see cref="IEndpointResult"/> for testing error handling.
-    /// </summary>
-    /// <returns>An <see cref="ActionResult{T}"/> containing the next <see cref="IEndpointResult"/> for test failure.</returns>
-    /// <exception cref="InvalidOperationException">Thrown if <see cref="NextEndpointResultForTest"/> is not set.</exception>
-    [HttpGet("test-fail-endpoint")]
-    public static ActionResult<IEndpointResult> GetTestFailEndpoint()
-    {
-        // Always return the static value for the failed test, which should be pre-set.
-        if (TestEndpointController.NextEndpointResultForTest is null)
-        {
-            throw new InvalidOperationException("NextEndpointResultForTest was not set for failure test.");
-        }
-        return new ActionResult<IEndpointResult>(TestEndpointController.NextEndpointResultForTest);
-    }
-
-    // Reset static state after each test
-    public TestEndpointController()
-    {
-        NextEndpointResultForTest = null;
-    }
-}
+#pragma warning restore CS1591
