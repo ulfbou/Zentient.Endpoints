@@ -5,10 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Zentient.Endpoints.Http
 {
@@ -38,27 +35,27 @@ namespace Zentient.Endpoints.Http
 
         /// <summary>Gets the primary data returned by the operation.</summary>
         /// <value>An instance of <typeparamref name="TData"/> containing the result of the operation, or null if no data is available.</value>
-        [JsonProperty("data")]
+        [JsonPropertyName("data")]
         public TData? Data { get; }
 
         /// <summary>Gets a human-readable message describing the overall status of the operation.</summary>
         /// <value>A string containing a message that provides additional context about the operation's success, or null if no message is provided.</value>
-        [JsonProperty("message")]
+        [JsonPropertyName("message")]
         public string? Message { get; }
 
         /// <summary>Gets a list of additional messages (e.g., warnings or informational notes) associated with the result.</summary>
         /// <value>A read-only list of strings containing any additional messages related to the operation, or an empty list if no additional messages are available.</value>
-        [JsonProperty("messages")]
+        [JsonPropertyName("messages")]
         public IReadOnlyList<string> Messages { get; }
 
         /// <summary>Gets the HTTP status code (e.g., 200, 201).</summary>
         /// <value>An integer representing the HTTP status code for the response, indicating the outcome of the operation.</value>
-        [JsonProperty("statusCode")]
+        [JsonPropertyName("statusCode")]
         public int StatusCode { get; }
 
         /// <summary>Gets the human-readable description of the HTTP status code (e.g., "OK", "Created").</summary>
         /// <value>A string providing a human-readable description of the HTTP status code, giving context to the status code returned.</value>
-        [JsonProperty("statusDescription")]
+        [JsonPropertyName("statusDescription")]
         public string StatusDescription { get; }
     }
 }
