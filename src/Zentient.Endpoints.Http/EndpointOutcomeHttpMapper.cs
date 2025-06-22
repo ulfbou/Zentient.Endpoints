@@ -8,18 +8,14 @@ using System.Net;
 using System.Net.Mime;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
-
 using Zentient.Endpoints;
 using Zentient.Results;
-
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Zentient.Endpoints.Http
 {
@@ -30,7 +26,7 @@ namespace Zentient.Endpoints.Http
     internal sealed class EndpointOutcomeHttpMapper : IEndpointOutcomeToHttpMapper
     {
         private readonly IProblemDetailsMapper _problemDetailsMapper;
-        private readonly JsonSerializerSettings _jsonSerializerSettings;
+        private readonly JsonSerializerOptions _jsonSerializerOptions;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EndpointOutcomeHttpMapper"/> class.
@@ -39,11 +35,19 @@ namespace Zentient.Endpoints.Http
         public EndpointOutcomeHttpMapper(IProblemDetailsMapper problemDetailsMapper)
         {
             this._problemDetailsMapper = problemDetailsMapper;
-            this._jsonSerializerSettings = new JsonSerializerSettings
+            this._jsonSerializerOptions = new JsonSerializerOptions
             {
-                ContractResolver = new CamelCasePropertyNamesContractResolver(),
-                NullValueHandling = NullValueHandling.Ignore,
-                Formatting = Formatting.None,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = false, // Set to true for readable output during debugging if needed
+
+                // This is the crucial setting.
+                // WhenWritingNull generally means null properties are skipped.
+                // For ProblemDetails.Extensions (which is a Dictionary),
+                // sometimes an empty dictionary might be treated as "default" or "null" depending on context.
+                // To guarantee serialization of the "extensions" property even if the dictionary is empty,
+                // or contains only properties that might be considered "default" by some rules,
+                // set it to JsonIgnoreCondition.Never.
+                DefaultIgnoreCondition = JsonIgnoreCondition.Never,
             };
         }
 
@@ -60,7 +64,7 @@ namespace Zentient.Endpoints.Http
             ArgumentNullException.ThrowIfNull(httpContext, nameof(httpContext));
 
             return endpointResult.IsSuccess
-                ? HandleSuccessfulResult(endpointResult, this._jsonSerializerSettings)
+                ? HandleSuccessfulResult(endpointResult, this._jsonSerializerOptions)
                 : await this.HandleFailedResultAsync(endpointResult, httpContext).ConfigureAwait(false);
         }
 
@@ -69,13 +73,16 @@ namespace Zentient.Endpoints.Http
         /// This now constructs a <see cref="SuccessResponse{TData}"/> to include messages and status description.
         /// </summary>
         /// <param name="endpointResult">The successful endpoint result.</param>
-        /// <param name="serializerSettings">The JSON serializer settings to use.</param>
+        /// <param name="serializerOptions">The <see cref="JsonSerializerOptions"/> to use for serialization.</param>
         /// <returns>A <see cref="Microsoft.AspNetCore.Http.IResult"/> for the successful response.</returns>
-        private static Microsoft.AspNetCore.Http.IResult HandleSuccessfulResult(IEndpointOutcome endpointResult, JsonSerializerSettings serializerSettings)
+        private static Microsoft.AspNetCore.Http.IResult HandleSuccessfulResult(IEndpointOutcome endpointResult, JsonSerializerOptions serializerOptions)
         {
+            ArgumentNullException.ThrowIfNull(endpointResult, nameof(endpointResult));
+            ArgumentNullException.ThrowIfNull(serializerOptions, nameof(serializerOptions));
+
             int httpStatusCode = endpointResult.TransportMetadata.HttpStatusCode
                 ?? endpointResult.Status.Code;
-            IResultStatus resultStatus = endpointResult.Status; // This is the semantic status
+            IResultStatus resultStatus = endpointResult.Status;
             IReadOnlyList<string> messages = endpointResult.Messages;
 
             object? value = null;
@@ -86,7 +93,8 @@ namespace Zentient.Endpoints.Http
 
             if (httpStatusCode == ResultStatuses.NoContent.Code && (value is Unit || value == null) && messages.Count == 0)
             {
-                return new EmptyResultWithStatusCode(httpStatusCode, MediaTypeNames.Application.Json);
+                // Use Results.StatusCode for empty 204 response
+                return Microsoft.AspNetCore.Http.Results.StatusCode(httpStatusCode);
             }
 
             var successResponse = new SuccessResponse<object?>(
@@ -94,17 +102,19 @@ namespace Zentient.Endpoints.Http
                         statusCode: httpStatusCode,
                         statusDescription: resultStatus.Description,
                         messages: messages);
-            return new NewtonsoftJsonResult(successResponse, httpStatusCode, MediaTypeNames.Application.Json, serializerSettings);
+
+            // Use Results.Json for System.Text.Json serialization
+            return Microsoft.AspNetCore.Http.Results.Json(successResponse, serializerOptions, MediaTypeNames.Application.Json, statusCode: httpStatusCode);
         }
 
         /// <summary>
         /// Handles failed <see cref="IEndpointOutcome"/> and converts them to <see cref="ProblemDetails"/>
-        /// wrapped in a <see cref="NewtonsoftJsonResult"/>.
+        /// wrapped in a JSON result.
         /// </summary>
         /// <param name="endpointResult">The failed endpoint result.</param>
         /// <param name="httpContext">The current HTTP context.</param>
         /// <returns>A <see cref="Task"/> representing the asynchronous operation, containing the <see cref="ProblemDetails"/>.</returns>
-        private async Task<NewtonsoftJsonResult> HandleFailedResultAsync(IEndpointOutcome endpointResult, HttpContext httpContext)
+        private async Task<Microsoft.AspNetCore.Http.IResult> HandleFailedResultAsync(IEndpointOutcome endpointResult, HttpContext httpContext)
         {
             ErrorInfo errorInfo = endpointResult.Errors != null && endpointResult.Errors.Any()
                 ? endpointResult.Errors[0]
@@ -113,7 +123,8 @@ namespace Zentient.Endpoints.Http
             ProblemDetails problemDetails = endpointResult.TransportMetadata.ProblemDetails
                 ?? await this._problemDetailsMapper.Map(errorInfo, httpContext).ConfigureAwait(false);
 
-            return new NewtonsoftJsonResult(problemDetails, problemDetails.Status, MediaTypeNames.Application.ProblemJson, this._jsonSerializerSettings);
+            // Use Results.Json for ProblemDetails with application/problem+json
+            return Microsoft.AspNetCore.Http.Results.Json(problemDetails, this._jsonSerializerOptions, MediaTypeNames.Application.ProblemJson, statusCode: problemDetails.Status);
         }
     }
 }
