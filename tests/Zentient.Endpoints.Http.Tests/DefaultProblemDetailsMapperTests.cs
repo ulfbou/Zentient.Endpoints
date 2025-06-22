@@ -13,13 +13,17 @@ using Moq;
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Net;
+using System.Reflection.Emit;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 using Xunit;
 
 using Zentient.Endpoints.Http;
 using Zentient.Results;
+using Zentient.Results.Constants;
 
 #pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
@@ -60,13 +64,13 @@ namespace Zentient.Endpoints.Http.Tests
             result.Should().NotBeNull();
             result.Status.Should().Be((int)HttpStatusCode.InternalServerError);
             result.Title.Should().Be(ResultStatuses.Error.Description);
-            result.Detail.Should().Be("No error information was provided.");
-            result.Instance.Should().Be("/api/resource");
+            result.Detail.Should().Be("An unexpected error occurred and no specific error information was provided.");
+            result.Instance.Should().Be(ApiResource);
             result.Extensions.Should().NotContainKey(ProblemDetailsConstants.Extensions.ErrorCode);
             result.Extensions.Should().NotContainKey(ProblemDetailsConstants.Extensions.Detail);
             result.Extensions[ProblemDetailsConstants.Extensions.TraceId].Should().Be(TraceId);
-            result.Type.Should().Be(ProblemDetailsConstants.DefaultBaseUri);
-            this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri(null), Times.Once);
+            result.Type.Should().Be($"{DefaultTestProblemTypeBaseUri}{ErrorCodes.InternalServerError.ToUpperInvariant().Replace(' ', '-')}");
+            this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri(ErrorCodes.InternalServerError), Times.Once);
         }
 
         [Fact]
@@ -93,16 +97,19 @@ namespace Zentient.Endpoints.Http.Tests
         }
 
         [Theory]
-        [InlineData(ErrorCategory.NotFound, HttpStatusCode.NotFound, "Not Found")]
+        [InlineData(ErrorCategory.NotFound, HttpStatusCode.NotFound, ResultStatusConstants.Description.NotFound)]
         [InlineData(ErrorCategory.Conflict, HttpStatusCode.Conflict, "Conflict")]
-        [InlineData(ErrorCategory.Unauthorized, HttpStatusCode.Unauthorized, "Unauthorized")]
-        [InlineData(ErrorCategory.Forbidden, HttpStatusCode.Forbidden, "Forbidden")]
-        [InlineData(ErrorCategory.InternalServerError, HttpStatusCode.InternalServerError, "Error")]
+        [InlineData(ErrorCategory.Authentication, HttpStatusCode.Unauthorized, "Unauthorized")]
+        [InlineData(ErrorCategory.Authorization, HttpStatusCode.Forbidden, "Forbidden")]
+        [InlineData(ErrorCategory.InternalServerError, HttpStatusCode.InternalServerError, "Internal Server Error")]
         [InlineData(ErrorCategory.Timeout, HttpStatusCode.RequestTimeout, "Request Timeout")]
         [InlineData(ErrorCategory.ServiceUnavailable, HttpStatusCode.ServiceUnavailable, "Service Unavailable")]
         [InlineData(ErrorCategory.TooManyRequests, HttpStatusCode.TooManyRequests, "Too Many Requests")]
         [InlineData(ErrorCategory.Concurrency, HttpStatusCode.Conflict, "Conflict")]
         [InlineData(ErrorCategory.ProblemDetails, HttpStatusCode.BadRequest, "Bad Request")]
+        [InlineData(ErrorCategory.ResourceGone, HttpStatusCode.Gone, "Gone")]
+        [InlineData(ErrorCategory.NotImplemented, HttpStatusCode.NotImplemented, "Not Implemented")]
+        [InlineData(ErrorCategory.RateLimit, HttpStatusCode.TooManyRequests, "Too Many Requests")]
         public async Task Map_ErrorInfo_Category_MapsToExpectedStatusAndTitleAsync(ErrorCategory category, HttpStatusCode expectedStatus, string expectedTitle)
         {
             // Arrange
@@ -142,8 +149,8 @@ namespace Zentient.Endpoints.Http.Tests
                 "CONFLICT",
                 "Conflict occurred",
                 "Details",
-                innerErrors: innerErrors,
-                extensions: customExtensions);
+                metadata: customExtensions.ToImmutableDictionary(),
+                innerErrors: innerErrors.ToImmutableList());
 
             DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
             HttpContext context = CreateHttpContext();
@@ -158,7 +165,23 @@ namespace Zentient.Endpoints.Http.Tests
             result.Extensions["customKey2"].Should().Be(123);
 
             result.Extensions.Should().ContainKey(ProblemDetailsConstants.Extensions.InnerErrors);
-            result.Extensions[ProblemDetailsConstants.Extensions.InnerErrors].Should().BeEquivalentTo(innerErrors);
+
+            // --- IMPORTANT CHANGE HERE ---
+            // Construct the expected list of dictionaries, mirroring the mapper's logic
+            var expectedInnerErrorsInExtensions = innerErrors
+                .Select(inner => new Dictionary<string, object?>
+                {
+                    { "category", inner.Category.ToString().ToUpperInvariant() },
+                    { "code", inner.Code },
+                    { "message", inner.Message },
+                    { "detail", inner.Detail },
+                })
+                .ToList();
+
+            // Now, assert that the actual list of dictionaries is equivalent to the expected list of dictionaries.
+            result.Extensions[ProblemDetailsConstants.Extensions.InnerErrors].Should().BeEquivalentTo(expectedInnerErrorsInExtensions);
+            // --- END IMPORTANT CHANGE ---
+
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("CONFLICT"), Times.Once);
         }
 
@@ -171,8 +194,8 @@ namespace Zentient.Endpoints.Http.Tests
                 code: "NOTFOUND",
                 message: "Not found",
                 detail: "No details",
-                extensions: new Dictionary<string, object?>(),
-                innerErrors: new List<ErrorInfo>());
+                metadata: ImmutableDictionary<string, object?>.Empty, // <-- Changed 'extensions' to 'metadata' and use ImmutableDictionary.Empty
+                innerErrors: ImmutableList<ErrorInfo>.Empty);      // <-- Use ImmutableList.Empty
 
             DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
             HttpContext context = CreateHttpContext();
@@ -182,6 +205,10 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Assert
             result.Extensions.Should().NotContainKey("customKey1");
+            // The InnerErrors extension should still be present if your mapper always adds it,
+            // even if the list is empty. If it only adds when not empty, then NotContainKey is fine.
+            // Based on typical ProblemDetails implementations, empty collections are usually omitted or empty.
+            // Double-check your mapper's behavior regarding empty inner errors.
             result.Extensions.Should().NotContainKey("innerErrors");
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("NOTFOUND"), Times.Once);
         }
@@ -234,8 +261,8 @@ namespace Zentient.Endpoints.Http.Tests
             this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("Invalid Input"), Times.Once);
         }
 
-        private static DefaultProblemDetailsMapper CreateMapperWithMockGenerator(IProblemTypeUriGenerator generator)
-            => new DefaultProblemDetailsMapper(generator);
+        private static DefaultProblemDetailsMapper CreateMapperWithMockGenerator(IProblemTypeUriGenerator generator) =>
+            new DefaultProblemDetailsMapper(generator);
 
         private static DefaultProblemDetailsMapper CreateMapper()
             => new DefaultProblemDetailsMapper();
