@@ -4,16 +4,18 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 using FluentAssertions;
 
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 using Moq;
-
-using Newtonsoft.Json;
 
 using Xunit;
 
@@ -54,71 +56,9 @@ namespace Zentient.Endpoints.Http.Tests
             Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
-            result.Should().BeOfType<EmptyResultWithStatusCode>()
-                .Which.StatusCode.Should().Be(ResultStatuses.NoContent.Code);
-        }
-
-        [Fact]
-        public async Task Map_Successful_Unit_WithCustomStatusCode()
-        {
-            // Arrange
-            Results.IResult<Unit> zentientResult = CreateZentientSuccessResultMock(Unit.Value, ResultStatuses.Accepted, new List<string>());
-            TransportMetadata transport = CreateTransportMetadata((int)HttpStatusCode.Accepted);
-            IEndpointOutcome endpointResult = CreateGenericEndpointOutcome(zentientResult, transport);
-
-            // Act
-            Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
-
-            // Assert
-            result.Should().BeOfType<NewtonsoftJsonResult>();
-            NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
-
-            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
-            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
-            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
-
-            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
-            {
-                string responseBody = await reader.ReadToEndAsync();
-                SuccessResponse<object>? deserializedResponse = JsonConvert.DeserializeObject<SuccessResponse<object>>(responseBody);
-                deserializedResponse.Should().NotBeNull();
-                deserializedResponse!.Data.Should().BeNull();
-                deserializedResponse.StatusCode.Should().Be(ResultStatuses.Accepted.Code);
-                deserializedResponse.StatusDescription.Should().Be(ResultStatuses.Accepted.Description);
-                deserializedResponse.Messages.Should().BeEmpty();
-            }
-        }
-
-        [Fact]
-        public async Task Map_Successful_GenericObjectResult_ReturnsJsonWithStatus()
-        {
-            // Arrange
-            string testData = "Test Data";
-            Results.IResult<string> zentientResult = CreateZentientSuccessResultMock(testData, ResultStatuses.Success, new List<string>());
-            IEndpointOutcome endpointResult = CreateGenericEndpointOutcome(zentientResult);
-
-            // Act
-            Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
-
-            // Assert
-            result.Should().BeOfType<NewtonsoftJsonResult>();
-
-            NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
-            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
-            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
-
-            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
-            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
-            {
-                string responseBody = await reader.ReadToEndAsync();
-                SuccessResponse<string>? deserializedResponse = JsonConvert.DeserializeObject<SuccessResponse<string>>(responseBody);
-
-                deserializedResponse.Should().NotBeNull();
-                deserializedResponse!.Data.Should().Be(testData);
-                deserializedResponse.StatusCode.Should().Be(ResultStatuses.Success.Code);
-                deserializedResponse.StatusDescription.Should().Be(ResultStatuses.Success.Description);
-                deserializedResponse.Messages.Should().BeEmpty();
-            }
+            result.Should().BeOfType<StatusCodeHttpResult>();
+            StatusCodeHttpResult statusCodeResult = result.As<StatusCodeHttpResult>();
+            statusCodeResult.StatusCode.Should().Be(ResultStatuses.NoContent.Code);
         }
 
         [Fact]
@@ -132,8 +72,9 @@ namespace Zentient.Endpoints.Http.Tests
             Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
-            result.Should().BeOfType<EmptyResultWithStatusCode>()
-                .Which.StatusCode.Should().Be((int)HttpStatusCode.NoContent);
+            result.Should().BeOfType<StatusCodeHttpResult>();
+            StatusCodeHttpResult statusCodeResult = result.As<StatusCodeHttpResult>();
+            statusCodeResult.StatusCode.Should().Be((int)HttpStatusCode.NoContent);
         }
 
         [Fact]
@@ -163,24 +104,17 @@ namespace Zentient.Endpoints.Http.Tests
             Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
-            result.Should().BeOfType<NewtonsoftJsonResult>();
+            result.Should().BeOfType<JsonHttpResult<Microsoft.AspNetCore.Mvc.ProblemDetails>>();
             _problemDetailsMapperMock.Verify(m => m.Map(It.IsAny<ErrorInfo>(), It.IsAny<HttpContext>()), Times.Once());
 
-            NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
-            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
-            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
-            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
-            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
-            {
-                string responseBody = await reader.ReadToEndAsync();
-                ProblemDetails? deserializedProblem = JsonConvert.DeserializeObject<ProblemDetails>(responseBody);
-                deserializedProblem.Should().NotBeNull();
-                deserializedProblem!.Status.Should().Be(mappedProblemDetails.Status);
-                deserializedProblem.Title.Should().Be(mappedProblemDetails.Title);
-                deserializedProblem.Detail.Should().Be(mappedProblemDetails.Detail);
-                deserializedProblem.Extensions.Should().ContainKey("code");
-                deserializedProblem.Extensions["code"].Should().Be("TEST_CODE");
-            }
+            var jsonResult = result as JsonHttpResult<ProblemDetails>;
+            jsonResult.Should().NotBeNull();
+            jsonResult!.Value.Should().NotBeNull();
+            jsonResult.Value.Status.Should().Be(mappedProblemDetails.Status);
+            jsonResult.Value.Title.Should().Be(mappedProblemDetails.Title);
+            jsonResult.Value.Detail.Should().Be(mappedProblemDetails.Detail);
+            jsonResult.Value.Extensions.Should().ContainKey("code");
+            jsonResult.Value.Extensions["code"].Should().Be("TEST_CODE");
         }
 
         [Fact]
@@ -207,23 +141,15 @@ namespace Zentient.Endpoints.Http.Tests
             Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
-            result.Should().BeOfType<NewtonsoftJsonResult>();
+            result.Should().BeOfType<JsonHttpResult<Microsoft.AspNetCore.Mvc.ProblemDetails>>();
             _problemDetailsMapperMock.Verify(m => m.Map(It.IsAny<ErrorInfo>(), It.IsAny<HttpContext>()), Times.Never());
 
-            NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
-            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
-            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
-            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
-
-            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
-            {
-                string responseBody = await reader.ReadToEndAsync();
-                ProblemDetails? deserializedProblem = JsonConvert.DeserializeObject<ProblemDetails>(responseBody);
-                deserializedProblem.Should().NotBeNull();
-                deserializedProblem!.Status.Should().Be(transportProblemDetails.Status);
-                deserializedProblem.Title.Should().Be(transportProblemDetails.Title);
-                deserializedProblem.Detail.Should().Be(transportProblemDetails.Detail);
-            }
+            var jsonResult = result as JsonHttpResult<ProblemDetails>;
+            jsonResult.Should().NotBeNull();
+            jsonResult!.Value.Should().NotBeNull();
+            jsonResult.Value.Status.Should().Be(transportProblemDetails.Status);
+            jsonResult.Value.Title.Should().Be(transportProblemDetails.Title);
+            jsonResult.Value.Detail.Should().Be(transportProblemDetails.Detail);
         }
 
         [Fact]
@@ -248,24 +174,17 @@ namespace Zentient.Endpoints.Http.Tests
             Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
 
             // Assert
-            result.Should().BeOfType<NewtonsoftJsonResult>();
+            result.Should().BeOfType<JsonHttpResult<Microsoft.AspNetCore.Mvc.ProblemDetails>>();
             _problemDetailsMapperMock.Verify(m => m.Map(It.IsAny<ErrorInfo>(), It.IsAny<HttpContext>()), Times.Once());
 
-            NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
-            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
-            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
-            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
-            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
-            {
-                string responseBody = await reader.ReadToEndAsync();
-                ProblemDetails? deserializedProblem = JsonConvert.DeserializeObject<ProblemDetails>(responseBody);
-                deserializedProblem.Should().NotBeNull();
-                deserializedProblem!.Status.Should().Be((int)HttpStatusCode.InternalServerError);
-                deserializedProblem.Title.Should().Be("Internal Server Error");
-                deserializedProblem.Detail.Should().Be("An unexpected error occurred.");
-                deserializedProblem.Extensions.Should().ContainKey("code");
-                deserializedProblem.Extensions["code"].Should().Be("InternalError");
-            }
+            var jsonResult = result as JsonHttpResult<ProblemDetails>;
+            jsonResult.Should().NotBeNull();
+            jsonResult!.Value.Should().NotBeNull();
+            jsonResult.Value.Status.Should().Be((int)HttpStatusCode.InternalServerError);
+            jsonResult.Value.Title.Should().Be("Internal Server Error");
+            jsonResult.Value.Detail.Should().Be("An unexpected error occurred.");
+            jsonResult.Value.Extensions.Should().ContainKey("code");
+            jsonResult.Value.Extensions["code"].Should().Be("InternalError");
         }
 
         [Fact]
@@ -284,6 +203,87 @@ namespace Zentient.Endpoints.Http.Tests
         }
 
         [Fact]
+        public async Task Map_Successful_Unit_WithCustomStatusCode()
+        {
+            // Arrange
+            Results.IResult<Unit> zentientResult = CreateZentientSuccessResultMock(Unit.Value, ResultStatuses.Accepted, new List<string>());
+            TransportMetadata transport = CreateTransportMetadata((int)HttpStatusCode.Accepted);
+            IEndpointOutcome endpointResult = CreateGenericEndpointOutcome(zentientResult, transport);
+
+            // Act
+            Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
+
+            // Assert
+            result.Should().BeOfType<JsonHttpResult<SuccessResponse<object?>>>();
+            JsonHttpResult<SuccessResponse<object?>> jsonResult = result.As<JsonHttpResult<SuccessResponse<object?>>>();
+            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
+
+            // Manually serialize the Value to the response stream using System.Text.Json
+            tempHttpContextForExecution.Response.StatusCode = jsonResult.StatusCode ?? 200;
+            tempHttpContextForExecution.Response.ContentType = jsonResult.ContentType ?? "application/json";
+            await System.Text.Json.JsonSerializer.SerializeAsync(
+                tempHttpContextForExecution.Response.Body,
+                jsonResult.Value,
+                jsonResult.Value?.GetType() ?? typeof(object),
+                options: null,
+                cancellationToken: default
+            );
+            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
+
+            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
+            {
+                string responseBody = await reader.ReadToEndAsync();
+                SuccessResponse<object>? deserializedResponse = JsonSerializer.Deserialize<SuccessResponse<object>>(responseBody);
+                deserializedResponse.Should().NotBeNull();
+                deserializedResponse!.Data.Should().BeNull();
+                deserializedResponse.StatusCode.Should().Be(ResultStatuses.Accepted.Code);
+                deserializedResponse.StatusDescription.Should().Be(ResultStatuses.Accepted.Description);
+                deserializedResponse.Messages.Should().BeEmpty();
+            }
+        }
+
+        [Fact]
+        public async Task Map_Successful_GenericObjectResult_ReturnsJsonWithStatus()
+        {
+            // Arrange
+            string testData = "Test Data";
+            Results.IResult<string> zentientResult = CreateZentientSuccessResultMock(testData, ResultStatuses.Success, new List<string>());
+            IEndpointOutcome endpointResult = CreateGenericEndpointOutcome(zentientResult);
+
+            // Act
+            Microsoft.AspNetCore.Http.IResult result = await _mapper.Map(endpointResult, _httpContext);
+
+            // Assert
+            result.Should().BeOfType<JsonHttpResult<SuccessResponse<object?>>>();
+            JsonHttpResult<SuccessResponse<object?>> jsonResult = result.As<JsonHttpResult<SuccessResponse<object?>>>();
+            DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
+
+            // Serialize the Value to the response stream using System.Text.Json
+            tempHttpContextForExecution.Response.StatusCode = jsonResult.StatusCode ?? 200;
+            tempHttpContextForExecution.Response.ContentType = jsonResult.ContentType ?? "application/json";
+            await System.Text.Json.JsonSerializer.SerializeAsync(
+                tempHttpContextForExecution.Response.Body,
+                jsonResult.Value,
+                jsonResult.Value?.GetType() ?? typeof(object),
+                options: null,
+                cancellationToken: default
+            );
+            tempHttpContextForExecution.Response.Body.Seek(0, SeekOrigin.Begin);
+
+            using (StreamReader reader = new StreamReader(tempHttpContextForExecution.Response.Body))
+            {
+                string responseBody = await reader.ReadToEndAsync();
+                SuccessResponse<string>? deserializedResponse = JsonSerializer.Deserialize<SuccessResponse<string>>(responseBody);
+
+                deserializedResponse.Should().NotBeNull();
+                deserializedResponse!.Data.Should().Be(testData);
+                deserializedResponse.StatusCode.Should().Be(ResultStatuses.Success.Code);
+                deserializedResponse.StatusDescription.Should().Be(ResultStatuses.Success.Description);
+                deserializedResponse.Messages.Should().BeEmpty();
+            }
+        }
+
+        [Fact]
         public async Task Map_Successful_CustomStatusCode_ReturnsCustomStatus()
         {
             // Arrange
@@ -297,16 +297,26 @@ namespace Zentient.Endpoints.Http.Tests
             Microsoft.AspNetCore.Http.IResult result = await mapper.Map(endpointResult, context);
 
             // Assert
-            result.Should().BeOfType<NewtonsoftJsonResult>();
-            NewtonsoftJsonResult newtonsoftResult = (NewtonsoftJsonResult)result;
+            result.Should().BeOfType<JsonHttpResult<SuccessResponse<object?>>>();
+            JsonHttpResult<SuccessResponse<object?>> jsonResult = result.As<JsonHttpResult<SuccessResponse<object?>>>();
             DefaultHttpContext tempHttpContextForExecution = CreateHttpContextForExecution();
-            await newtonsoftResult.ExecuteAsync(tempHttpContextForExecution);
+
+            // Serialize the Value to the response stream using System.Text.Json
+            tempHttpContextForExecution.Response.StatusCode = jsonResult.StatusCode ?? 200;
+            tempHttpContextForExecution.Response.ContentType = jsonResult.ContentType ?? "application/json";
+            await System.Text.Json.JsonSerializer.SerializeAsync(
+                tempHttpContextForExecution.Response.Body,
+                jsonResult.Value,
+                jsonResult.Value?.GetType() ?? typeof(object),
+                options: null,
+                cancellationToken: default
+            );
             tempHttpContextForExecution.Response.Body.Seek(0, System.IO.SeekOrigin.Begin);
 
             using (System.IO.StreamReader reader = new System.IO.StreamReader(tempHttpContextForExecution.Response.Body))
             {
                 string responseBody = await reader.ReadToEndAsync();
-                SuccessResponse<string>? deserializedResponse = JsonConvert.DeserializeObject<SuccessResponse<string>>(responseBody);
+                SuccessResponse<string>? deserializedResponse = JsonSerializer.Deserialize<SuccessResponse<string>>(responseBody);
 
                 deserializedResponse.Should().NotBeNull();
                 deserializedResponse!.Data.Should().Be("bar");
@@ -315,7 +325,7 @@ namespace Zentient.Endpoints.Http.Tests
                 deserializedResponse.Messages.Should().BeEmpty();
             }
 
-            newtonsoftResult.StatusCode.Should().Be(299);
+            jsonResult.StatusCode.Should().Be(299);
         }
 
         private static DefaultHttpContext CreateHttpContextForExecution()
