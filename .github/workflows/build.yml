@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SOLUTION_FILE_NAME: Zentient.Endpoints.sln # Keep this for reference if needed
+      SOLUTION_FILE_NAME: Zentient.Endpoints.sln
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
       DOTNET_CLI_UI_LANGUAGE: en
       NUGET_XMLDOC_MODE: skip
@@ -27,14 +27,11 @@ jobs:
 
       - name: 📁 Define Paths for Debugging
         run: |
-          # Define variables for immediate use within this step
           REPO_ROOT="$GITHUB_WORKSPACE"
-          # Construct the full absolute path for the solution file
           MAIN_SOLUTION_PATH="$GITHUB_WORKSPACE/$SOLUTION_FILE_NAME"
-          SRC_DIR="$GITHUB_WORKSPACE/Src"
-          TESTS_DIR="$GITHUB_WORKSPACE/Tests"
+          SRC_DIR="$GITHUB_WORKSPACE/Src" # This is set to capitalized 'Src'
+          TESTS_DIR="$GITHUB_WORKSPACE/Tests" # This is set to capitalized 'Tests'
 
-          # Export them to be available for subsequent steps
           echo "REPO_ROOT=$REPO_ROOT" >> $GITHUB_ENV
           echo "MAIN_SOLUTION_PATH=$MAIN_SOLUTION_PATH" >> $GITHUB_ENV
           echo "SRC_DIR=$SRC_DIR" >> $GITHUB_ENV
@@ -66,6 +63,59 @@ jobs:
           test -d "$TESTS_DIR" || echo "⚠️ Missing test dir: $TESTS_DIR - This might be the cause of project file errors!"
           echo "Validation complete."
 
+      - name: 🔍 Debug Case Sensitivity of Project Paths
+        working-directory: ${{ env.REPO_ROOT }}
+        run: |
+          echo "--- Checking actual casing of project files ---"
+          find . -type f -name "*.csproj" | sort
+
+          echo ""
+          echo "--- Grepping for 'src/' (lowercase) and 'Src/' (capitalized) in csproj paths ---"
+          find . -type f -name "*.csproj" | grep -i 'src/' | sort
+
+          echo ""
+          echo "--- Checking existence of 'src' vs 'Src' directories ---"
+          if [ -d "./src" ]; then
+            echo "✅ Directory './src' (lowercase) exists."
+          else
+            echo "❌ Directory './src' (lowercase) does NOT exist."
+          fi
+
+          if [ -d "./Src" ]; then
+            echo "✅ Directory './Src' (capitalized) exists."
+          else
+            echo "❌ Directory './Src' (capitalized) does NOT exist."
+          fi
+
+          echo ""
+          echo "--- Checking existence of 'tests' vs 'Tests' directories ---"
+          if [ -d "./tests" ]; then
+            echo "✅ Directory './tests' (lowercase) exists."
+          else
+            echo "❌ Directory './tests' (lowercase) does NOT exist."
+          fi
+
+          if [ -d "./Tests" ]; then
+            echo "✅ Directory './Tests' (capitalized) exists."
+          else
+            echo "❌ Directory './Tests' (capitalized) does NOT exist."
+          fi
+
+      - name: ✍️ Fix Solution File Casing for Linux
+        run: |
+          echo "--- Correcting casing in solution file ---"
+          echo "Original solution file content (first few lines):"
+          head -n 10 "${MAIN_SOLUTION_PATH}"
+
+          # Replace 'src\' with 'Src\' and 'tests\' with 'Tests\'
+          # Using sed -i to edit in place. Using | to escape \ for sed.
+          sed -i 's|src\\|Src\\|g' "${MAIN_SOLUTION_PATH}"
+          sed -i 's|tests\\|Tests\\|g' "${MAIN_SOLUTION_PATH}"
+
+          echo "Modified solution file content (first few lines):"
+          head -n 10 "${MAIN_SOLUTION_PATH}"
+        working-directory: ${{ env.REPO_ROOT }}
+
       - name: ⚙️ Setup .NET SDK (8.0.x)
         uses: actions/setup-dotnet@v4
         with:
@@ -81,15 +131,12 @@ jobs:
 
       - name: 🔧 Restore Dependencies
         working-directory: ${{ env.REPO_ROOT }}
-        # Pass the full absolute path to the solution file now
         run: dotnet restore ${{ env.MAIN_SOLUTION_PATH }}
 
       - name: 🔧 Build Solution
         working-directory: ${{ env.REPO_ROOT }}
-        # Pass the full absolute path to the solution file now
         run: dotnet build ${{ env.MAIN_SOLUTION_PATH }} --no-restore --configuration Release
 
       - name: 🧪 Run Tests
         working-directory: ${{ env.REPO_ROOT }}
-        # Pass the full absolute path to the solution file now
         run: dotnet test ${{ env.MAIN_SOLUTION_PATH }} --no-build --configuration Release
