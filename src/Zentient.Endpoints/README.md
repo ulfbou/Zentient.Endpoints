@@ -48,16 +48,16 @@ dotnet add package Zentient.Endpoints.Http
 
 ⚡ Quick Example
 
-Program.cs
+**Program.cs**
 
-```csharp 
+```csharp
 builder.Services.AddProblemDetails();
 builder.Services.AddZentientEndpointsHttp();
 ```
 
-Minimal API
+**Minimal API**
 
-```csharp 
+```csharp
 app.UseEndpointFilter<NormalizeEndpointResultFilter>();
 
 app.MapPost("/api/users", async (CreateUserRequest req, IUserService service) =>
@@ -67,7 +67,7 @@ app.MapPost("/api/users", async (CreateUserRequest req, IUserService service) =>
 });
 ```
 
-Application Layer
+**Application Layer**
 
 ```csharp
 public Task<IResult<User>> CreateUser(CreateUserRequest req)
@@ -83,20 +83,18 @@ public Task<IResult<User>> CreateUser(CreateUserRequest req)
 
 ## 📚 Documentation
 
-📁 Section	📄 Wiki Pages
-
-🔧 Core Library	IEndpointOutcome · TransportMetadata · Unit
-🌐 HTTP Integration	Minimal API Integration · Controllers · Default Mappers
-
-
+| 📁 Section         | 📄 Wiki Pages                                               |
+|--------------------|------------------------------------------------------------|
+| 🔧 Core Library    | IEndpointOutcome · TransportMetadata · Unit                |
+| 🌐 HTTP Integration| Minimal API Integration · Controllers · Default Mappers    |
 
 ---
 
 ## 🛠️ Customization
 
-🔄 Override IProblemDetailsMapper
+🔄 **Override IProblemDetailsMapper**
 
-```csharp 
+```csharp
 public class MyProblemDetailsMapper : IProblemDetailsMapper
 {
     public ProblemDetails Map(ErrorInfo error, HttpContext ctx)
@@ -113,9 +111,9 @@ public class MyProblemDetailsMapper : IProblemDetailsMapper
 }
 ```
 
-🔐 Exception-Aware Binding
+🔐 **Exception-Aware Binding**
 
-```csharp 
+```csharp
 return EndpointOutcome<User>
     .From(result)
     .Bind(user => user.IsActive ? Result.Success(user) : throw new InvalidOperationException());
@@ -123,17 +121,16 @@ return EndpointOutcome<User>
 
 ---
 
-🗺 Roadmap
+🗺 **Roadmap**
 
 ```
-Version	|Highlights
+Version | Highlights
 
-0.1.0|	✅ Core API + ASP.NET Core integration
-0.2.0|	🔜 gRPC support with trailer metadata
-0.3.0|	🔄 Messaging integration (Kafka, Azure Service Bus)
-0.4.0+| 📈 OpenTelemetry support, SDK generators
+0.1.0   | ✅ Core API + ASP.NET Core integration
+0.2.0   | 🔜 gRPC support with trailer metadata
+0.3.0   | 🔄 Messaging integration (Kafka, Azure Service Bus)
+0.4.0+  | 📈 OpenTelemetry support, SDK generators
 ```
-
 
 ---
 
@@ -141,15 +138,11 @@ Version	|Highlights
 
 We welcome ideas, bug fixes, extensions for other protocols, and ecosystem integrations.
 
-Open an issue
-
-Start a discussion
-
-Fork and submit a PR
-
-
+- Open an issue
+- Start a discussion
+- Fork and submit a PR
 
 ---
 
-> Built with ❤️ by @ulfbou and the Zentient community.
-For full API reference and integration guides, see the 📚 Zentient.Endpoints Wiki.
+> Built with ❤️ by @ulfbou and the Zentient community.  
+> For full API reference and integration guides, see the 📚 Zentient.Endpoints Wiki.
