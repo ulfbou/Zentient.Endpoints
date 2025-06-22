@@ -186,7 +186,7 @@ namespace Zentient.Endpoints.Http.Tests
         public void ToEndpointOutcome_GenericIResult_Successful_ConvertsCorrectly()
         {
             // Arrange
-            IResult<string> zentientResult = Zentient.Results.Result.Success("Data");
+            IResult<string> zentientResult = Zentient.Results.Result<string>.Success("Data");
 
             // Act
             IEndpointOutcome<string> endpointOutcome = zentientResult.ToEndpointOutcome();
@@ -204,7 +204,7 @@ namespace Zentient.Endpoints.Http.Tests
         {
             // Arrange
             ErrorInfo error = new ErrorInfo(ErrorCategory.InternalServerError, "TEST_ERROR", "Test error.");
-            IResult<string> zentientResult = Zentient.Results.Result.Failure<string>(error);
+            IResult<string> zentientResult = error.AsError<string>(null);
 
             // Act
             IEndpointOutcome<string> endpointOutcome = zentientResult.ToEndpointOutcome();
@@ -252,7 +252,7 @@ namespace Zentient.Endpoints.Http.Tests
         public void ToEndpointOutcome_NonGenericIResult_FailedWithErrors_ConvertsToUnitWithError()
         {
             // Arrange
-            ErrorInfo error = new ErrorInfo(ErrorCategory.Unauthorized, "AUTH_FAIL", "Authentication failed.");
+            ErrorInfo error = new ErrorInfo(ErrorCategory.Authentication, "AUTH_FAIL", "Authentication failed.");
             Results.IResult zentientResult = Result.Failure(error);
 
             // Act
