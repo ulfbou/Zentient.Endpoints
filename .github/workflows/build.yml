@@ -21,11 +21,45 @@ jobs:
     steps:
       - name: 🧾 Checkout Repository
         uses: actions/checkout@v4
+        with:
+          # These were commented out in your original, but are crucial if your solution
+          # has project references that depend on submodules or a full history.
+          # The errors indicate that project files are missing, which can happen if
+          # the directory structure isn't fully pulled, or if submodules aren't initialized.
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: 📁 Define Paths for Debugging
+        run: |
+          echo "REPO_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          echo "MAIN_SOLUTION_PATH=$GITHUB_WORKSPACE/$SOLUTION_FILE_NAME" >> $GITHUB_ENV
+          # Assuming 'Src' and 'Tests' directories are at the root level alongside the .sln file
+          # If they are inside another folder (e.g., 'YourRepoRoot/Src'), adjust this path
+          echo "SRC_DIR=$GITHUB_WORKSPACE/Src" >> $GITHUB_ENV
+          echo "TESTS_DIR=$GITHUB_WORKSPACE/Tests" >> $GITHUB_ENV
+          echo "--- Current Working Directory ---"
+          pwd
+          echo "--- Content of GITHUB_WORKSPACE ---"
+          ls -F $GITHUB_WORKSPACE
+          echo "--- Content of SRC_DIR (if it exists) ---"
+          ls -F "${SRC_DIR}" || echo "SRC_DIR does not exist or is empty."
+          echo "--- Content of TESTS_DIR (if it exists) ---"
+          ls -F "${TESTS_DIR}" || echo "TESTS_DIR does not exist or is empty."
+
+      - name: 🧪 Validate Structure for Debugging
+        run: |
+          echo "🗂 Validating paths..."
+          # This step will explicitly check if the solution file and expected directories exist.
+          # If they don't, it will output a clear error message and fail the workflow.
+          test -f "$MAIN_SOLUTION_PATH" || (echo "❌ Missing solution file: $MAIN_SOLUTION_PATH" && exit 1)
+          test -d "$SRC_DIR" || echo "⚠️ Missing source dir: $SRC_DIR - This might be the cause of project file errors!"
+          test -d "$TESTS_DIR" || echo "⚠️ Missing test dir: $TESTS_DIR - This might be the cause of project file errors!"
+          echo "Validation complete."
 
       - name: ⚙️ Setup .NET SDK (8.0.x)
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x' # Simplified to a single .NET version
+          dotnet-version: '8.0.x'
 
       - name: 📦 Cache NuGet packages
         uses: actions/cache@v4
@@ -36,6 +70,7 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: 🔧 Restore Dependencies
+        # Using the defined SOLUTION_FILE_NAME variable for consistency
         run: dotnet restore ${{ env.SOLUTION_FILE_NAME }}
 
       - name: 🔧 Build Solution
