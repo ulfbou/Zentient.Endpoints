@@ -1,3 +1,30 @@
+name: Simplified CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build_and_test:
+    name: Build and Test .NET Application
+    runs-on: ubuntu-latest
+
+    env:
+      SOLUTION_FILE_NAME: Zentient.Endpoints.sln
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_CLI_UI_LANGUAGE: en
+      NUGET_XMLDOC_MODE: skip
+
+    steps:
+      - name: 🧾 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
       - name: 📁 Define Paths for Debugging
         run: |
           # Define variables for immediate use within this step
@@ -6,7 +33,6 @@
           SRC_DIR="$GITHUB_WORKSPACE/Src"
           TESTS_DIR="$GITHUB_WORKSPACE/Tests"
 
-          # Export them to be available for subsequent steps
           echo "REPO_ROOT=$REPO_ROOT" >> $GITHUB_ENV
           echo "MAIN_SOLUTION_PATH=$MAIN_SOLUTION_PATH" >> $GITHUB_ENV
           echo "SRC_DIR=$SRC_DIR" >> $GITHUB_ENV
@@ -16,17 +42,46 @@
           pwd
           echo "--- Content of GITHUB_WORKSPACE ---"
           ls -F "$GITHUB_WORKSPACE"
-          echo "--- Content of SRC_DIR ---"
-          # Now these commands will correctly use the defined variables
+
+          echo "--- Value of SRC_DIR: ${SRC_DIR} ---"
+          echo "--- Content of SRC_DIR (if it exists) ---"
           ls -F "${SRC_DIR}" || echo "SRC_DIR does not exist or is empty, despite being listed in GITHUB_WORKSPACE."
-          echo "--- Content of TESTS_DIR ---"
+
+          echo "--- Value of TESTS_DIR: ${TESTS_DIR} ---"
+          echo "--- Content of TESTS_DIR (if it exists) ---"
           ls -F "${TESTS_DIR}" || echo "TESTS_DIR does not exist or is empty, despite being listed in GITHUB_WORKSPACE."
 
       - name: 🧪 Validate Structure for Debugging
         run: |
           echo "🗂 Validating paths..."
-          # These will now correctly use the environment variables set in the previous step
+          echo "MAIN_SOLUTION_PATH (for validation): $MAIN_SOLUTION_PATH"
           test -f "$MAIN_SOLUTION_PATH" || (echo "❌ Missing solution file: $MAIN_SOLUTION_PATH" && exit 1)
+
+          echo "SRC_DIR (for validation): $SRC_DIR"
           test -d "$SRC_DIR" || echo "⚠️ Missing source dir: $SRC_DIR - This might be the cause of project file errors!"
+
+          echo "TESTS_DIR (for validation): $TESTS_DIR"
           test -d "$TESTS_DIR" || echo "⚠️ Missing test dir: $TESTS_DIR - This might be the cause of project file errors!"
           echo "Validation complete."
+
+      - name: ⚙️ Setup .NET SDK (8.0.x)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: 📦 Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: 🔧 Restore Dependencies
+        run: dotnet restore ${{ env.SOLUTION_FILE_NAME }}
+
+      - name: 🔧 Build Solution
+        run: dotnet build ${{ env.SOLUTION_FILE_NAME }} --no-restore --configuration Release
+
+      - name: 🧪 Run Tests
+        run: dotnet test ${{ env.SOLUTION_FILE_NAME }} --no-build --configuration Release
