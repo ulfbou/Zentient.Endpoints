@@ -4,12 +4,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Net.Mime;
 using System.Reflection;
 using System.Runtime;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using FluentAssertions;
 
@@ -17,14 +20,10 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.NewtonsoftJson;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
 using Moq;
-
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 using Xunit;
 
@@ -135,7 +134,6 @@ namespace Zentient.Endpoints.Http.Tests
                     services.AddZentientEndpointsHttp();
                     services.AddRouting();
                     services.AddControllers()
-                            .AddNewtonsoftJson()
                             .AddApplicationPart(Assembly.GetExecutingAssembly());
                 })
                 .Configure(app =>
@@ -160,7 +158,7 @@ namespace Zentient.Endpoints.Http.Tests
             response.IsSuccessStatusCode.Should().BeTrue("because the EndpointOutcome should be successfully converted to HTTP 200 OK.");
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            SuccessResponse<string>? deserializedResponse = JsonConvert.DeserializeObject<SuccessResponse<string>>(responseBody);
+            SuccessResponse<string>? deserializedResponse = JsonSerializer.Deserialize<SuccessResponse<string>>(responseBody);
             deserializedResponse.Should().NotBeNull("because the response body should be a deserializable SuccessResponse.");
             deserializedResponse!.Data.Should().Be("Hello World", "because the filter should have mapped the EndpointOutcome's value into the 'data' field.");
             deserializedResponse.StatusCode.Should().Be(ResultStatuses.Success.Code, "because the status code in the response object should match the mapped HTTP status.");
@@ -176,17 +174,36 @@ namespace Zentient.Endpoints.Http.Tests
             const string ResNotFound = "RES_NOT_FOUND";
             const string ResNotFoundDescription = "Resource not found.";
             const string TestFailEndpoint = "/test-fail-endpoint";
+            const string CustomExtensionKey = "customTestProperty";
+            const string CustomExtensionValue = "This is a custom test value.";
 
-            // Arrange
-            ErrorInfo errorInfo = new ErrorInfo(ErrorCategory.NotFound, ResNotFound, ResNotFoundDescription);
+            // Arrange: Create ErrorInfo with explicit metadata to ensure 'extensions' are present.
+            // According to RFC 9457, extensions are arbitrary members.
+            var errorInfo = new ErrorInfo(
+                category: ErrorCategory.NotFound,
+                code: ResNotFound,
+                message: ResNotFoundDescription,
+                detail: null, // Keep null as message maps to ProblemDetails.Detail
+                metadata: new Dictionary<string, object?> {
+                    { CustomExtensionKey, CustomExtensionValue }
+                }.ToImmutableDictionary());
             IEndpointOutcome<object> endpointResult = EndpointOutcome<object>.From(errorInfo);
+
             IWebHostBuilder hostBuilder = new WebHostBuilder()
                 .ConfigureServices(services =>
                 {
                     services.AddRouting();
-                    services.AddControllers()
-                            .AddNewtonsoftJson()
-                            .AddApplicationPart(Assembly.GetExecutingAssembly());
+                    services.AddControllers(options =>
+                    {
+                        // You can add any MVC options here if needed, e.g., options.Filters.Add(...)
+                    })
+                    .AddJsonOptions(options =>
+                    {
+                        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
+                        options.JsonSerializerOptions.WriteIndented = true; // Still useful for debugging raw output
+                    })
+                    .AddApplicationPart(Assembly.GetExecutingAssembly()); // Only call this once
 
                     services.AddZentientEndpointsHttp();
                 })
@@ -208,85 +225,75 @@ namespace Zentient.Endpoints.Http.Tests
             string responseBody = await response.Content.ReadAsStringAsync();
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-            response.Content.Headers.ContentType?.ToString().Should().Contain("application/problem+json");
+            response.StatusCode.Should().Be(HttpStatusCode.NotFound, "because the EndpointOutcome should be mapped to HTTP 404 Not Found.");
+            response.Content.Headers.ContentType?.ToString().Should().Contain("application/problem+json", "because the response should be in problem+json format for errors, as per RFC 9457.");
 
-            Newtonsoft.Json.Linq.JObject jsonObject = JsonConvert.DeserializeObject<Newtonsoft.Json.Linq.JObject>(responseBody)!;
-            jsonObject.Should().NotBeNull();
+            using JsonDocument doc = JsonDocument.Parse(responseBody);
+            JsonElement root = doc.RootElement;
 
-            jsonObject.Should().ContainKey(ProblemDetailsConstants.Status);
-            jsonObject[ProblemDetailsConstants.Status]!.Value<int>()
-                .Should().Be(ResultStatuses.NotFound.Code, "because the status code should be mapped as a top-level property.");
+            // Assert standard Problem Details members (RFC 9457)
+            root.TryGetProperty(ProblemDetailsConstants.Status, out JsonElement statusProp).Should().BeTrue("because the status code should be mapped as a top-level property.");
+            statusProp.GetInt32().Should().Be(ResultStatuses.NotFound.Code, "because the status code should be mapped as a top-level property.");
 
-            jsonObject.Should().ContainKey(ProblemDetailsConstants.Title);
-            jsonObject[ProblemDetailsConstants.Title]!
-                .Value<string>()
-                .Should().Be(ResultStatuses.NotFound.Description, "because the title should be mapped as a top-level property.");
+            root.TryGetProperty(ProblemDetailsConstants.Title, out JsonElement titleProp).Should().BeTrue("because the title should be mapped as a top-level property.");
+            titleProp.GetString().Should().Be(ResultStatuses.NotFound.Description, "because the title should be mapped as a top-level property.");
 
-            jsonObject.Should().ContainKey(ProblemDetailsConstants.Detail);
-            jsonObject[ProblemDetailsConstants.Detail]!
-                .Value<string>()
-                .Should().Be(ResNotFoundDescription, "because the detail should be mapped as a top-level property.");
+            root.TryGetProperty(ProblemDetailsConstants.Detail, out JsonElement detailProp).Should().BeTrue("because the detail should be mapped as a top-level property.");
+            detailProp.GetString().Should().Be(ResNotFoundDescription, "because the detail (ErrorInfo.Message) should be mapped as a top-level property.");
 
-            jsonObject.Should().ContainKey(ProblemDetailsConstants.Instance);
-            jsonObject[ProblemDetailsConstants.Instance]!
-                .Value<string>()
-                .Should().Be(TestFailEndpoint, "because the instance should be the request path.");
+            root.TryGetProperty(ProblemDetailsConstants.Instance, out JsonElement instanceProp).Should().BeTrue("because the instance should be the request path.");
+            instanceProp.GetString().Should().Be(TestFailEndpoint, "because the instance should be the request path.");
 
-            jsonObject.Should().ContainKey("extensions");
-            var extensions = jsonObject["extensions"] as Newtonsoft.Json.Linq.JObject;
-            extensions.Should().NotBeNull();
+            // Assert extensions object presence and type
+            root.TryGetProperty(ProblemDetailsConstants.Extensions.ErrorCode, out JsonElement errorCodeProp).Should().BeTrue("because the error code should be mapped as a flattened extension.");
+            errorCodeProp.GetString().Should().Be(ResNotFound, "because the error code should be mapped as a flattened extension.");
 
-            extensions.Should().ContainKey(ProblemDetailsConstants.Extensions.ErrorCode);
-            extensions[ProblemDetailsConstants.Extensions.ErrorCode]!
-                .Value<string>()
-                .Should().Be(ResNotFound, "because the error code should be mapped as an extension.");
+            root.TryGetProperty(ProblemDetailsConstants.Extensions.TraceId, out JsonElement traceIdProp).Should().BeTrue("because the trace identifier should be included as a flattened extension for diagnostics.");
+            traceIdProp.GetString().Should().NotBeNullOrEmpty("because the trace identifier should be included as a flattened extension for diagnostics.");
 
-            extensions.Should().ContainKey(ProblemDetailsConstants.Extensions.TraceId);
-            extensions[ProblemDetailsConstants.Extensions.TraceId]!
-                .Value<string>()
-                .Should().NotBeNullOrEmpty("because the trace identifier should be included in the response for diagnostics.");
+            root.TryGetProperty(CustomExtensionKey, out JsonElement customProp).Should().BeTrue($"because the custom extension '{CustomExtensionKey}' should be present as a flattened property.");
+            customProp.GetString().Should().Be(CustomExtensionValue, $"because the custom extension '{CustomExtensionKey}' should have its value as a flattened property.");
         }
-    }
 
-    [ApiController]
-    [Route("[controller]")]
-    internal sealed class TestEndpointController : ControllerBase
-    {
-        public static IEndpointOutcome? NextEndpointOutcomeForTest { get; set; }
-
-        [HttpGet("test-endpoint")]
-        // Change the return type from ActionResult<EndpointOutcome<string>> to IEndpointOutcome
-        // This allows the NormalizeEndpointResultFilter to correctly intercept and process the outcome.
-        public static IEndpointOutcome GetTestEndpoint()
+        [ApiController]
+        [Route("[controller]")]
+        internal sealed class TestEndpointController : ControllerBase
         {
-            if (NextEndpointOutcomeForTest is null)
+            public static IEndpointOutcome? NextEndpointOutcomeForTest { get; set; }
+
+            [HttpGet("test-endpoint")]
+            // Change the return type from ActionResult<EndpointOutcome<string>> to IEndpointOutcome
+            // This allows the NormalizeEndpointResultFilter to correctly intercept and process the outcome.
+            public static IEndpointOutcome GetTestEndpoint()
             {
-                return EndpointOutcome<string>.Success("Hello World");
+                if (NextEndpointOutcomeForTest is null)
+                {
+                    return EndpointOutcome<string>.Success("Hello World");
+                }
+
+                // Return the pre-configured outcome directly.
+                // Since NextEndpointOutcomeForTest is already IEndpointOutcome,
+                // no further casting or fallback creation is needed at this point for the return.
+                // The logic within the filter will handle the specific type (e.e.g, IEndpointOutcome<string>)
+                // and transform it into an IResult.
+                return NextEndpointOutcomeForTest;
             }
 
-            // Return the pre-configured outcome directly.
-            // Since NextEndpointOutcomeForTest is already IEndpointOutcome,
-            // no further casting or fallback creation is needed at this point for the return.
-            // The logic within the filter will handle the specific type (e.e.g, IEndpointOutcome<string>)
-            // and transform it into an IResult.
-            return NextEndpointOutcomeForTest;
-        }
-
-        [HttpGet("test-fail-endpoint")]
-        public static ActionResult<IEndpointOutcome> GetTestFailEndpoint()
-        {
-            if (TestEndpointController.NextEndpointOutcomeForTest is null)
+            [HttpGet("test-fail-endpoint")]
+            public static ActionResult<IEndpointOutcome> GetTestFailEndpoint()
             {
-                throw new InvalidOperationException("NextEndpointOutcomeForTest was not set for failure test.");
+                if (TestEndpointController.NextEndpointOutcomeForTest is null)
+                {
+                    throw new InvalidOperationException("NextEndpointOutcomeForTest was not set for failure test.");
+                }
+
+                return new ActionResult<IEndpointOutcome>(NextEndpointOutcomeForTest);
             }
 
-            return new ActionResult<IEndpointOutcome>(TestEndpointController.NextEndpointOutcomeForTest);
-        }
-
-        public TestEndpointController()
-        {
-            NextEndpointOutcomeForTest = null;
+            public TestEndpointController()
+            {
+                NextEndpointOutcomeForTest = null;
+            }
         }
     }
 }
