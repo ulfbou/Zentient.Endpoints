@@ -9,8 +9,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-using Newtonsoft.Json;
-
 // TODO: Consider renaming this class to `NoContentResponse` or `EmptyResponseResult` for clarity.
 // TODO: Consider whether this class should provide an optional message in the HttpContext.Response.Body
 namespace Zentient.Endpoints.Http
