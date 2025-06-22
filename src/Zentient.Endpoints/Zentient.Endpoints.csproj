@@ -9,9 +9,9 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!--<PackageReference Include="Zentient.Results" Version="[0.3.0, )" />-->
-		<ProjectReference Include="..\Zentient.Results\src\Results\Zentient.Results.csproj" Condition="'$(TargetFramework)' == 'net8.0'" />
-		<ProjectReference Include="..\Zentient.Results\src\Results\Zentient.Results.csproj" Condition="'$(TargetFramework)' == 'net9.0'" />
+		<!--<PackageReference Include="Zentient.Results" Version="0.4.0" />-->
+
+		<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />
 	</ItemGroup>
 
 </Project>
