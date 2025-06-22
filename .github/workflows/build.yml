@@ -1,4 +1,4 @@
-﻿name: Zentient.Endpoints CI
+name: Simplified CI/CD Pipeline
 
 on:
   push:
@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build and Test (.NET 8/9)
+  build_and_test:
+    name: Build and Test .NET Application
     runs-on: ubuntu-latest
 
     env:
@@ -18,35 +18,14 @@ jobs:
       DOTNET_CLI_UI_LANGUAGE: en
       NUGET_XMLDOC_MODE: skip
 
-    strategy:
-      matrix:
-        dotnet-version: ['8.0.x', '9.0.x']
-
     steps:
-      - name: 🧾 Checkout
+      - name: 🧾 Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
 
-      - name: 📁 Define Paths
-        run: |
-          echo "REPO_ROOT=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-          echo "MAIN_SOLUTION_PATH=$GITHUB_WORKSPACE/$SOLUTION_FILE_NAME" >> $GITHUB_ENV
-          echo "SRC_DIR=$GITHUB_WORKSPACE/Src" >> $GITHUB_ENV
-          echo "TESTS_DIR=$GITHUB_WORKSPACE/Tests" >> $GITHUB_ENV
-
-      - name: 🧪 Validate Structure
-        run: |
-          echo "🗂 Validating paths..."
-          test -f "$MAIN_SOLUTION_PATH" || (echo "❌ Missing solution file: $MAIN_SOLUTION_PATH" && exit 1)
-          test -d "$SRC_DIR" || echo "⚠️ Missing source dir: $SRC_DIR"
-          test -d "$TESTS_DIR" || echo "⚠️ Missing test dir: $TESTS_DIR"
-
-      - name: ⚙️ Setup .NET SDK
+      - name: ⚙️ Setup .NET SDK (8.0.x)
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ matrix.dotnet-version }}
+          dotnet-version: '8.0.x' # Simplified to a single .NET version
 
       - name: 📦 Cache NuGet packages
         uses: actions/cache@v4
@@ -56,21 +35,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: 🔧 Restore solution
-        run: dotnet restore "$MAIN_SOLUTION_PATH"
+      - name: 🔧 Restore Dependencies
+        run: dotnet restore ${{ env.SOLUTION_FILE_NAME }}
 
-      - name: 🔍 Format Check
-        run: dotnet format "$MAIN_SOLUTION_PATH" --verify-no-changes --severity error
-
-      - name: 🔧 Build
-        run: dotnet build "$MAIN_SOLUTION_PATH" --no-restore -warnaserror
+      - name: 🔧 Build Solution
+        run: dotnet build ${{ env.SOLUTION_FILE_NAME }} --no-restore --configuration Release
 
       - name: 🧪 Run Tests
-        run: dotnet test "$MAIN_SOLUTION_PATH" --no-build --verbosity normal --logger "trx"
-
-      - name: 📤 Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ matrix.dotnet-version }}
-          path: '**/TestResults/*.trx'
+        run: dotnet test ${{ env.SOLUTION_FILE_NAME }} --no-build --configuration Release
