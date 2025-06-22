@@ -29,8 +29,8 @@ jobs:
         run: |
           REPO_ROOT="$GITHUB_WORKSPACE"
           MAIN_SOLUTION_PATH="$GITHUB_WORKSPACE/$SOLUTION_FILE_NAME"
-          SRC_DIR="$GITHUB_WORKSPACE/Src" # This is set to capitalized 'Src'
-          TESTS_DIR="$GITHUB_WORKSPACE/Tests" # This is set to capitalized 'Tests'
+          SRC_DIR="$GITHUB_WORKSPACE/Src"
+          TESTS_DIR="$GITHUB_WORKSPACE/Tests"
 
           echo "REPO_ROOT=$REPO_ROOT" >> $GITHUB_ENV
           echo "MAIN_SOLUTION_PATH=$MAIN_SOLUTION_PATH" >> $GITHUB_ENV
@@ -107,8 +107,6 @@ jobs:
           echo "Original solution file content (first few lines):"
           head -n 10 "${MAIN_SOLUTION_PATH}"
 
-          # Replace 'src\' with 'Src\' and 'tests\' with 'Tests\'
-          # Using sed -i to edit in place. Using | to escape \ for sed.
           sed -i 's|src\\|Src\\|g' "${MAIN_SOLUTION_PATH}"
           sed -i 's|tests\\|Tests\\|g' "${MAIN_SOLUTION_PATH}"
 
@@ -116,10 +114,10 @@ jobs:
           head -n 10 "${MAIN_SOLUTION_PATH}"
         working-directory: ${{ env.REPO_ROOT }}
 
-      - name: ⚙️ Setup .NET SDK (8.0.x)
+      - name: ⚙️ Setup .NET SDK (9.0.x) # <--- CHANGED FROM 8.0.x to 9.0.x
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: 📦 Cache NuGet packages
         uses: actions/cache@v4
