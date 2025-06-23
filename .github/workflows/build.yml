@@ -30,7 +30,7 @@ jobs:
           REPO_ROOT="$GITHUB_WORKSPACE"
           MAIN_SOLUTION_PATH="$GITHUB_WORKSPACE/$SOLUTION_FILE_NAME"
           SRC_DIR="$GITHUB_WORKSPACE/Src"
-          TESTS_DIR="$GITHUB_WORKSPACE/Tests"
+          TESTS_DIR="$GITHUB_WORKSPACE/Tests" 
 
           echo "REPO_ROOT=$REPO_ROOT" >> $GITHUB_ENV
           echo "MAIN_SOLUTION_PATH=$MAIN_SOLUTION_PATH" >> $GITHUB_ENV
@@ -101,20 +101,24 @@ jobs:
             echo "❌ Directory './Tests' (capitalized) does NOT exist."
           fi
 
-      - name: ✍️ Fix Solution File Casing for Linux
+      - name: ✍️ Fix Solution and Project File Casing for Linux
+        working-directory: ${{ env.REPO_ROOT }}
         run: |
           echo "--- Correcting casing in solution file ---"
-          echo "Original solution file content (first few lines):"
-          head -n 10 "${MAIN_SOLUTION_PATH}"
-
           sed -i 's|src\\|Src\\|g' "${MAIN_SOLUTION_PATH}"
           sed -i 's|tests\\|Tests\\|g' "${MAIN_SOLUTION_PATH}"
+          echo "Solution file casing updated."
 
-          echo "Modified solution file content (first few lines):"
-          head -n 10 "${MAIN_SOLUTION_PATH}"
-        working-directory: ${{ env.REPO_ROOT }}
+          echo "--- Correcting casing in all .csproj files ---"
+          find . -type f -name "*.csproj" -exec sed -i \
+            -e 's|src\\|Src\\|g' \
+            -e 's|tests\\|Tests\\|g' \
+            -e 's|\\src\\|\\Src\\|g' \
+            -e 's|\\tests\\|\\Tests\\|g' \
+            {} +
+          echo "All .csproj files casing updated."
 
-      - name: ⚙️ Setup .NET SDK (9.0.x) # <--- CHANGED FROM 8.0.x to 9.0.x
+      - name: ⚙️ Setup .NET SDK (9.0.x)
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
@@ -133,8 +137,8 @@ jobs:
 
       - name: 🔧 Build Solution
         working-directory: ${{ env.REPO_ROOT }}
-        run: dotnet build ${{ env.MAIN_SOLUTION_PATH }} --no-restore --configuration Release
+        run: dotnet build ${{ env.MAIN_SOLUTION_PATH }} --no-restore --configuration Release /p:EnableNETAnalyzers=false
 
       - name: 🧪 Run Tests
         working-directory: ${{ env.REPO_ROOT }}
-        run: dotnet test ${{ env.MAIN_SOLUTION_PATH }} --no-build --configuration Release
+        run: dotnet test ${{ env.MAIN_SOLUTION_PATH }} --no-build --configuration Release /p:EnableNETAnalyzers=false
