@@ -9,6 +9,12 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
+		<PackageReference Include="System.Collections.Immutable" Version="9.0.0" PrivateAssets="all" />
+		<PackageReference Include="Zentient.Results" Version="0.4.1" />
+	</ItemGroup>
+
+	<ItemGroup>
 
 		<!-- Common test utilities and base framework dependencies -->
 		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
@@ -27,8 +33,6 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Zentient.Endpoints\Zentient.Endpoints.csproj" />
-		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
-		<PackageReference Include="Zentient.Results" Version="0.4.1" />
 	</ItemGroup>
 
 </Project>

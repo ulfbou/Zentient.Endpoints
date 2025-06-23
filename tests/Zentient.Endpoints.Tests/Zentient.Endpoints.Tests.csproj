@@ -9,9 +9,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
-		<ProjectReference Include="..\..\src\Zentient.Endpoints.Tests.Shared\Zentient.Endpoints.Tests.Shared.csproj" />
 		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
+		<PackageReference Include="System.Collections.Immutable" Version="9.0.0" PrivateAssets="all" />
 		<PackageReference Include="Zentient.Results" Version="0.4.1" />
 	</ItemGroup>
 
@@ -21,4 +20,8 @@
 		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.1" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<ProjectReference Include="..\..\Src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj" />
+		<ProjectReference Include="..\..\Src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
+	</ItemGroup>
 </Project>

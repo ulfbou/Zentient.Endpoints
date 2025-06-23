@@ -24,7 +24,7 @@ namespace Zentient.Endpoints.Http
         /// <param name="services">The <see cref="IServiceCollection"/> to add services to.</param>
         /// <returns>The <see cref="IServiceCollection"/> so that additional calls can be chained.</returns>
         public static IServiceCollection AddZentientEndpointsHttp(
-            [NotNull] this IServiceCollection services)
+            this IServiceCollection services)
         {
             ArgumentNullException.ThrowIfNull(services);
 
