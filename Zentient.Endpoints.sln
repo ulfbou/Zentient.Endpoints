@@ -5,33 +5,33 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Grpc", "src\Zentient.Endpoints.Grpc\Zentient.Endpoints.Grpc.csproj", "{52D240D5-C115-4B41-8A7A-30D4F9F9CA6B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Grpc", "Src\Zentient.Endpoints.Grpc\Zentient.Endpoints.Grpc.csproj", "{52D240D5-C115-4B41-8A7A-30D4F9F9CA6B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Http", "src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj", "{7E0D2F37-D3C9-4585-B8DA-E57698671D42}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Http", "Src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj", "{7E0D2F37-D3C9-4585-B8DA-E57698671D42}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Messaging", "src\Zentient.Endpoints.Messaging\Zentient.Endpoints.Messaging.csproj", "{8F88D0FD-713A-465D-BCB4-43FBF47C8BB5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Messaging", "Src\Zentient.Endpoints.Messaging\Zentient.Endpoints.Messaging.csproj", "{8F88D0FD-713A-465D-BCB4-43FBF47C8BB5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Tests.Shared", "src\Zentient.Endpoints.Tests.Shared\Zentient.Endpoints.Tests.Shared.csproj", "{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Tests.Shared", "Src\Zentient.Endpoints.Tests.Shared\Zentient.Endpoints.Tests.Shared.csproj", "{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints", "src\Zentient.Endpoints\Zentient.Endpoints.csproj", "{0C510030-6FEA-4358-B9AE-6EE48CF648EF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints", "Src\Zentient.Endpoints\Zentient.Endpoints.csproj", "{0C510030-6FEA-4358-B9AE-6EE48CF648EF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Grpc.Tests", "tests\Zentient.Endpoints.Grpc.Tests\Zentient.Endpoints.Grpc.Tests.csproj", "{5EDA69F2-DE1B-419D-B58F-BB3CC550D4C0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Grpc.Tests", "Tests\Zentient.Endpoints.Grpc.Tests\Zentient.Endpoints.Grpc.Tests.csproj", "{5EDA69F2-DE1B-419D-B58F-BB3CC550D4C0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Http.Tests", "tests\Zentient.Endpoints.Http.Tests\Zentient.Endpoints.Http.Tests.csproj", "{9544BC57-CC8A-4757-9C3B-026FF0BCFD10}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Http.Tests", "Tests\Zentient.Endpoints.Http.Tests\Zentient.Endpoints.Http.Tests.csproj", "{9544BC57-CC8A-4757-9C3B-026FF0BCFD10}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Messaging.Tests", "tests\Zentient.Endpoints.Messaging.Tests\Zentient.Endpoints.Messaging.Tests.csproj", "{31F8A47D-A567-4577-885B-F2759E72B957}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Messaging.Tests", "Tests\Zentient.Endpoints.Messaging.Tests\Zentient.Endpoints.Messaging.Tests.csproj", "{31F8A47D-A567-4577-885B-F2759E72B957}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Tests", "tests\Zentient.Endpoints.Tests\Zentient.Endpoints.Tests.csproj", "{514E5D81-E9A2-4921-BC22-1E76E70F903F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Tests", "Tests\Zentient.Endpoints.Tests\Zentient.Endpoints.Tests.csproj", "{514E5D81-E9A2-4921-BC22-1E76E70F903F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Analyzers", "src\Zentient.Analyzers\Zentient.Analyzers.csproj", "{157ED0A0-02B4-4290-9D8E-E3388566153F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Analyzers", "Src\Zentient.Analyzers\Zentient.Analyzers.csproj", "{157ED0A0-02B4-4290-9D8E-E3388566153F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Analyzers.Tests", "tests\Zentient.Analyzers.Tests\Zentient.Analyzers.Tests.csproj", "{238A52C1-1B8A-43F9-9A97-83D88FC58EFB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Analyzers.Tests", "Tests\Zentient.Analyzers.Tests\Zentient.Analyzers.Tests.csproj", "{238A52C1-1B8A-43F9-9A97-83D88FC58EFB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Results", "src\Zentient.Results\Src\Results\Zentient.Results.csproj", "{18871228-50FB-B5BA-FBEB-E80259DD1C38}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Results", "Src\Zentient.Results\Src\Results\Zentient.Results.csproj", "{18871228-50FB-B5BA-FBEB-E80259DD1C38}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Utilities", "src\Zentient.Results\Src\Utilities\Zentient.Utilities.csproj", "{2ABF5A8B-9002-1403-D410-417E6BE0025A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Utilities", "Src\Zentient.Results\Src\Utilities\Zentient.Utilities.csproj", "{2ABF5A8B-9002-1403-D410-417E6BE0025A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
