@@ -26,7 +26,7 @@
 		<PackageReference Include="System.Formats.Asn1" Version="8.0.2" />
 
 		<!-- Upgrade to match the transitive dependency from Zentient.Endpoints.Grpc -->
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.6" />
 		<PackageReference Include="System.Text.Json" Version="8.0.5" />
 	</ItemGroup>
 
