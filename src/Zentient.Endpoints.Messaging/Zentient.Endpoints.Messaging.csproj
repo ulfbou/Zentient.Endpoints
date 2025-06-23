@@ -9,8 +9,8 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Zentient.Endpoints\Zentient.Endpoints.csproj" />
-		<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />
-		<!--<PackageReference Include="Zentient.Results" Version="0.4.0" />-->
+		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
+		<PackageReference Include="Zentient.Results" Version="0.4.1" />
 	</ItemGroup>
 
 </Project>
