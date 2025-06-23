@@ -14,19 +14,28 @@ using System.Runtime;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using FluentAssertions;
-
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-
-using Moq;
-
+// xUnit
 using Xunit;
 
+// ASP.NET Core
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+
+// Dependency Injection
+using Microsoft.Extensions.DependencyInjection;
+
+// FluentAssertions
+using FluentAssertions;
+
+// Moq
+using Moq;
+
+// Zentient
+using Zentient.Endpoints;
+using Zentient.Endpoints.Http;
 using Zentient.Results;
 
 #pragma warning disable CS1591
@@ -51,8 +60,8 @@ namespace Zentient.Endpoints.Http.Tests
             descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
 
             IProblemDetailsMapper? mapper = serviceProvider.GetService<IProblemDetailsMapper>();
-            mapper.Should().BeOfType<DefaultProblemDetailsMapper>();
             mapper.Should().NotBeNull();
+            mapper.Should().BeOfType<DefaultProblemDetailsMapper>();
         }
 
         [Fact]
@@ -62,7 +71,7 @@ namespace Zentient.Endpoints.Http.Tests
             IServiceCollection services = new ServiceCollection();
 
             // Act
-            services.AddZentientEndpointsHttp();
+            Zentient.Endpoints.Http.ServiceCollectionExtensions.AddZentientEndpointsHttp(services);
             using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
             // Assert
@@ -72,8 +81,8 @@ namespace Zentient.Endpoints.Http.Tests
             descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
 
             IEndpointOutcomeToHttpMapper? mapper = serviceProvider.GetService<IEndpointOutcomeToHttpMapper>();
-            mapper.Should().BeOfType<EndpointOutcomeHttpMapper>();
             mapper.Should().NotBeNull();
+            mapper.Should().BeOfType<EndpointOutcomeHttpMapper>();
         }
 
         [Fact]
@@ -85,7 +94,7 @@ namespace Zentient.Endpoints.Http.Tests
             services.AddSingleton(mockMapper);
 
             // Act
-            services.AddZentientEndpointsHttp();
+            Zentient.Endpoints.Http.ServiceCollectionExtensions.AddZentientEndpointsHttp(services);
             using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
             // Assert
@@ -102,7 +111,7 @@ namespace Zentient.Endpoints.Http.Tests
             services.AddSingleton(mockMapper);
 
             // Act
-            services.AddZentientEndpointsHttp();
+            Zentient.Endpoints.Http.ServiceCollectionExtensions.AddZentientEndpointsHttp(services);
             using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
             // Assert
@@ -131,7 +140,7 @@ namespace Zentient.Endpoints.Http.Tests
             IWebHostBuilder hostBuilder = new WebHostBuilder()
                 .ConfigureServices(services =>
                 {
-                    services.AddZentientEndpointsHttp();
+                    Zentient.Endpoints.Http.ServiceCollectionExtensions.AddZentientEndpointsHttp(services);
                     services.AddRouting();
                     services.AddControllers()
                             .AddApplicationPart(Assembly.GetExecutingAssembly());
@@ -178,12 +187,11 @@ namespace Zentient.Endpoints.Http.Tests
             const string CustomExtensionValue = "This is a custom test value.";
 
             // Arrange: Create ErrorInfo with explicit metadata to ensure 'extensions' are present.
-            // According to RFC 9457, extensions are arbitrary members.
             var errorInfo = new ErrorInfo(
                 category: ErrorCategory.NotFound,
                 code: ResNotFound,
                 message: ResNotFoundDescription,
-                detail: null, // Keep null as message maps to ProblemDetails.Detail
+                detail: null,
                 metadata: new Dictionary<string, object?> {
                     { CustomExtensionKey, CustomExtensionValue }
                 }.ToImmutableDictionary());
@@ -201,11 +209,11 @@ namespace Zentient.Endpoints.Http.Tests
                     {
                         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
                         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
-                        options.JsonSerializerOptions.WriteIndented = true; // Still useful for debugging raw output
+                        options.JsonSerializerOptions.WriteIndented = true;
                     })
-                    .AddApplicationPart(Assembly.GetExecutingAssembly()); // Only call this once
+                    .AddApplicationPart(Assembly.GetExecutingAssembly());
 
-                    services.AddZentientEndpointsHttp();
+                    Zentient.Endpoints.Http.ServiceCollectionExtensions.AddZentientEndpointsHttp(services);
                 })
                 .Configure(app =>
                 {
@@ -262,21 +270,13 @@ namespace Zentient.Endpoints.Http.Tests
             public static IEndpointOutcome? NextEndpointOutcomeForTest { get; set; }
 
             [HttpGet("test-endpoint")]
-            // Change the return type from ActionResult<EndpointOutcome<string>> to IEndpointOutcome
-            // This allows the NormalizeEndpointResultFilter to correctly intercept and process the outcome.
             public static IEndpointOutcome GetTestEndpoint()
             {
                 if (NextEndpointOutcomeForTest is null)
                 {
                     return EndpointOutcome<string>.Success("Hello World");
                 }
-
-                // Return the pre-configured outcome directly.
-                // Since NextEndpointOutcomeForTest is already IEndpointOutcome,
-                // no further casting or fallback creation is needed at this point for the return.
-                // The logic within the filter will handle the specific type (e.e.g, IEndpointOutcome<string>)
-                // and transform it into an IResult.
-                return NextEndpointOutcomeForTest;
+                return NextEndpointOutcomeForTest!;
             }
 
             [HttpGet("test-fail-endpoint")]
@@ -286,8 +286,8 @@ namespace Zentient.Endpoints.Http.Tests
                 {
                     throw new InvalidOperationException("NextEndpointOutcomeForTest was not set for failure test.");
                 }
-
-                return new ActionResult<IEndpointOutcome>(NextEndpointOutcomeForTest);
+                // The null-forgiving operator is required because ActionResult<T> does not accept null.
+                return new ActionResult<IEndpointOutcome>(NextEndpointOutcomeForTest!);
             }
 
             public TestEndpointController()
