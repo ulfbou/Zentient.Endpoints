@@ -30,7 +30,7 @@ jobs:
           REPO_ROOT="$GITHUB_WORKSPACE"
           MAIN_SOLUTION_PATH="$GITHUB_WORKSPACE/$SOLUTION_FILE_NAME"
           SRC_DIR="$GITHUB_WORKSPACE/Src"
-          TESTS_DIR="$GITHUB_WORKSPACE/Tests" 
+          TESTS_DIR="$GITHUB_WORKSPACE/Tests"
 
           echo "REPO_ROOT=$REPO_ROOT" >> $GITHUB_ENV
           echo "MAIN_SOLUTION_PATH=$MAIN_SOLUTION_PATH" >> $GITHUB_ENV
@@ -110,7 +110,6 @@ jobs:
           echo "Solution file casing updated."
 
           echo "--- Correcting casing in all .csproj files ---"
-          find . -type f -name "*.csproj" -exec sed -i \
             -e 's|src\\|Src\\|g' \
             -e 's|tests\\|Tests\\|g' \
             -e 's|\\src\\|\\Src\\|g' \
@@ -118,10 +117,22 @@ jobs:
             {} +
           echo "All .csproj files casing updated."
 
-      - name: ⚙️ Setup .NET SDK (9.0.x)
+      - name: ⚙️ Setup .NET SDKs (8.0.x and 9.0.x)
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: |
+            8.0.x
+            9.0.x
+          include-prerelease: true
+
+      - name: 🔍 Diagnose .NET Installations 
+        run: |
+          echo "--- Listing installed .NET SDKs ---"
+          dotnet --list-sdks
+          echo "--- Listing installed .NET Runtimes ---"
+          dotnet --list-runtimes
+          echo "--- Checking specific ASP.NET Core Runtimes ---"
+          ls /usr/share/dotnet/shared/Microsoft.AspNetCore.App || true 
 
       - name: 📦 Cache NuGet packages
         uses: actions/cache@v4
@@ -139,6 +150,30 @@ jobs:
         working-directory: ${{ env.REPO_ROOT }}
         run: dotnet build ${{ env.MAIN_SOLUTION_PATH }} --no-restore --configuration Release /p:EnableNETAnalyzers=false
 
-      - name: 🧪 Run Tests
+      - name: 🔍 Diagnose Zentient.Utilities Build Output 
         working-directory: ${{ env.REPO_ROOT }}
-        run: dotnet test ${{ env.MAIN_SOLUTION_PATH }} --no-build --configuration Release /p:EnableNETAnalyzers=false
+        run: |
+          echo "--- Checking Zentient.Utilities build output for net8.0 ---"
+          ls -F Src/Zentient.Utilities/bin/Release/net8.0/ || echo "Zentient.Utilities net8.0 output not found or empty."
+          echo "--- Checking Zentient.Utilities build output for net9.0 ---"
+          ls -F Src/Zentient.Utilities/bin/Release/net9.0/ || echo "Zentient.Utilities net9.0 output not found or empty."
+
+      - name: 🧪 Run Tests (net8.0) 
+        working-directory: ${{ env.REPO_ROOT }}
+        run: |
+          find Tests -type f -name "*.csproj" | while read proj; do
+            if grep -q '<TargetFramework>net8.0</TargetFramework>' "$proj" || grep -q '<TargetFrameworks>.*net8.0.*</TargetFrameworks>' "$proj"; then
+              echo "Running tests for $proj (net8.0)"
+              dotnet test "$proj" --no-build --configuration Release --framework net8.0 /p:EnableNETAnalyzers=false
+            fi
+          done
+
+      - name: 🧪 Run Tests (net9.0) 
+        working-directory: ${{ env.REPO_ROOT }}
+        run: |
+          find Tests -type f -name "*.csproj" | while read proj; do
+            if grep -q '<TargetFramework>net9.0</TargetFramework>' "$proj" || grep -q '<TargetFrameworks>.*net9.0.*</TargetFrameworks>' "$proj"; then
+              echo "Running tests for $proj (net9.0)"
+              dotnet test "$proj" --no-build --configuration Release --framework net9.0 /p:EnableNETAnalyzers=false
+            fi
+          done
