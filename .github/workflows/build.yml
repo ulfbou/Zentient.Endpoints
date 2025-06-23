@@ -110,6 +110,7 @@ jobs:
           echo "Solution file casing updated."
 
           echo "--- Correcting casing in all .csproj files ---"
+          find . -type f -name "*.csproj" -exec sed -i \
             -e 's|src\\|Src\\|g' \
             -e 's|tests\\|Tests\\|g' \
             -e 's|\\src\\|\\Src\\|g' \
@@ -125,14 +126,14 @@ jobs:
             9.0.x
           include-prerelease: true
 
-      - name: 🔍 Diagnose .NET Installations 
+      - name: 🔍 Diagnose .NET Installations
         run: |
           echo "--- Listing installed .NET SDKs ---"
           dotnet --list-sdks
           echo "--- Listing installed .NET Runtimes ---"
           dotnet --list-runtimes
           echo "--- Checking specific ASP.NET Core Runtimes ---"
-          ls /usr/share/dotnet/shared/Microsoft.AspNetCore.App || true 
+          ls /usr/share/dotnet/shared/Microsoft.AspNetCore.App || true
 
       - name: 📦 Cache NuGet packages
         uses: actions/cache@v4
@@ -150,7 +151,7 @@ jobs:
         working-directory: ${{ env.REPO_ROOT }}
         run: dotnet build ${{ env.MAIN_SOLUTION_PATH }} --no-restore --configuration Release /p:EnableNETAnalyzers=false
 
-      - name: 🔍 Diagnose Zentient.Utilities Build Output 
+      - name: 🔍 Diagnose Zentient.Utilities Build Output
         working-directory: ${{ env.REPO_ROOT }}
         run: |
           echo "--- Checking Zentient.Utilities build output for net8.0 ---"
@@ -158,7 +159,7 @@ jobs:
           echo "--- Checking Zentient.Utilities build output for net9.0 ---"
           ls -F Src/Zentient.Utilities/bin/Release/net9.0/ || echo "Zentient.Utilities net9.0 output not found or empty."
 
-      - name: 🧪 Run Tests (net8.0) 
+      - name: 🧪 Run Tests (net8.0)
         working-directory: ${{ env.REPO_ROOT }}
         run: |
           find Tests -type f -name "*.csproj" | while read proj; do
@@ -168,7 +169,7 @@ jobs:
             fi
           done
 
-      - name: 🧪 Run Tests (net9.0) 
+      - name: 🧪 Run Tests (net9.0)
         working-directory: ${{ env.REPO_ROOT }}
         run: |
           find Tests -type f -name "*.csproj" | while read proj; do
