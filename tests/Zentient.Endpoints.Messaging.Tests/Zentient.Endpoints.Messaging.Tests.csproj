@@ -11,7 +11,8 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Zentient.Endpoints.Messaging\Zentient.Endpoints.Messaging.csproj" />
 		<ProjectReference Include="..\..\src\Zentient.Endpoints.Tests.Shared\Zentient.Endpoints.Tests.Shared.csproj" />
-		<ProjectReference Include="..\..\src\Zentient.Results\Src\Results\Zentient.Results.csproj" />
+		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
+		<PackageReference Include="Zentient.Results" Version="0.4.1" />
 	</ItemGroup>
 
 	<ItemGroup>
