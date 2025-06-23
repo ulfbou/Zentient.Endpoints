@@ -7,7 +7,8 @@
 		<PackageOutputPath>$(ArtifactsDir)\packages</PackageOutputPath>
 
 		<!-- Use a consistent OutputPath across all projects, overriding default bin\Debug/Release -->
-		<OutputPath>$(ArtifactsDir)\bin\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
+		<OutputPath Condition="'$(IsTestProject)' != 'true'">$(ArtifactsDir)\bin\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
+		<OutputPath Condition="'$(IsTestProject)' == 'true'">$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\</OutputPath>
 		<TestResultsDirectory>$(ArtifactsDir)\test-results\$(MSBuildProjectName)</TestResultsDirectory>
 	</PropertyGroup>
 
