@@ -4,6 +4,8 @@
 
 using Zentient.Results;
 
+using System.Collections.Generic;
+
 namespace Zentient.Endpoints
 {
     /// <summary>
@@ -55,6 +57,14 @@ namespace Zentient.Endpoints
         /// It is used by transport adapters to map the endpoint outcome to the appropriate response format.
         /// </remarks>
         /// <value>A <see cref="Endpoints.TransportMetadata"/> instance containing transport-specific metadata.</value>
-        TransportMetadata TransportMetadata { get; }
+        TransportMetadata Metadata { get; }
+
+        /// <summary>
+        /// Provides internal access to the underlying business result (<see cref="IResult"/>).
+        /// This is primarily used by extension methods or internal components that need to reconstruct
+        /// or process the outcome while maintaining its immutable nature.
+        /// </summary>
+        /// <returns>The <see cref="IResult"/> instance encapsulated by this outcome.</returns>
+        internal IResult GetUnderlyingResult();
     }
 }
