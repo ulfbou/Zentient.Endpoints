@@ -7,7 +7,7 @@ namespace Zentient.Endpoints.Constants
     /// <summary>
     /// Provides constant keys for transport metadata used within the Zentient Endpoints framework.
     /// </summary>
-    public static class TransportMetadataKeys
+    public static class MetadataKeys
     {
         /// <summary>
         /// The key used to store or retrieve the logger instance from transport metadata.
