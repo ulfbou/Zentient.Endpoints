@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
 using Zentient.Endpoints;
+using Zentient.Endpoints.Http.Mapping;
 using Zentient.Results;
 
 namespace Zentient.Endpoints.Http
