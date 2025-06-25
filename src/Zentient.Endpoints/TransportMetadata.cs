@@ -21,8 +21,11 @@ namespace Zentient.Endpoints
     /// This is a sealed record for immutable, fluent updates.
     /// All protocol-specific hints (e.g., HTTP status codes, headers) are stored in the Tags dictionary.
     /// </summary>
-    public sealed partial record TransportMetadata
+    public sealed record TransportMetadata
     {
+        /// <summary>Gets an empty <see cref="TransportMetadata"/> instance with no tags.</summary>
+        public static TransportMetadata Empty { get; } = new TransportMetadata(ImmutableDictionary<string, object?>.Empty);
+
         /// <summary>Gets a dictionary of arbitrary, request-scoped data or services, referred to as tags.</summary>
         /// <remarks>
         /// Tags provide a flexible mechanism for associating custom data or services with the transport metadata.
@@ -46,6 +49,74 @@ namespace Zentient.Endpoints
         /// </remarks>
         public TransportMetadata() : this(ImmutableDictionary<string, object?>.Empty) { }
 
+        /// <summary>
+        /// Creates a new <see cref="TransportMetadata"/> instance from a collection of initial tags.
+        /// </summary>
+        /// <param name="initialTags">A dictionary of key-value pairs for initial tags.</param>
+        /// <param name="logger">A <see cref="ILogger"/> instance to associate with the metadata, if desired.</param>
+        /// <returns>A new <see cref="TransportMetadata"/> instance.</returns>
+        public static TransportMetadata From(
+            IDictionary<string, object?> initialTags,
+            ILogger? logger = null)
+        {
+            ArgumentNullException.ThrowIfNull(initialTags, nameof(initialTags));
+
+            var builder = initialTags.ToImmutableDictionary().ToBuilder();
+
+            if (logger is not null)
+            {
+                builder[Constants.MetadataKeys.Logger] = logger;
+            }
+
+            return new TransportMetadata(builder.ToImmutable());
+        }
+
+        #region ToString
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            if (Tags.IsEmpty)
+            {
+                return "TransportMetadata { Tags: {} }";
+            }
+
+            var tagStrings = Tags.Select(kvp =>
+            {
+                string valueString;
+
+                if (kvp.Value is ProblemDetails pd)
+                {
+                    valueString = $"ProblemDetails (Type: {pd.Type}, Title: {pd.Title})";
+                }
+                else if (kvp.Value is ILogger)
+                {
+                    valueString = "ILogger instance";
+                }
+                else if (kvp.Value is ImmutableDictionary<string, string> headers)
+                {
+                    valueString = $"Headers ({headers.Count} items)";
+                }
+                else if (kvp.Value != null)
+                {
+                    valueString = kvp.Value.ToString() ?? "(null string)";
+
+                    if (valueString.Length > 100)
+                    {
+                        valueString = string.Concat(valueString.AsSpan(0, 97), "...");
+                    }
+                }
+                else
+                {
+                    valueString = "null";
+                }
+
+                return $"{kvp.Key}: {valueString}";
+            });
+
+            return $"TransportMetadata {{ Tags: {{ {string.Join(", ", tagStrings)} }} }}";
+        }
+        #endregion
+
         /// <summary>Returns a new <see cref="TransportMetadata"/> instance with the specified tag set or updated.</summary>
         /// <param name="key">The tag key. Must not be null or whitespace.</param>
         /// <param name="value">The tag value to associate with the key.</param>
@@ -65,7 +136,7 @@ namespace Zentient.Endpoints
         internal TransportMetadata WithLogger(ILogger logger)
         {
             ArgumentNullException.ThrowIfNull(logger, nameof(logger));
-            return SetTag(TransportMetadataKeys.Logger, logger);
+            return SetTag(MetadataKeys.Logger, logger);
         }
 
         /// <summary>Attempts to retrieve a tag value of the specified type from the <see cref="Tags"/> dictionary.</summary>
@@ -96,6 +167,6 @@ namespace Zentient.Endpoints
         /// <returns>
         /// The <see cref="ILogger"/> instance if found; otherwise, <see langword="null"/>.
         /// </returns>
-        internal ILogger? GetLogger() => TryGetTag(TransportMetadataKeys.Logger, out ILogger? logger) ? logger : null;
+        internal ILogger? GetLogger() => TryGetTag(MetadataKeys.Logger, out ILogger? logger) ? logger : null;
     }
 }
