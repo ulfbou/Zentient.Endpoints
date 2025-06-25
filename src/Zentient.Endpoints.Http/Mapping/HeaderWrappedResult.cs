@@ -18,7 +18,7 @@ namespace Zentient.Endpoints.Http.Mapping
     internal sealed class HeaderWrappedResult : IResult
     {
         private readonly IResult _innerResult;
-        private readonly ImmutableList<KeyValuePair<string, string>> _headers;
+        private readonly ImmutableDictionary<string, string> _headers;
         private readonly Uri? _location;
 
         /// <summary>
@@ -31,10 +31,11 @@ namespace Zentient.Endpoints.Http.Mapping
         /// <param name="location">The Location URI to apply. Can be null.</param>
         public HeaderWrappedResult(
             IResult innerResult,
-            ImmutableList<KeyValuePair<string, string>> headers, Uri? location)
+            ImmutableDictionary<string, string> headers,
+            Uri? location)
         {
             _innerResult = innerResult ?? throw new ArgumentNullException(nameof(innerResult));
-            _headers = headers ?? ImmutableList<KeyValuePair<string, string>>.Empty;
+            _headers = headers ?? ImmutableDictionary<string, string>.Empty;
             _location = location;
         }
 
