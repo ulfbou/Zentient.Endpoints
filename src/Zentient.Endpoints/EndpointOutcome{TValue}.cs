@@ -125,5 +125,28 @@ namespace Zentient.Endpoints
         /// <inheritdoc/>
         internal override object? GetValueAsObject() =>
             ((IResult<TValue>)_innerResult).Value;
+
+        /// <summary>
+        /// Overrides the base <see cref="WithMetadata(Func{TransportMetadata, TransportMetadata})"/>
+        /// method to return a new <see cref="EndpointOutcome{TValue}"/> instance, preserving the
+        /// underlying generic result and updating the <see cref="TransportMetadata"/> via the
+        /// factory.
+        /// </summary>
+        /// <param name="metadataFactory">
+        /// A function that takes the current <see cref="TransportMetadata"/>
+        /// and returns a new, updated <see cref="TransportMetadata"/> instance.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="EndpointOutcome{TValue}"/> instance with the updated metadata.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown if <paramref name="metadataFactory"/> is null.
+        /// </exception>
+        internal override EndpointOutcome<TValue> WithMetadata(
+        Func<TransportMetadata, TransportMetadata> metadataFactory)
+        {
+            ArgumentNullException.ThrowIfNull(metadataFactory, nameof(metadataFactory));
+            return new EndpointOutcome<TValue>((IResult<TValue>)_innerResult, metadataFactory(Metadata) ?? TransportMetadata.Empty);
+        }
     }
 }
