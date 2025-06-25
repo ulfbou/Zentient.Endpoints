@@ -8,10 +8,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-using Zentient.Endpoints.Extensions;
+using Zentient.Endpoints.Http.Constants;
 using Zentient.Results;
 
-namespace Zentient.Endpoints.Http.Extensions
+namespace Zentient.Endpoints.Http
 {
     /// <summary>
     /// Internal extension methods to enrich <see cref="IEndpointOutcome"/> metadata
@@ -37,7 +37,7 @@ namespace Zentient.Endpoints.Http.Extensions
             var loggerFactory = httpContext.RequestServices.GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger(httpContext.GetEndpoint()?.DisplayName ?? "Zentient.Endpoints.Http");
 
-            return outcome.WithMetadata(m => m.SetTag("Logger", logger));
+            return outcome.WithMetadata(m => m.WithLogger(logger));
         }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace Zentient.Endpoints.Http.Extensions
             var loggerFactory = httpContext.RequestServices.GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger(httpContext.GetEndpoint()?.DisplayName ?? "Zentient.Endpoints.Http");
 
-            return outcome.WithMetadata(m => m.SetTag("Logger", logger));
+            return outcome.WithMetadata(m => m.WithLogger(logger));
         }
     }
 }
