@@ -2,6 +2,8 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using Microsoft.AspNetCore.Http;
+
 namespace Zentient.Endpoints.Http
 {
     /// <summary>
@@ -14,7 +16,8 @@ namespace Zentient.Endpoints.Http
         /// Generates the 'type' URI for a given problem code.
         /// </summary>
         /// <param name="errorCode">The specific error code (e.g., "VALIDATION_FAILED", "ITEM_NOT_FOUND").</param>
+        /// <param name="httpContext">The current HTTP context, which may be used to access request-specific information.</param>
         /// <returns>A <see cref="Uri"/> representing the full URI for the problem type, or <c>null</c> if no URI can be generated.</returns>
-        Uri? GenerateProblemTypeUri(string? errorCode);
+        ValueTask<string> Generate(string? errorCode, HttpContext httpContext);
     }
 }

@@ -2,6 +2,8 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using Microsoft.AspNetCore.Http;
+
 using System;
 using System.Globalization;
 
@@ -41,25 +43,32 @@ namespace Zentient.Endpoints.Http
         /// If the error code is null or empty, it returns the base URI ("about:blank" or configured base).
         /// </summary>
         /// <param name="errorCode">The specific error code (e.g., "VALIDATION_FAILED", "ITEM_NOT_FOUND").</param>
+        /// <param name="httpContext">The current HTTP context, which may be used to access request-specific information.</param>
         /// <returns>A <see cref="Uri"/> representing the full URI for the problem type.</returns>
-        public Uri? GenerateProblemTypeUri(string? errorCode)
+        public ValueTask<string> Generate(string? errorCode, HttpContext httpContext)
         {
             if (string.IsNullOrWhiteSpace(errorCode))
             {
-                return this._baseUri;
+                return ValueTask.FromResult(this._baseUri.ToString());
             }
 
             string normalizedErrorCode = errorCode.ToUpperInvariant().Replace(' ', '-');
 
-            if (this._baseUri.Equals(DefaultProblemTypeBaseUri))
+            // If the base URI is the default, but the HttpContext has a host, use it to build a more specific URI
+            if (!this._baseUri.Equals(DefaultProblemTypeBaseUri) || httpContext.Request?.Host.HasValue != true)
             {
-                // If the base URI is "about:blank", we don't append specific codes,
-                // as RFC 7807 suggests "about:blank" for generic cases, not specific types.
-                // For specific types, a proper URI base is expected.
-                return this._baseUri;
+                var scheme = httpContext.Request!.Scheme
+                    ?? "http";
+                var host = httpContext.Request.Host.Value
+                    ?? "localhost";
+                var pathBase = httpContext.Request.PathBase.HasValue
+                    ? httpContext.Request.PathBase.Value.TrimEnd('/')
+                    : string.Empty;
+                var uri = $"{scheme}://{host}{pathBase}/errors/{normalizedErrorCode}";
+                return ValueTask.FromResult(uri);
             }
 
-            return new Uri(this._baseUri, normalizedErrorCode);
+            return ValueTask.FromResult(new Uri(this._baseUri, normalizedErrorCode).ToString());
         }
     }
 }
