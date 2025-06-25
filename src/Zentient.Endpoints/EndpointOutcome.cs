@@ -123,6 +123,30 @@ namespace Zentient.Endpoints
         /// The value of the result as an <see cref="object"/>,
         /// or <see langword="null"/> if there is no value.
         /// </returns>
-        internal virtual object? GetValueAsObject() => null;
+        internal virtual object? GetValueAsObject() => Unit.Value;
+
+        /// <summary>
+        /// Returns a new <see cref="EndpointOutcome"/> instance with its
+        /// <see cref="TransportMetadata"/> updated by the provided factory function.
+        /// This method is virtual to allow derived classes to return their specific type.
+        /// </summary>
+        /// <param name="metadataFactory">
+        /// A function that takes the current <see cref="TransportMetadata"/>
+        /// and returns a new, updated <see cref="TransportMetadata"/> instance.
+        /// </param>
+        /// <returns>
+        /// A new <see cref="EndpointOutcome"/> instance with the updated metadata.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown if <paramref name="metadataFactory"/> is null.
+        /// </exception>
+        internal virtual EndpointOutcome WithMetadata(
+        Func<TransportMetadata, TransportMetadata> metadataFactory)
+        {
+            ArgumentNullException.ThrowIfNull(metadataFactory, nameof(metadataFactory));
+            return new EndpointOutcome(
+                _innerResult,
+                metadataFactory(Metadata) ?? TransportMetadata.Empty);
+        }
     }
 }
