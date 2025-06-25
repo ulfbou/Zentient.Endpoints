@@ -55,20 +55,6 @@ namespace Zentient.Endpoints
         /// <inheritdoc/>
         public TransportMetadata Metadata { get; }
 
-        bool IEndpointOutcome.IsSuccess => throw new NotImplementedException();
-
-        bool IEndpointOutcome.IsFailure => throw new NotImplementedException();
-
-        IReadOnlyList<ErrorInfo> IEndpointOutcome.Errors => throw new NotImplementedException();
-
-        IReadOnlyList<string> IEndpointOutcome.Messages => throw new NotImplementedException();
-
-        string? IEndpointOutcome.ErrorMessage => throw new NotImplementedException();
-
-        IResultStatus IEndpointOutcome.Status => throw new NotImplementedException();
-
-        TransportMetadata IEndpointOutcome.Metadata => throw new NotImplementedException();
-
         /// <inheritdoc/>
         public IResult GetUnderlyingResult() => _innerResult;
 
@@ -141,7 +127,7 @@ namespace Zentient.Endpoints
         /// Thrown if <paramref name="metadataFactory"/> is null.
         /// </exception>
         internal virtual EndpointOutcome WithMetadata(
-        Func<TransportMetadata, TransportMetadata> metadataFactory)
+            Func<TransportMetadata, TransportMetadata> metadataFactory)
         {
             ArgumentNullException.ThrowIfNull(metadataFactory, nameof(metadataFactory));
             return new EndpointOutcome(
