@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Zentient.Endpoints;
 using Zentient.Endpoints.Http.Models;
 using Zentient.Results;
+using Zentient.Endpoints.Http.Extensions;
 
 namespace Zentient.Endpoints.Http.Mapping
 {
@@ -31,7 +32,7 @@ namespace Zentient.Endpoints.Http.Mapping
     /// <see cref="Microsoft.AspNetCore.Http.IResult"/>, and applying HTTP-specific metadata for
     /// accurate response generation.
     /// </summary>
-    internal sealed class EndpointOutcomeToHttpMapper : IEndpointOutcomeToHttpMapper
+    public sealed class EndpointOutcomeToHttpMapper : IEndpointOutcomeToHttpMapper
     {
         private readonly IProblemDetailsMapper _problemDetailsMapper;
         private readonly ISuccessResponseFactory _successResponseFactory;
@@ -104,7 +105,6 @@ namespace Zentient.Endpoints.Http.Mapping
                 value = outcomeType.GetProperty("Value")?.GetValue(outcome);
             }
 
-            // Handle Unit/no-content
             if (statusCode == ResultStatuses.NoContent.Code && (value is Unit || value == null) && messages.Count == 0)
             {
                 return Task.FromResult(Microsoft.AspNetCore.Http.Results.StatusCode(statusCode));
