@@ -1,0 +1,84 @@
+// <copyright file="EndpointsHttpOptions.cs" company="Zentient Framework Team">
+// Copyright © 2025 Zentient Framework Team. All rights reserved.
+// </copyright>
+
+using System;
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+using Microsoft.AspNetCore.Http;
+
+namespace Zentient.Endpoints.Http.Options
+{
+    /// <summary>
+    /// Provides comprehensive options for configuring the behavior of Zentient.Endpoints.Http.
+    /// This includes settings for global filters, Problem Details generation, success response
+    /// serialization, and logging defaults.
+    /// </summary>
+    public class EndpointsHttpOptions
+    {
+        /// <summary>
+        /// Gets or sets a value indicating whether the
+        /// <see cref="Zentient.Endpoints.Http.Filters.NormalizeEndpointOutcomeFilter"/>
+        /// should be automatically registered globally for all endpoints.
+        /// <para>Defaults to <see langword="true" />. Set to <see langword="false" /> if you intend
+        /// to explicitly apply the filter using
+        /// <see cref="ServiceCollectionExtensions.WithNormalizeEndpointOutcomeFilter(Microsoft.AspNetCore.Builder.RouteHandlerBuilder)"/>
+        /// on specific endpoints or groups.</para>
+        /// </summary>
+        public bool AddNormalizeEndpointOutcomeFilterGlobally { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the default category name (logger name) used by internal loggers
+        /// when an endpoint's display name is not available (e.g., for global filters).
+        /// <para>Defaults to "Zentient.Endpoints.Http".</para>
+        /// </summary>
+        public string DefaultLoggerCategory { get; set; } = "Zentient.Endpoints.Http";
+
+        /// <summary>
+        /// Gets or sets options specifically for Problem Details (RFC 9457) generation.
+        /// </summary>
+        /// <value>
+        /// The base URI for Problem Details type URIs, or <see langword="null"/> if not set.
+        /// </value>
+        public ProblemDetailsOptions ProblemDetails { get; set; } = new ProblemDetailsOptions();
+
+        /// <summary>
+        /// Gets or sets options specifically for successful API response serialization.
+        /// </summary>
+        public SuccessResponseOptions SuccessResponse { get; set; } = new SuccessResponseOptions();
+
+        /// <summary>
+        /// Gets or sets the <see cref="JsonSerializerOptions"/> used for serializing
+        /// Problem Details and successful API responses.
+        /// <para>
+        /// Defaults to a pre-configured set (e.g., camelCase naming, ignore null values).
+        /// </para>
+        /// </summary>
+        /// <remarks>
+        /// This allows developers to control the JSON serialization behavior for
+        /// all outbound responses managed by Zentient.Endpoints.Http, ensuring consistency
+        /// with their overall API design.
+        /// </remarks>
+        public JsonSerializerOptions JsonSerializerOptions { get; set; } = CreateDefaultJsonSerializerOptions();
+
+        /// <summary>
+        /// Creates a default set of <see cref="JsonSerializerOptions"/> for API responses.
+        /// </summary>
+        /// <returns>A new <see cref="JsonSerializerOptions"/> instance.</returns>
+        private static JsonSerializerOptions CreateDefaultJsonSerializerOptions()
+        {
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                WriteIndented = false,
+            };
+
+            options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+
+            return options;
+        }
+    }
+}
