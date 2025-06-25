@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-// TODO: Consider renaming this class to `NoContentResponse` or `EmptyResponseResult` for clarity.
 // TODO: Consider whether this class should provide an optional message in the HttpContext.Response.Body
 namespace Zentient.Endpoints.Http
 {
@@ -17,17 +16,17 @@ namespace Zentient.Endpoints.Http
     /// Represents an <see cref="Microsoft.AspNetCore.Http.IResult"/> that returns an empty response
     /// with a specific HTTP status code and content type.
     /// </summary>
-    internal sealed class EmptyResultWithStatusCode : Microsoft.AspNetCore.Http.IResult
+    internal sealed class NoContentResponse : Microsoft.AspNetCore.Http.IResult
     {
         private readonly int _statusCode;
         private readonly string? _contentType;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="EmptyResultWithStatusCode"/> class.
+        /// Initializes a new instance of the <see cref="NoContentResponse"/> class.
         /// </summary>
         /// <param name="statusCode">The HTTP status code for the response.</param>
         /// <param name="contentType">Optional: The content type for the response. Defaults to "application/json".</param>
-        public EmptyResultWithStatusCode(
+        public NoContentResponse(
             int statusCode,
             string? contentType = null)
         {
