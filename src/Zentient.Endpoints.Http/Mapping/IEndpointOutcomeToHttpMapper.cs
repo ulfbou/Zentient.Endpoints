@@ -21,12 +21,12 @@ namespace Zentient.Endpoints.Http.Mapping
         /// </summary>
         /// <param name="outcome">The endpoint outcome to map.</param>
         /// <param name="httpContext">The current HTTP context.</param>
-        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <param name="ct">A cancellation token.</param>
         /// <returns>A <see cref="Task"/> that represents the asynchronous operation,
         /// containing the mapped <see cref="Microsoft.AspNetCore.Http.IResult"/>.</returns>
         Task<Microsoft.AspNetCore.Http.IResult> Map(
             IEndpointOutcome outcome,
             HttpContext httpContext,
-            CancellationToken cancellationToken = default);
+            CancellationToken ct = default);
     }
 }
