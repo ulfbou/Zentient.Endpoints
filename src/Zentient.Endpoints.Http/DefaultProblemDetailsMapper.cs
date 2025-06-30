@@ -7,17 +7,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-using Zentient.Results;
 using Zentient.Endpoints.Http.Constants;
 using Zentient.Endpoints.Http.Options;
-using Microsoft.Extensions.Hosting;
+using Zentient.Results;
 using Zentient.Results.Constants;
+
 namespace Zentient.Endpoints.Http.Mapping
 {
     /// <summary>
@@ -59,10 +60,10 @@ namespace Zentient.Endpoints.Http.Mapping
             IWebHostEnvironment environment,
             IOptions<EndpointsHttpOptions> options)
         {
-            _problemTypeUriGenerator = problemTypeUriGenerator ?? throw new ArgumentNullException(nameof(problemTypeUriGenerator));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _environment = environment ?? throw new ArgumentNullException(nameof(environment));
-            _problemDetailsOptions = options?.Value.ProblemDetails ?? throw new ArgumentNullException(nameof(options));
+            this._problemTypeUriGenerator = problemTypeUriGenerator ?? throw new ArgumentNullException(nameof(problemTypeUriGenerator));
+            this._logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            this._environment = environment ?? throw new ArgumentNullException(nameof(environment));
+            this._problemDetailsOptions = options?.Value.ProblemDetails ?? throw new ArgumentNullException(nameof(options));
         }
 
         /// <summary>
@@ -87,7 +88,7 @@ namespace Zentient.Endpoints.Http.Mapping
         /// Thrown if <paramref name="errorInfo"/> has <see cref="ErrorCategory.None"/>, indicating
         /// an issue in upstream result handling.
         /// </exception>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification = "<Pending>")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification = "LoggerMessage delegates not yet implemented")]
         public async Task<ProblemDetails> Map(ErrorInfo? errorInfo, HttpContext httpContext)
         {
             ArgumentNullException.ThrowIfNull(httpContext, nameof(httpContext));
@@ -108,7 +109,7 @@ namespace Zentient.Endpoints.Http.Mapping
                         .Description,
                     Detail = "An unexpected error occurred and no specific error information was provided.",
                     Instance = httpContext.Request.Path,
-                    Type = await _problemTypeUriGenerator.Generate(ErrorCodes.InternalServerError, httpContext)
+                    Type = await this._problemTypeUriGenerator.Generate(ErrorCodes.InternalServerError, httpContext)
                         .ConfigureAwait(false),
                     Extensions = defaultExtensions,
                 };
@@ -123,8 +124,8 @@ namespace Zentient.Endpoints.Http.Mapping
                     $"ErrorInfo Code: {errorInfo.Code ?? "N/A"}, Message: {errorInfo.Message ?? "N/A"}");
             }
 
-            int statusCode = GetHttpStatusCode(errorInfo.Category);
-            string problemTypeUriString = await _problemTypeUriGenerator.Generate(errorInfo.Code, httpContext)
+            int statusCode = this.GetHttpStatusCode(errorInfo.Category);
+            string problemTypeUriString = await this._problemTypeUriGenerator.Generate(errorInfo.Code, httpContext)
                 .ConfigureAwait(false);
 
             var extensions = new Dictionary<string, object?>();
@@ -134,7 +135,7 @@ namespace Zentient.Endpoints.Http.Mapping
                 extensions[ProblemDetailsConstants.Extensions.TraceId] = httpContext.TraceIdentifier;
             }
 
-            if (_problemDetailsOptions.IncludeErrorCodeInExtensions && !string.IsNullOrEmpty(errorInfo.Code))
+            if (this._problemDetailsOptions.IncludeErrorCodeInExtensions && !string.IsNullOrEmpty(errorInfo.Code))
             {
                 extensions[ProblemDetailsConstants.Extensions.ErrorCode] = errorInfo.Code;
             }
@@ -154,15 +155,16 @@ namespace Zentient.Endpoints.Http.Mapping
                     }
                     else
                     {
-                        _logger.LogWarning(
-                            "ProblemDetails extension key '{Key}' from ErrorInfo metadata conflicts with an existing extension. " +
-                            "Value will not be overwritten by ErrorInfo.Metadata.", kvp.Key);
+                        this._logger.LogWarning(
+                            "ProblemDetails extension key '{Key}' from ErrorInfo metadata conflicts with an existing extension. Value will not be overwritten by ErrorInfo.Metadata.",
+                            kvp.Key);
                     }
                 }
             }
 
             if (errorInfo.InnerErrors.Any())
             {
+                // No JsonConstants for inner errors' Metadata/InnerErrors, so not recursively mapping for now.
                 var mappedInnerErrors = errorInfo.InnerErrors
                     .Select(inner => new Dictionary<string, object?>
                     {
@@ -170,13 +172,12 @@ namespace Zentient.Endpoints.Http.Mapping
                         [JsonConstants.ErrorInfo.Code] = inner.Code,
                         [JsonConstants.ErrorInfo.Message] = inner.Message,
                         [JsonConstants.ErrorInfo.Detail] = inner.Detail,
-                        // No JsonConstants for inner errors' Metadata/InnerErrors, so not recursively mapping for now.
                     })
                     .ToList();
                 extensions[ProblemDetailsConstants.Extensions.InnerErrors] = mappedInnerErrors;
             }
 
-            if (_problemDetailsOptions.IncludeStackTrace && _environment.IsDevelopment())
+            if (this._problemDetailsOptions.IncludeStackTrace && this._environment.IsDevelopment())
             {
                 if (errorInfo.Metadata != null
                     && errorInfo.Metadata.TryGetValue(MetadataKeys.ExceptionStackTrace, out var stackTrace)
@@ -186,7 +187,7 @@ namespace Zentient.Endpoints.Http.Mapping
                 }
                 else
                 {
-                    _logger.LogWarning(
+                    this._logger.LogWarning(
                         "ProblemDetails.IncludeStackTrace is true in development, but no '{StackTraceKey}' key found in ErrorInfo metadata for Problem Details.",
                         MetadataKeys.ExceptionStackTrace);
                 }
@@ -216,7 +217,7 @@ namespace Zentient.Endpoints.Http.Mapping
         /// <returns>The corresponding HTTP status code.</returns>
         private int GetHttpStatusCode(ErrorCategory category)
         {
-            if (_problemDetailsOptions.CategoryToStatusCodeMap.TryGetValue(category.ToString(), out int statusCodeFromMap))
+            if (this._problemDetailsOptions.CategoryToStatusCodeMap.TryGetValue(category.ToString(), out int statusCodeFromMap))
             {
                 return statusCodeFromMap;
             }
