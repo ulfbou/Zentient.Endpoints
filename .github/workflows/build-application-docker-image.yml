@@ -1,26 +1,19 @@
-name: Build & Publish Zentient.Endpoints Docker Image
+# This workflow builds and pushes a Docker image for ulfbou/Zentient.Endpoints
+# Path: .github/workflows/build-application-docker-image.yml
+name: CD - Zentient.Endpoints (Build Application Docker Image)
 
 on:
   push:
     branches:
       - main
-      - 'release/**'
-    paths: # Only trigger if Docker-related files or CI config changes
-      - 'Dockerfile'
-      - '.github/workflows/build-docker-image.yml'
-  workflow_dispatch: # Allows manual trigger
-
-env:
-  IMAGE_NAME: zentient-endpoints-ci-dotnet # Updated to be specific to Endpoints
-  REGISTRY: ghcr.io
+      - 'release/v*.*.*'
 
 jobs:
-  build-and-push:
+  docker_build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,28 +21,32 @@ jobs:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Determine Semantic Version (for image tags)
+        id: gitversion
+        uses: GitTools/actions/gitversion/execute@v0.10.2
+
       - name: Extract metadata (tags) for Docker image
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          images: ghcr.io/${{ github.repository_owner }}/zentient-endpoints
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=sha,format=long,prefix=sha-
-            type=ref,event=branch
-
+            type=raw,value=${{ steps.gitversion.outputs.NuGetVersionV2 }},enable=${{ startsWith(github.ref, 'refs/heads/release/v') }}
+            type=raw,value=sha-${{ github.sha }},enable=false
+      
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile
+          file: ./Dockerfile 
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
