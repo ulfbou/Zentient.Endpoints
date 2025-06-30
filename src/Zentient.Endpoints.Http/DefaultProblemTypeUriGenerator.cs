@@ -2,10 +2,10 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
-using Microsoft.AspNetCore.Http;
-
 using System;
 using System.Globalization;
+
+using Microsoft.AspNetCore.Http;
 
 namespace Zentient.Endpoints.Http
 {
