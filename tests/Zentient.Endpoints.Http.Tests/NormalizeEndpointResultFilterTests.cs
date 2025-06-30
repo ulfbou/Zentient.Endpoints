@@ -15,6 +15,8 @@ using Moq;
 using Xunit;
 
 using Zentient.Endpoints;
+using Zentient.Endpoints.Http.Filters;
+using Zentient.Endpoints.Http.Mapping;
 using Zentient.Results;
 
 #pragma warning disable CS1591
@@ -43,7 +45,7 @@ namespace Zentient.Endpoints.Http.Tests
             EndpointFilterDelegate next = (ctx) => ValueTask.FromResult<object?>(endpointOutcome);
 
             this._mockMapper
-                .Setup(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>()))
+                .Setup(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.FromResult(expectedIResult));
 
             // Act
@@ -51,7 +53,7 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Assert
             actualResult.Should().BeSameAs(expectedIResult);
-            this._mockMapper.Verify(m => m.Map(endpointOutcome, context.HttpContext), Times.Once);
+            this._mockMapper.Verify(m => m.Map(endpointOutcome, context.HttpContext, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -65,7 +67,7 @@ namespace Zentient.Endpoints.Http.Tests
             EndpointFilterDelegate next = (ctx) => ValueTask.FromResult<object?>(endpointOutcome);
 
             this._mockMapper
-                .Setup(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>()))
+                .Setup(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.FromResult(expectedIResult));
 
             // Act
@@ -74,7 +76,7 @@ namespace Zentient.Endpoints.Http.Tests
             // Assert
             actualResult.Should().BeSameAs(expectedIResult);
             // Verify with the IEndpointOutcome interface type
-            this._mockMapper.Verify(m => m.Map(endpointOutcome, context.HttpContext), Times.Once);
+            this._mockMapper.Verify(m => m.Map(endpointOutcome, context.HttpContext, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -82,7 +84,7 @@ namespace Zentient.Endpoints.Http.Tests
         {
             // Arrange
             ErrorInfo errorInfo = new ErrorInfo(ErrorCategory.InternalServerError, "TEST_ERROR", "A test error occurred.");
-            EndpointOutcome<int> failedEndpointOutcome = (EndpointOutcome<int>)EndpointOutcome<int>.From(errorInfo);
+            EndpointOutcome<int> failedEndpointOutcome = (EndpointOutcome<int>)EndpointOutcome<int>.FromError(errorInfo);
             Microsoft.AspNetCore.Mvc.ProblemDetails problemDetails = new Microsoft.AspNetCore.Mvc.ProblemDetails { Title = "Test Problem" };
             Microsoft.AspNetCore.Http.IResult expectedIResult = Microsoft.AspNetCore.Http.Results.Problem(
                 title: problemDetails.Title,
@@ -94,7 +96,7 @@ namespace Zentient.Endpoints.Http.Tests
             EndpointFilterDelegate next = (ctx) => ValueTask.FromResult<object?>(failedEndpointOutcome);
 
             this._mockMapper
-                .Setup(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>()))
+                .Setup(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.FromResult(expectedIResult));
 
             // Act
@@ -102,7 +104,7 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Assert
             actualResult.Should().BeSameAs(expectedIResult);
-            this._mockMapper.Verify(m => m.Map(failedEndpointOutcome, context.HttpContext), Times.Once);
+            this._mockMapper.Verify(m => m.Map(failedEndpointOutcome, context.HttpContext, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -118,7 +120,7 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Assert
             actualResult.Should().BeSameAs(originalIResult);
-            this._mockMapper.Verify(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>()), Times.Never);
+            this._mockMapper.Verify(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
@@ -134,7 +136,7 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Assert
             actualResult.Should().BeSameAs(plainObject);
-            this._mockMapper.Verify(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>()), Times.Never);
+            this._mockMapper.Verify(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
@@ -150,7 +152,7 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Assert
             actualResult.Should().BeNull();
-            this._mockMapper.Verify(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>()), Times.Never);
+            this._mockMapper.Verify(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
