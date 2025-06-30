@@ -6,9 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-using System;
 using Zentient.Results;
 
 namespace Zentient.Endpoints
@@ -53,7 +51,7 @@ namespace Zentient.Endpoints
         /// </exception>
         internal static IEndpointOutcome<TValue> WithMetadata<TValue>(
             this IEndpointOutcome<TValue> outcome,
-            Func<TransportMetadata, TransportMetadata> metadataTransform) where TValue : notnull
+            Func<TransportMetadata, TransportMetadata> metadataTransform)
         {
             ArgumentNullException.ThrowIfNull(outcome, nameof(outcome));
             ArgumentNullException.ThrowIfNull(metadataTransform, nameof(metadataTransform));
