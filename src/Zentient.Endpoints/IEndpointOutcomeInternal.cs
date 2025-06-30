@@ -1,3 +1,7 @@
+// <copyright file="IEndpointOutcomeInternal.cs" company="Zentient Framework Team">
+// Copyright © 2025 Zentient Framework Team. All rights reserved.
+// </copyright>
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,7 +20,7 @@ namespace Zentient.Endpoints
         /// <summary>
         /// Gets the underlying business result for internal filters and adapters.
         /// </summary>
-        /// <value>The <see cref="IResult"/> encapsulating the raw operation outcome.</value>
+        /// <returns>The <see cref="IResult"/> encapsulating the raw operation outcome.</returns>
         IResult GetUnderlyingResult();
     }
 }
