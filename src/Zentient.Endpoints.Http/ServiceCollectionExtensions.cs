@@ -91,6 +91,7 @@ namespace Zentient.Endpoints.Http
             {
                 services.TryAddScoped<IEndpointFilter, NormalizeEndpointOutcomeFilter>();
             }
+
             return services;
         }
 
