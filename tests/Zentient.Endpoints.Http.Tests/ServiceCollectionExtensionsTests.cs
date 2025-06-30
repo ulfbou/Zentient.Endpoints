@@ -37,6 +37,8 @@ using Moq;
 using Zentient.Endpoints;
 using Zentient.Endpoints.Http;
 using Zentient.Results;
+using Zentient.Endpoints.Http.Mapping;
+using Zentient.Endpoints.Http.Models;
 
 #pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
@@ -77,12 +79,12 @@ namespace Zentient.Endpoints.Http.Tests
             // Assert
             ServiceDescriptor? descriptor = services.FirstOrDefault(s => s.ServiceType == typeof(IEndpointOutcomeToHttpMapper));
             descriptor.Should().NotBeNull("because IEndpointOutcomeToHttpResultMapper should be registered.");
-            descriptor!.ImplementationType.Should().Be<EndpointOutcomeHttpMapper>();
+            descriptor!.ImplementationType.Should().Be<EndpointOutcomeToHttpMapper>();
             descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
 
             IEndpointOutcomeToHttpMapper? mapper = serviceProvider.GetService<IEndpointOutcomeToHttpMapper>();
             mapper.Should().NotBeNull();
-            mapper.Should().BeOfType<EndpointOutcomeHttpMapper>();
+            mapper.Should().BeOfType<EndpointOutcomeToHttpMapper>();
         }
 
         [Fact]
@@ -195,7 +197,7 @@ namespace Zentient.Endpoints.Http.Tests
                 metadata: new Dictionary<string, object?> {
                     { CustomExtensionKey, CustomExtensionValue }
                 }.ToImmutableDictionary());
-            IEndpointOutcome<object> endpointResult = EndpointOutcome<object>.From(errorInfo);
+            IEndpointOutcome<object> endpointResult = EndpointOutcome<object>.FromError(errorInfo);
 
             IWebHostBuilder hostBuilder = new WebHostBuilder()
                 .ConfigureServices(services =>
