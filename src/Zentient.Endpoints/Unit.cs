@@ -34,10 +34,9 @@ namespace Zentient.Endpoints
         /// <returns><c>true</c> if <paramref name="left"/> is less than <paramref name="right"/>; otherwise, <c>false</c>.</returns>
         public static bool operator <(Unit left, Unit right)
         {
-            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
             _ = left;
             _ = right;
-            return false; // All Unit instances are equal, so none is less than another
+            return false;
         }
 
         /// <summary>
@@ -48,10 +47,9 @@ namespace Zentient.Endpoints
         /// <returns><c>true</c> if <paramref name="left"/> is greater than <paramref name="right"/>; otherwise, <c>false</c>.</returns>
         public static bool operator >(Unit left, Unit right)
         {
-            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
             _ = left;
             _ = right;
-            return false; // All Unit instances are equal, so none is greater than another
+            return false;
         }
 
         /// <summary>
@@ -62,7 +60,6 @@ namespace Zentient.Endpoints
         /// <returns><c>true</c> if <paramref name="left"/> is less than or equal to <paramref name="right"/>; otherwise, <c>false</c>.</returns>
         public static bool operator <=(Unit left, Unit right)
         {
-            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
             _ = left;
             _ = right;
             return true;
@@ -76,7 +73,6 @@ namespace Zentient.Endpoints
         /// <returns><c>true</c> if <paramref name="left"/> is greater than or equal to <paramref name="right"/>; otherwise, <c>false</c>.</returns>
         public static bool operator >=(Unit left, Unit right)
         {
-            // Discard assignments used to silence IDE0060 for unused parameters in operator overloads.
             _ = left;
             _ = right;
             return true;

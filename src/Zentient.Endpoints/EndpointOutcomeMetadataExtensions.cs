@@ -104,8 +104,6 @@ namespace Zentient.Endpoints
 
             if (outcome is EndpointOutcome concreteOutcome)
             {
-                // CORRECTED: Call the internal instance method that returns EndpointOutcome<TValue>
-                // We then cast it to IEndpointOutcome<TValue> for the return type.
                 return (IEndpointOutcome)concreteOutcome.WithMetadataInternal(metadataTransform);
             }
 
