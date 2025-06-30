@@ -2,6 +2,7 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Logging;
 
 using Zentient.Endpoints.Constants;
 
+
 namespace Zentient.Endpoints
 {
     /// <summary>
@@ -21,23 +23,24 @@ namespace Zentient.Endpoints
     /// This is a sealed record for immutable, fluent updates.
     /// All protocol-specific hints (e.g., HTTP status codes, headers) are stored in the Tags dictionary.
     /// </summary>
-    public sealed record TransportMetadata
+    public sealed partial record TransportMetadata
     {
         /// <summary>Gets an empty <see cref="TransportMetadata"/> instance with no tags.</summary>
-        public static TransportMetadata Empty { get; } = new TransportMetadata(ImmutableDictionary<string, object?>.Empty);
+        /// <value>An empty transport metadata.</value>
+        public static TransportMetadata Empty { get; } = new TransportMetadata();
 
         /// <summary>Gets a dictionary of arbitrary, request-scoped data or services, referred to as tags.</summary>
         /// <remarks>
         /// Tags provide a flexible mechanism for associating custom data or services with the transport metadata.
         /// Protocol-specific hints (e.g., HTTP status code, headers, ProblemDetails) are stored here using
-        /// well-defined string keys (e.g., "http.status", "http.headers").
+        /// well-defined string keys (e.g., "http.status_code", "http.headers").
         /// </remarks>
         /// <value>An immutable dictionary mapping string keys to object values, which may be null.</value>
         public ImmutableDictionary<string, object?> Tags { get; init; }
 
         /// <summary>Initializes a new instance of the <see cref="TransportMetadata"/> record with the specified tags.</summary>
-        /// <param name="tags">An immutable dictionary of tags to associate with this metadata.</param>
-        private TransportMetadata(ImmutableDictionary<string, object?> tags)
+        /// <param name="tags">An immutable dictionary of tags to associate with this metadata. If <see langword="null"/>, an empty dictionary is used.</param>
+        public TransportMetadata(ImmutableDictionary<string, object?>? tags)
         {
             Tags = tags ?? ImmutableDictionary<string, object?>.Empty;
         }
@@ -124,7 +127,7 @@ namespace Zentient.Endpoints
         /// <exception cref="ArgumentException">
         /// Thrown if <paramref name="key"/> is null, empty, or consists only of white-space characters.
         /// </exception>
-        internal TransportMetadata SetTag(string key, object? value)
+        public TransportMetadata WithTag(string key, object? value)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(key));
             return this with { Tags = Tags.SetItem(key, value) };
@@ -133,10 +136,11 @@ namespace Zentient.Endpoints
         /// <summary>Returns a new <see cref="TransportMetadata"/> instance with the a specified <see cref="ILogger"/> instance added as a tag.</summary>
         /// <param name="logger">The <see cref="ILogger"/> instance to associate with the metadata.</param>
         /// <returns>A new <see cref="TransportMetadata"/> instance with the logger added as a tag.</returns>
-        internal TransportMetadata WithLogger(ILogger logger)
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="logger"/> is <see langword="null" />.</exception>
+        public TransportMetadata WithLogger(ILogger logger)
         {
             ArgumentNullException.ThrowIfNull(logger, nameof(logger));
-            return SetTag(MetadataKeys.Logger, logger);
+            return WithTag(MetadataKeys.Logger, logger);
         }
 
         /// <summary>Attempts to retrieve a tag value of the specified type from the <see cref="Tags"/> dictionary.</summary>
@@ -149,7 +153,7 @@ namespace Zentient.Endpoints
         /// <returns>
         /// <see langword="true"/> if the tag exists and is of type <typeparamref name="T"/>; otherwise, <see langword="false"/>.
         /// </returns>
-        internal bool TryGetTag<T>(string key, [NotNullWhen(true)] out T? value)
+        public bool TryGetTag<T>(string key, [NotNullWhen(true)] out T? value)
         {
             if (Tags.TryGetValue(key, out var objValue) && objValue is T typedValue)
             {
@@ -167,6 +171,6 @@ namespace Zentient.Endpoints
         /// <returns>
         /// The <see cref="ILogger"/> instance if found; otherwise, <see langword="null"/>.
         /// </returns>
-        internal ILogger? GetLogger() => TryGetTag(MetadataKeys.Logger, out ILogger? logger) ? logger : null;
+        public ILogger? GetLogger() => TryGetTag(MetadataKeys.Logger, out ILogger? logger) ? logger : null;
     }
 }
