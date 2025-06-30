@@ -1,4 +1,4 @@
-﻿<!-- Zentient Endpoints Analyzers Project File -->
+<!-- Zentient Endpoints Analyzers Project File -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
@@ -8,14 +8,14 @@
 		<IsPackable>true</IsPackable>
 		<IncludeBuildOutput>true</IncludeBuildOutput>
 		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-		<AssemblyOriginatorKeyFile>../Zentient.snk</AssemblyOriginatorKeyFile>
-		<SignAssembly>true</SignAssembly>
+		<PublicSign Condition="'$(OS)' == 'Windows_NT'">false</PublicSign>
+		<PublicSign Condition="'$(OS)' != 'Windows_NT'">true</PublicSign>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<!--<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />-->
-		<PackageReference Include="System.Collections.Immutable" Version="9.0.0" PrivateAssets="all" />
+		<PackageReference Include="System.Collections.Immutable" Version="9.0.6" PrivateAssets="all" />
 	</ItemGroup>
 </Project>
