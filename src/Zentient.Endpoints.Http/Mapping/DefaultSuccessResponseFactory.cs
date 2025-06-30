@@ -12,6 +12,7 @@ using Zentient.Endpoints;
 using Zentient.Endpoints.Http.Models;
 using Zentient.Endpoints.Http.Options;
 using Zentient.Results;
+
 namespace Zentient.Endpoints.Http.Mapping
 {
     /// <summary>
@@ -46,11 +47,10 @@ namespace Zentient.Endpoints.Http.Mapping
             {
                 throw new ArgumentException(
                     "SuccessResponse options must be configured.",
-                    nameof(options)
-                );
+                    nameof(options));
             }
 
-            _successResponseOptions = options.Value.SuccessResponse;
+            this._successResponseOptions = options.Value.SuccessResponse;
         }
 
         /// <summary>
@@ -70,14 +70,13 @@ namespace Zentient.Endpoints.Http.Mapping
             string statusDescription,
             IReadOnlyList<string> messages,
             TValue? value)
-            where TValue : notnull
         {
             ArgumentNullException.ThrowIfNull(outcome, nameof(outcome));
             ArgumentOutOfRangeException.ThrowIfNegative(statusCode, nameof(statusCode));
             ArgumentNullException.ThrowIfNull(statusDescription, nameof(statusDescription));
             ArgumentNullException.ThrowIfNull(messages, nameof(messages));
 
-            var singleMessage = messages.Count == 1 && _successResponseOptions.IncludeSingleMessageField
+            var singleMessage = messages.Count == 1 && this._successResponseOptions.IncludeSingleMessageField
                                 ? messages[0]
                                 : null;
 
@@ -88,8 +87,7 @@ namespace Zentient.Endpoints.Http.Mapping
                 message: singleMessage,
                 messages: messagesArray,
                 statusCode: statusCode,
-                statusDescription: statusDescription
-            );
+                statusDescription: statusDescription);
         }
 
         /// <summary>
@@ -107,7 +105,7 @@ namespace Zentient.Endpoints.Http.Mapping
             string statusDescription,
             IReadOnlyList<string> messages)
         {
-            var singleMessage = messages.Count == 1 && _successResponseOptions.IncludeSingleMessageField
+            var singleMessage = messages.Count == 1 && this._successResponseOptions.IncludeSingleMessageField
                                 ? messages[0]
                                 : null;
 
@@ -118,8 +116,7 @@ namespace Zentient.Endpoints.Http.Mapping
                 message: singleMessage,
                 messages: messagesArray,
                 statusCode: statusCode,
-                statusDescription: statusDescription
-            );
+                statusDescription: statusDescription);
         }
     }
 }

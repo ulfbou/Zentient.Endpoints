@@ -34,10 +34,14 @@ namespace Zentient.Endpoints.Http.Mapping
             ImmutableDictionary<string, string> headers,
             Uri? location)
         {
-            _innerResult = innerResult ?? throw new ArgumentNullException(nameof(innerResult));
-            _headers = headers ?? ImmutableDictionary<string, string>.Empty;
-            _location = location;
+            this._innerResult = innerResult ?? throw new ArgumentNullException(nameof(innerResult));
+            this._headers = headers ?? ImmutableDictionary<string, string>.Empty;
+            this._location = location;
         }
+
+        /// <summary>Gets the inner <see cref="IResult"/> that is wrapped by this result.</summary>
+        /// <value>The inner <see cref="IResult"/> that is wrapped by this result.</value>
+        internal IResult Result => this._innerResult;
 
         /// <summary>
         /// Executes the result asynchronously, applying headers and then the inner result.
@@ -48,20 +52,20 @@ namespace Zentient.Endpoints.Http.Mapping
         {
             ArgumentNullException.ThrowIfNull(httpContext, nameof(httpContext));
 
-            if (!_headers.IsEmpty)
+            if (!this._headers.IsEmpty)
             {
-                foreach (var (key, value) in _headers)
+                foreach (var (key, value) in this._headers)
                 {
                     httpContext.Response.Headers.Append(key, value);
                 }
             }
 
-            if (_location is not null)
+            if (this._location is not null)
             {
-                httpContext.Response.Headers.Location = _location.OriginalString;
+                httpContext.Response.Headers.Location = this._location.OriginalString;
             }
 
-            await _innerResult.ExecuteAsync(httpContext).ConfigureAwait(false);
+            await this._innerResult.ExecuteAsync(httpContext).ConfigureAwait(false);
         }
     }
 }

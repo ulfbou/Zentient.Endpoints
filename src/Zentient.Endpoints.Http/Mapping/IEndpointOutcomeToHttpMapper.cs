@@ -16,7 +16,7 @@ namespace Zentient.Endpoints.Http.Mapping
     public interface IEndpointOutcomeToHttpMapper
     {
         /// <summary>
-        /// Maps the given endpoint outcome to an ASP.NET Core 
+        /// Maps the given endpoint outcome to an ASP.NET Core
         /// <see cref="Microsoft.AspNetCore.Http.IResult"/>.
         /// </summary>
         /// <param name="outcome">The endpoint outcome to map.</param>
