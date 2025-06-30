@@ -9,99 +9,55 @@ using System.Collections.Generic;
 namespace Zentient.Endpoints
 {
     /// <summary>
-    /// Defines the common contract for an operation's outcome at the application's boundary
-    /// (endpoint), providing access to the underlying business result and transport-agnostic
-    /// metadata.
-    /// This interface serves as the base for both generic and non-generic endpoint results,
-    /// enabling polymorphic handling by endpoint filters and adapters.
+    /// Represents the non-generic outcome of an endpoint operation,
+    /// providing status, error details, and transport-agnostic metadata.
     /// </summary>
     /// <remarks>
-    /// <see cref="IEndpointOutcome"/> is designed to encapsulate and acts as the bridge between
-    /// internal <see cref="Zentient.Results.IResult"/> instances representing business logic 
-    /// outcomes and external transport-specific responses. It encapsulates the core business outcome
-    /// while allowing for additional metadata relevant to the transport layer.
+    /// Serves as the public contract for filters and adapters handling
+    /// endpoint results without exposing business-logic internals.
     /// </remarks>
     public interface IEndpointOutcome
     {
-        /// <summary>Gets a value indicating whether the endpoint operation was successful.</summary>
-        /// <remarks>
-        /// Proxies <see cref="IResult.IsSuccess"/> from the underlying business result.
-        /// </remarks>
-        /// <value>
-        /// <see langword="true"/> if the operation succeeded; otherwise, <see langword="false"/>.
-        /// </value>
+        /// <summary>Gets a value indicating whether the operation succeeded.</summary>
+        /// <value><c>true</c> if the operation was successful; otherwise, <c>false</c>.</value>
         bool IsSuccess { get; }
 
-        /// <summary>Gets a value indicating whether the endpoint operation failed.</summary>
-        /// <remarks>
-        /// Proxies <see cref="IResult.IsFailure"/> from the underlying business result.
-        /// </remarks>
-        /// <value>
-        /// <see langword="true"/> if the operation failed; otherwise, <see langword="false"/>.
-        /// </value>
+        /// <summary>Gets a value indicating whether the operation failed.</summary>
+        /// <value><c>true</c> if the operation failed; otherwise, <c>false</c>.</value>
         bool IsFailure { get; }
 
         /// <summary>
-        /// Gets a read-only list of detailed error information if the operation failed.
-        /// Empty if successful.
+        /// Gets a read-only list of <see cref="ErrorInfo"/> instances detailing errors.
         /// </summary>
-        /// <remarks>
-        /// Proxies <see cref="IResult.Errors"/> from the underlying business result.
-        /// </remarks>
         /// <value>
-        /// A read-only list of <see cref="ErrorInfo"/> objects representing errors,
-        /// or an empty list if there are no errors.
+        /// A list of <see cref="ErrorInfo"/> objects, or empty if no errors occurred.
         /// </value>
         IReadOnlyList<ErrorInfo> Errors { get; }
 
         /// <summary>
-        /// Gets a read-only list of messages associated with the result (success or failure).
+        /// Gets a read-only list of messages associated with the outcome.
         /// </summary>
-        /// <remarks>
-        /// Proxies <see cref="IResult.Messages"/> from the underlying business result.
-        /// </remarks>
         /// <value>
-        /// A read-only list of strings containing messages, which may include warnings or
-        /// informational notes.
+        /// A list of informational or warning messages, or empty if none are present.
         /// </value>
         IReadOnlyList<string> Messages { get; }
 
         /// <summary>
-        /// Gets the message of the first error if the operation failed; otherwise, null.
+        /// Gets the first error message, or <see langword="null"/> if the operation succeeded.
         /// </summary>
-        /// <remarks>
-        /// Proxies <see cref="IResult.ErrorMessage"/> from the underlying business result.
-        /// </remarks>
         /// <value>
-        /// The message of the first error, or <see langword="null"/> if there are no errors.
+        /// The first error message string, or <see langword="null"/> when no errors exist.
         /// </value>
         string? ErrorMessage { get; }
 
-        /// <summary>
-        /// Gets the semantic status of the result, providing contextual information
-        /// (e.g., HTTP-like status codes).
-        /// </summary>
-        /// <remarks>
-        /// Proxies <see cref="IResult.Status"/> from the underlying business result.
-        /// </remarks>
-        /// <value>
-        /// An <see cref="IResultStatus"/> instance representing the status of the operation,
-        /// such as success or various error categories.
-        /// </value>
+        /// <summary>Gets the semantic status of the business result.</summary>
+        /// <value>An <see cref="IResultStatus"/> indicating success or specific failure type.</value>
         IResultStatus Status { get; }
 
-        /// <summary>
-        /// Gets transport-agnostic metadata associated with this endpoint outcome.
-        /// </summary>
-        /// <remarks>
-        /// This metadata includes hints for HTTP status codes, gRPC status,
-        /// and other transport-specific information.
-        /// It is used by transport adapters to map the endpoint outcome to the appropriate
-        /// response format.
-        /// </remarks>
+        /// <summary>Gets transport-level hints (e.g., HTTP or gRPC status codes).</summary>
         /// <value>
-        /// A <see cref="Endpoints.TransportMetadata"/> instance containing transport-specific
-        /// metadata.
+        /// A <see cref="TransportMetadata"/> instance containing transport hints
+        /// for adapters.
         /// </value>
         TransportMetadata Metadata { get; }
     }

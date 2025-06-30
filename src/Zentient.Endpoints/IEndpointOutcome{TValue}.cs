@@ -2,7 +2,6 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
-
 using Zentient.Results;
 
 namespace Zentient.Endpoints
@@ -14,7 +13,6 @@ namespace Zentient.Endpoints
     /// </summary>
     /// <typeparam name="TValue">The type of the value produced on success.</typeparam>
     public interface IEndpointOutcome<out TValue> : IEndpointOutcome
-        where TValue : notnull // Maintain the notnull constraint
     {
         /// <summary>
         /// Gets the value produced by the operation if it was successful.
