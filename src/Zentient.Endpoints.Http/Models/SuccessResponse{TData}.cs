@@ -7,9 +7,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
 
-using Zentient.Results;
 using Zentient.Endpoints.Http.Constants;
 using Zentient.Endpoints.Http.Options;
+using Zentient.Results;
 
 namespace Zentient.Endpoints.Http.Models
 {
@@ -18,7 +18,7 @@ namespace Zentient.Endpoints.Http.Models
     /// data, messages, and status. This class is designed to be serialized into a consistent JSON format.
     /// </summary>
     /// <typeparam name="TData">The type of the primary data being returned.</typeparam>
-    internal sealed class SuccessResponse<TData>
+    public sealed class SuccessResponse<TData>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SuccessResponse{TData}"/> class.
@@ -26,7 +26,7 @@ namespace Zentient.Endpoints.Http.Models
         /// <param name="data">The primary data to include in the response.</param>
         /// <param name="message">
         /// An optional human-readable single message describing the overall status.
-        /// This field's presence is typically controlled by 
+        /// This field's presence is typically controlled by
         /// <see cref="SuccessResponseOptions.IncludeSingleMessageField" />.
         /// </param>
         /// <param name="statusCode">The HTTP status code for the response.</param>
@@ -42,12 +42,12 @@ namespace Zentient.Endpoints.Http.Models
             string? statusDescription,
             IReadOnlyList<string>? messages = null)
         {
-            Data = data;
-            Message = message;
-            StatusCode = statusCode;
-            StatusDescription = statusDescription
+            this.Data = data;
+            this.Message = message;
+            this.StatusCode = statusCode;
+            this.StatusDescription = statusDescription
                 ?? ResultStatuses.GetStatus(statusCode).Description;
-            Messages = messages ?? Array.Empty<string>();
+            this.Messages = messages ?? Array.Empty<string>();
         }
 
         /// <summary>Gets the primary data returned by the operation.</summary>
@@ -64,8 +64,8 @@ namespace Zentient.Endpoints.Http.Models
         /// </summary>
         /// <value>
         /// A string containing a message that provides additional context about the operation's
-        /// success, or null if no message is provided, based on the 
-        /// the <see cref="SuccessResponseOptions"/> property IncludeSingleMessageField configuration.
+        /// success, or null if no message is provided, based on the
+        /// <see cref="SuccessResponseOptions"/> property IncludeSingleMessageField configuration.
         /// </value>
         [JsonPropertyName(ResponseJsonProperties.Message)]
         public string? Message { get; init; }
