@@ -1,4 +1,4 @@
-// <copyright file="TransportMetadataExtensions.cs" company="Zentient Framework Team">
+// <copyright file="TransportMetadataHttpExtensions.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
@@ -37,7 +37,7 @@ namespace Zentient.Endpoints.Http.Extensions
             int statusCode)
         {
             ArgumentNullException.ThrowIfNull(metadata, nameof(metadata));
-            return metadata.SetTag(HttpMetadataKeys.HttpStatusCodeHint, statusCode);
+            return metadata.WithTag(HttpMetadataKeys.HttpStatusCodeHint, statusCode);
         }
 
         /// <summary>
@@ -57,7 +57,7 @@ namespace Zentient.Endpoints.Http.Extensions
         {
             ArgumentNullException.ThrowIfNull(metadata, nameof(metadata));
             ArgumentNullException.ThrowIfNull(problemDetails, nameof(problemDetails));
-            return metadata.SetTag(HttpMetadataKeys.ProblemDetailsOverride, problemDetails);
+            return metadata.WithTag(HttpMetadataKeys.ProblemDetailsOverride, problemDetails);
         }
 
         /// <summary>
@@ -89,7 +89,7 @@ namespace Zentient.Endpoints.Http.Extensions
             currentHeaders ??= ImmutableDictionary<string, string>.Empty;
 
             var newHeaders = currentHeaders.SetItem(key, value);
-            return metadata.SetTag(HttpMetadataKeys.Headers, newHeaders);
+            return metadata.WithTag(HttpMetadataKeys.Headers, newHeaders);
         }
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace Zentient.Endpoints.Http.Extensions
         /// <remarks>
         /// This method does not throw an exception for invalid URI strings.
         /// </remarks>
-        [SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification = "<Pending>")]
+        [SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification = "LoggerMessage delegates are not used here to keep the code simple and avoid additional boilerplate.")]
         public static TransportMetadata WithLocation(
             this TransportMetadata metadata,
             string uriString)
@@ -132,7 +132,7 @@ namespace Zentient.Endpoints.Http.Extensions
                 return metadata;
             }
 
-            return metadata.SetTag(HttpMetadataKeys.LocationUri, uri);
+            return metadata.WithTag(HttpMetadataKeys.LocationUri, uri);
         }
 
         /// <summary>
@@ -145,11 +145,12 @@ namespace Zentient.Endpoints.Http.Extensions
         /// <exception cref="ArgumentNullException">
         /// Thrown if <paramref name="metadata"/> or <paramref name="uri"/> is null.
         /// </exception>
+        [SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification = "LoggerMessage delegates are not used here to keep the code simple and avoid additional boilerplate.")]
         public static TransportMetadata WithLocation(this TransportMetadata metadata, Uri uri)
         {
             ArgumentNullException.ThrowIfNull(metadata, nameof(metadata));
             ArgumentNullException.ThrowIfNull(uri, nameof(uri));
-            return metadata.SetTag(HttpMetadataKeys.LocationUri, uri);
+            return metadata.WithTag(HttpMetadataKeys.LocationUri, uri);
         }
 
         /// <summary>
