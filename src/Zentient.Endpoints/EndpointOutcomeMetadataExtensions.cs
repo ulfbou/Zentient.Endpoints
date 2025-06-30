@@ -60,7 +60,7 @@ namespace Zentient.Endpoints
 
             if (outcome is EndpointOutcome<TValue> concreteOutcome)
             {
-                return concreteOutcome.WithMetadata(metadataTransform);
+                return (IEndpointOutcome<TValue>)concreteOutcome.WithMetadataInternal(metadataTransform);
             }
 
             throw new InvalidOperationException($"Cannot apply metadata transform to outcome of type {outcome.GetType().Name}. " +
@@ -106,11 +106,51 @@ namespace Zentient.Endpoints
 
             if (outcome is EndpointOutcome concreteOutcome)
             {
-                return concreteOutcome.WithMetadata(metadataTransform);
+                // CORRECTED: Call the internal instance method that returns EndpointOutcome<TValue>
+                // We then cast it to IEndpointOutcome<TValue> for the return type.
+                return (IEndpointOutcome)concreteOutcome.WithMetadataInternal(metadataTransform);
             }
 
             throw new InvalidOperationException($"Cannot apply metadata transform to outcome of type {outcome.GetType().Name}. " +
                                                 $"Expected an instance of {typeof(EndpointOutcome).Name} or its derivative.");
+        }
+
+        /// <summary>
+        /// Determines value-based equality for two IEndpointOutcome{TValue} instances.
+        /// </summary>
+        /// <typeparam name="TValue">The type of the value produced on success.</typeparam>
+        /// <param name="left">The first endpoint outcome to compare.</param>
+        /// <param name="right">The second endpoint outcome to compare.</param>
+        /// <returns>
+        /// <see langword="true"/> if both outcomes are equal based on their value, status, metadata, and errors;
+        /// otherwise, <see langword="false"/>.
+        /// </returns>
+        /// <remarks>
+        /// This method checks for reference equality first, then compares the value,
+        /// status, metadata, and errors of both outcomes.
+        /// It is designed to be used in scenarios where you need to determine if two
+        /// endpoint outcomes represent the same result,
+        /// especially in testing or validation contexts.
+        /// </remarks>
+        internal static bool OutcomeEquals<TValue>(
+            this IEndpointOutcome<TValue> left,
+            IEndpointOutcome<TValue> right)
+            where TValue : notnull
+        {
+            if (ReferenceEquals(left, right))
+            {
+                return true;
+            }
+
+            if (left is null || right is null)
+            {
+                return false;
+            }
+
+            return EqualityComparer<TValue?>.Default.Equals(left.Value, right.Value)
+                && left.Status.Equals(right.Status)
+                && left.Metadata.Equals(right.Metadata)
+                && left.Errors.SequenceEqual(right.Errors);
         }
     }
 }
