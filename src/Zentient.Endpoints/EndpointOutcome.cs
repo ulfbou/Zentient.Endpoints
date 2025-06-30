@@ -21,30 +21,6 @@ namespace Zentient.Endpoints
         /// <summary>Gets the underlying business result. Initialized during construction.</summary>
         private readonly IResult _innerResult;
 
-        /// <inheritdoc/>
-        public bool IsSuccess => _innerResult.IsSuccess;
-
-        /// <inheritdoc/>
-        public bool IsFailure => _innerResult.IsFailure;
-
-        /// <inheritdoc/>
-        public IReadOnlyList<ErrorInfo> Errors => _innerResult.Errors;
-
-        /// <inheritdoc/>
-        public IReadOnlyList<string> Messages => _innerResult.Messages;
-
-        /// <inheritdoc/>
-        public string? ErrorMessage => _innerResult.ErrorMessage;
-
-        /// <inheritdoc/>
-        public IResultStatus Status => _innerResult.Status;
-
-        /// <inheritdoc/>
-        public IResult UnderlyingResult => _innerResult;
-
-        /// <inheritdoc/>
-        public TransportMetadata Metadata { get; }
-
         /// <summary>
         /// Initializes a new instance of the <see cref="EndpointOutcome"/> class.
         /// </summary>
@@ -53,9 +29,30 @@ namespace Zentient.Endpoints
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="result"/> is <see langword="null" />.</exception>
         protected EndpointOutcome(IResult result, TransportMetadata? metadata = null)
         {
-            _innerResult = result ?? throw new ArgumentNullException(nameof(result));
-            Metadata = metadata ?? new TransportMetadata();
+            this._innerResult = result ?? throw new ArgumentNullException(nameof(result));
+            this.Metadata = metadata ?? new TransportMetadata();
         }
+
+        /// <inheritdoc/>
+        public bool IsSuccess => this._innerResult.IsSuccess;
+
+        /// <inheritdoc/>
+        public bool IsFailure => this._innerResult.IsFailure;
+
+        /// <inheritdoc/>
+        public IReadOnlyList<ErrorInfo> Errors => this._innerResult.Errors;
+
+        /// <inheritdoc/>
+        public IReadOnlyList<string> Messages => this._innerResult.Messages;
+
+        /// <inheritdoc/>
+        public string? ErrorMessage => this._innerResult.ErrorMessage;
+
+        /// <inheritdoc/>
+        public IResultStatus Status => this._innerResult.Status;
+
+        /// <inheritdoc/>
+        public TransportMetadata Metadata { get; }
 
         /// <summary>
         /// Creates a successful non-generic endpoint outcome.
@@ -115,6 +112,7 @@ namespace Zentient.Endpoints
             {
                 throw new ArgumentException("Errors collection cannot be empty.", nameof(errors));
             }
+
             return new EndpointOutcome(Result.Failure(errors), transportMetadata);
         }
 
@@ -165,16 +163,18 @@ namespace Zentient.Endpoints
         public override bool Equals(object? obj)
         {
             if (ReferenceEquals(this, obj))
+            {
                 return true;
+            }
 
             // Support value-based equality for IEndpointOutcome (including mocks)
             if (obj is IEndpointOutcome other)
             {
-                return Status.Equals(other.Status)
-                    && Errors.SequenceEqual(other.Errors)
-                    && Messages.SequenceEqual(other.Messages)
-                    && string.Equals(ErrorMessage, other.ErrorMessage, StringComparison.Ordinal)
-                    && Metadata.Equals(other.Metadata);
+                return this.Status.Equals(other.Status)
+                    && this.Errors.SequenceEqual(other.Errors)
+                    && this.Messages.SequenceEqual(other.Messages)
+                    && string.Equals(this.ErrorMessage, other.ErrorMessage, StringComparison.Ordinal)
+                    && this.Metadata.Equals(other.Metadata);
             }
 
             return false;
@@ -184,33 +184,48 @@ namespace Zentient.Endpoints
         public bool Equals(EndpointOutcome? other)
         {
             if (ReferenceEquals(this, other))
+            {
                 return true;
-            if (other is null)
-                return false;
+            }
 
-            return Status.Equals(other.Status)
-                && Errors.SequenceEqual(other.Errors)
-                && Messages.SequenceEqual(other.Messages)
-                && string.Equals(ErrorMessage, other.ErrorMessage, StringComparison.Ordinal)
-                && Metadata.Equals(other.Metadata);
+            if (other is null)
+            {
+                return false;
+            }
+
+            return this.Status.Equals(other.Status)
+                && this.Errors.SequenceEqual(other.Errors)
+                && this.Messages.SequenceEqual(other.Messages)
+                && string.Equals(this.ErrorMessage, other.ErrorMessage, StringComparison.Ordinal)
+                && this.Metadata.Equals(other.Metadata);
         }
 
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            var hash = new HashCode();
-            hash.Add(Status);
-            foreach (var error in Errors)
+            HashCode hash = default;
+            hash.Add(this.Status);
+            foreach (var error in this.Errors)
+            {
                 hash.Add(error);
-            foreach (var message in Messages)
+            }
+
+            foreach (var message in this.Messages)
+            {
                 hash.Add(message);
-            hash.Add(ErrorMessage);
-            hash.Add(Metadata);
+            }
+
+            hash.Add(this.ErrorMessage);
+            hash.Add(this.Metadata);
             return hash.ToHashCode();
         }
 
         /// <inheritdoc/>
         public override string ToString() => "Zentient.Endpoints.EndpointOutcome";
+
+        /// <inheritdoc />
+        IResult IEndpointOutcomeInternal.GetUnderlyingResult()
+            => this._innerResult;
 
         /// <summary>
         /// Creates a new <see cref="IEndpointOutcome"/> instance with updated metadata.
@@ -220,8 +235,8 @@ namespace Zentient.Endpoints
         internal virtual EndpointOutcome WithMetadataInternal(Func<TransportMetadata, TransportMetadata> metadataTransform)
         {
             ArgumentNullException.ThrowIfNull(metadataTransform, nameof(metadataTransform));
-            var newMetadata = metadataTransform(Metadata);
-            return new EndpointOutcome(_innerResult, newMetadata);
+            var newMetadata = metadataTransform(this.Metadata);
+            return new EndpointOutcome(this._innerResult, newMetadata);
         }
 
         /// <summary>
@@ -234,19 +249,5 @@ namespace Zentient.Endpoints
         /// or <see langword="null"/> if there is no value.
         /// </returns>
         internal virtual object? GetValueAsObject() => null;
-
-        /// <summary>
-        /// Gets the underlying <see cref="Zentient.Results.IResult"/> instance.
-        /// This is used internally to access the raw result for further processing or inspection.
-        /// </summary>
-        /// <returns>The underlying <see cref="Zentient.Results.IResult"/> instance.</returns>
-        internal virtual IResult GetUnderlyingResult()
-        {
-            return _innerResult;
-        }
-
-        /// <inheritdoc />
-        IResult IEndpointOutcomeInternal.GetUnderlyingResult()
-            => _innerResult;
     }
 }
