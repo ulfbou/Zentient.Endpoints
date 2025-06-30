@@ -12,10 +12,15 @@ namespace Zentient.Endpoints.Http.Options
     {
         /// <summary>
         /// Gets or sets the base URI for constructing the 'type' field in Problem Details.
-        /// <para>Defaults to <c>null</c>. If set, the <see cref="DefaultProblemTypeUriGenerator"/>
-        /// will append the error code to this base URI (e.g., "https://example.com/problems/invalid-input").</para>
+        /// <para>
+        /// Defaults to <c>null</c>. If set, the <see cref="DefaultProblemTypeUriGenerator"/>
+        /// will append the error code to this base URI (e.g., "https://example.com/problems/invalid-input").
+        /// </para>
         /// <para>If <c>null</c>, the 'type' field will often use "about:blank" or be omitted based on context.</para>
         /// </summary>
+        /// <value>
+        /// The base URI for Problem Details type URIs, or <see langword="null"/> if not set.
+        /// </value>
         public Uri? BaseTypeUri { get; set; }
 
         /// <summary>
@@ -24,6 +29,9 @@ namespace Zentient.Endpoints.Http.Options
         /// <para>Defaults to <c>false</c>. Highly recommended to set to <c>true</c> only
         /// in development environments for debugging purposes.</para>
         /// </summary>
+        /// <value>
+        /// <c>true</c> to include stack traces in Problem Details responses; otherwise, <c>false</c>.
+        /// </value>
         public bool IncludeStackTrace { get; set; }
 
         /// <summary>
@@ -31,6 +39,9 @@ namespace Zentient.Endpoints.Http.Options
         /// the Problem Details 'extensions' field.
         /// <para>Defaults to <c>true</c>.</para>
         /// </summary>
+        /// <value>
+        /// <c>true</c> to include the error code in the extensions; otherwise, <c>false</c>.
+        /// </value>
         public bool IncludeErrorCodeInExtensions { get; set; } = true;
 
         /// <summary>
@@ -38,10 +49,13 @@ namespace Zentient.Endpoints.Http.Options
         /// <see cref="Zentient.Results.ErrorInfo.Message"/>) in the Problem Details 'detail' field.
         /// <para>Defaults to <c>true</c>.</para>
         /// </summary>
+        /// <value>
+        /// <c>true</c> to include error info messages in the detail field; otherwise, <c>false</c>.
+        /// </value>
         public bool IncludeErrorInfoMessagesInDetail { get; set; } = true;
 
         /// <summary>
-        /// Gets or sets a custom mapping for <see cref="Zentient.Results.ErrorInfo.Category"/>
+        /// Gets a custom mapping for <see cref="Zentient.Results.ErrorInfo.Category"/>
         /// to specific HTTP status codes.
         /// <para>Defaults to a standard mapping (e.g., Unauthorized -> 401, Forbidden -> 403, Validation -> 400).</para>
         /// </summary>
@@ -49,6 +63,9 @@ namespace Zentient.Endpoints.Http.Options
         /// This dictionary allows overriding or extending the default category-to-status code mapping.
         /// Keys are <see cref="Zentient.Results.ErrorInfo.Category"/> strings, values are HTTP status codes.
         /// </remarks>
+        /// <value>
+        /// A dictionary mapping error category names to HTTP status codes.
+        /// </value>
         public Dictionary<string, int> CategoryToStatusCodeMap { get; init; } = new Dictionary<string, int>
         {
             // Populate with sensible defaults, perhaps derived from ResultStatuses

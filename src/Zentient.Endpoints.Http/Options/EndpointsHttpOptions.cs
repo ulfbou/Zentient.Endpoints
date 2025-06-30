@@ -27,6 +27,7 @@ namespace Zentient.Endpoints.Http.Options
         /// <see cref="ServiceCollectionExtensions.WithNormalizeEndpointOutcomeFilter(Microsoft.AspNetCore.Builder.RouteHandlerBuilder)"/>
         /// on specific endpoints or groups.</para>
         /// </summary>
+        /// <value><see langword="true" /> if the filter is registered globally; otherwise, <see langword="false" />.</value>
         public bool AddNormalizeEndpointOutcomeFilterGlobally { get; set; } = true;
 
         /// <summary>
@@ -34,19 +35,21 @@ namespace Zentient.Endpoints.Http.Options
         /// when an endpoint's display name is not available (e.g., for global filters).
         /// <para>Defaults to "Zentient.Endpoints.Http".</para>
         /// </summary>
+        /// <value>The default logger category name used by internal loggers.</value>
         public string DefaultLoggerCategory { get; set; } = "Zentient.Endpoints.Http";
 
         /// <summary>
         /// Gets or sets options specifically for Problem Details (RFC 9457) generation.
         /// </summary>
         /// <value>
-        /// The base URI for Problem Details type URIs, or <see langword="null"/> if not set.
+        /// The <see cref="ProblemDetailsOptions"/> for Problem Details type URIs, or <see langword="null"/> if not set.
         /// </value>
         public ProblemDetailsOptions ProblemDetails { get; set; } = new ProblemDetailsOptions();
 
         /// <summary>
         /// Gets or sets options specifically for successful API response serialization.
         /// </summary>
+        /// <value>The <see cref="SuccessResponseOptions"/> for successful API response serialization.</value>
         public SuccessResponseOptions SuccessResponse { get; set; } = new SuccessResponseOptions();
 
         /// <summary>
@@ -61,6 +64,7 @@ namespace Zentient.Endpoints.Http.Options
         /// all outbound responses managed by Zentient.Endpoints.Http, ensuring consistency
         /// with their overall API design.
         /// </remarks>
+        /// <value>The <see cref="JsonSerializerOptions"/> used for serialization.</value>
         public JsonSerializerOptions JsonSerializerOptions { get; set; } = CreateDefaultJsonSerializerOptions();
 
         /// <summary>
