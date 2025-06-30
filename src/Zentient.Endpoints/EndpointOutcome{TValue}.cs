@@ -198,7 +198,6 @@ namespace Zentient.Endpoints
         {
             ArgumentNullException.ThrowIfNull(metadataTransform, nameof(metadataTransform));
 
-            // Ensure we pass IResult<TValue> to the generic constructor
             var newMetadata = metadataTransform(this.Metadata);
             return new EndpointOutcome<TValue>((IResult<TValue>)((IEndpointOutcomeInternal)this).GetUnderlyingResult(), newMetadata);
         }
