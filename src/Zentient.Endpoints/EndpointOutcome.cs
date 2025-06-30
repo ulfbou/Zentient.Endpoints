@@ -167,7 +167,6 @@ namespace Zentient.Endpoints
                 return true;
             }
 
-            // Support value-based equality for IEndpointOutcome (including mocks)
             if (obj is IEndpointOutcome other)
             {
                 return this.Status.Equals(other.Status)
@@ -203,21 +202,23 @@ namespace Zentient.Endpoints
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            HashCode hash = default;
-            hash.Add(this.Status);
-            foreach (var error in this.Errors)
+            int hash = HashCode.Combine(this.Status);
+
+            var errors = this.Errors;
+            for (int i = 0, count = errors.Count; i < count; i++)
             {
-                hash.Add(error);
+                hash = HashCode.Combine(hash, errors[i]);
             }
 
-            foreach (var message in this.Messages)
+            var messages = this.Messages;
+            for (int i = 0, count = messages.Count; i < count; i++)
             {
-                hash.Add(message);
+                hash = HashCode.Combine(hash, messages[i]);
             }
 
-            hash.Add(this.ErrorMessage);
-            hash.Add(this.Metadata);
-            return hash.ToHashCode();
+            hash = HashCode.Combine(hash, this.ErrorMessage);
+            hash = HashCode.Combine(hash, this.Metadata);
+            return hash;
         }
 
         /// <inheritdoc/>
