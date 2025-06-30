@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -68,7 +69,7 @@ namespace Zentient.Endpoints.Http
         /// </returns>
         public static IEndpointOutcome<TValue> WithHttpStatusCodeHint<TValue>(
             this IEndpointOutcome<TValue> outcome,
-            int statusCode) where TValue : notnull
+            int statusCode)
         {
             ArgumentNullException.ThrowIfNull(outcome, nameof(outcome));
             ArgumentOutOfRangeException.ThrowIfNegative(statusCode, nameof(statusCode));
@@ -105,7 +106,7 @@ namespace Zentient.Endpoints.Http
         /// </returns>
         public static IEndpointOutcome<TValue> WithProblemDetails<TValue>(
         this IEndpointOutcome<TValue> outcome,
-        ProblemDetails problemDetails) where TValue : notnull
+        ProblemDetails problemDetails)
         {
             ArgumentNullException.ThrowIfNull(outcome, nameof(outcome));
             ArgumentNullException.ThrowIfNull(problemDetails, nameof(problemDetails));
@@ -145,7 +146,7 @@ namespace Zentient.Endpoints.Http
         public static IEndpointOutcome<TValue> WithHeader<TValue>(
             this IEndpointOutcome<TValue> outcome,
             string key,
-            string value) where TValue : notnull
+            string value)
         {
             ArgumentNullException.ThrowIfNull(outcome, nameof(outcome));
             ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(key));
@@ -162,7 +163,7 @@ namespace Zentient.Endpoints.Http
         /// <see chref="ILogger" /> is available in metadata), and the header is not set.
         /// This method does not throw an exception for invalid URI strings.
         /// </remarks>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification = "<Pending>")]
+        [SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification = "LoggerMessage delegates are not used here to keep the code simple and avoid additional boilerplate for a single log statement.")]
         public static IEndpointOutcome WithLocation(this IEndpointOutcome outcome, string uriString)
         {
             ArgumentNullException.ThrowIfNull(outcome, nameof(outcome));
@@ -215,7 +216,7 @@ namespace Zentient.Endpoints.Http
         /// Invalid URI strings are logged as warnings (if ILogger is available)
         /// and do not cause an exception.
         /// </remarks>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification = "<Pending>")]
+        [SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification = "LoggerMessage delegates are not used here to keep the code simple and avoid additional boilerplate for a single log statement.")]
         public static IEndpointOutcome<TValue> WithLocation<TValue>(this IEndpointOutcome<TValue> outcome, string uriString)
             where TValue : notnull
         {
@@ -240,6 +241,7 @@ namespace Zentient.Endpoints.Http
         }
 
         /// <summary>Fluently sets the Location HTTP header on the outcome's metadata.</summary>
+        /// <typeparam name="TValue">The type of the outcome's value.</typeparam>
         /// <param name="outcome">The current endpoint outcome.</param>
         /// <param name="uri">The <see cref="Uri"/> for the Location header.</param>
         /// <returns>A new <see cref="IEndpointOutcome"/> instance with the updated metadata (or the original if URI is invalid).</returns>
@@ -297,7 +299,7 @@ namespace Zentient.Endpoints.Http
         public static async Task<Microsoft.AspNetCore.Http.IResult> ToHttpResultAsync<TValue>(
         this IEndpointOutcome<TValue> outcome,
         HttpContext context,
-        CancellationToken cancellationToken = default) where TValue : notnull
+        CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(context, nameof(context));
             var mapper = context.RequestServices.GetRequiredService<IEndpointOutcomeToHttpMapper>();

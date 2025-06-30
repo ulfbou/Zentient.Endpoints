@@ -52,7 +52,7 @@ namespace Zentient.Endpoints.Http
         /// </returns>
         public static IEndpointOutcome<TValue> WithRequestServices<TValue>(
             this IEndpointOutcome<TValue> outcome,
-            HttpContext httpContext) where TValue : notnull
+            HttpContext httpContext)
         {
             ArgumentNullException.ThrowIfNull(httpContext, nameof(httpContext));
 
