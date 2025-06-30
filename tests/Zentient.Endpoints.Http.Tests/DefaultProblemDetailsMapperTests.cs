@@ -20,6 +20,7 @@ using System.Threading.Tasks;
 using Xunit;
 
 using Zentient.Endpoints.Http;
+using Zentient.Endpoints.Http.Mapping;
 using Zentient.Results;
 using Zentient.Results.Constants;
 
@@ -29,20 +30,22 @@ namespace Zentient.Endpoints.Http.Tests
     public sealed class DefaultProblemDetailsMapperTests
     {
         private static readonly Uri DefaultTestProblemTypeBaseUri = new Uri("https://testdomain.com/errors/");
+        private readonly Mock<HttpContext> _mockHttpContext;
         private readonly Mock<IProblemTypeUriGenerator> _mockProblemTypeUriGenerator;
 
         public DefaultProblemDetailsMapperTests()
         {
+            this._mockHttpContext = new Mock<HttpContext>();
             this._mockProblemTypeUriGenerator = new Mock<IProblemTypeUriGenerator>();
             this._mockProblemTypeUriGenerator
-                .Setup(g => g.GenerateProblemTypeUri(It.Is<string?>(s => string.IsNullOrEmpty(s))))
-                .Returns(new Uri(ProblemDetailsConstants.DefaultBaseUri));
+                .Setup(g => g.Generate(It.Is<string?>(s => string.IsNullOrEmpty(s)), It.IsAny<HttpContext>()))
+                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(ProblemDetailsConstants.DefaultBaseUri));
             this._mockProblemTypeUriGenerator
-                .Setup(g => g.GenerateProblemTypeUri(It.Is<string>(s => !string.IsNullOrEmpty(s))))
-                .Returns((string code) => new Uri(DefaultTestProblemTypeBaseUri, code!.ToUpperInvariant().Replace(' ', '-')));
+                .Setup(g => g.Generate(It.Is<string>(s => !string.IsNullOrEmpty(s)), It.IsAny<HttpContext>()))
+                .Returns((string code, HttpContext ctx) => new ValueTask<string>(new Uri(DefaultTestProblemTypeBaseUri, code!.ToUpperInvariant().Replace(' ', '-')).ToString()));
             this._mockProblemTypeUriGenerator
-                .Setup(g => g.GenerateProblemTypeUri(null))
-                .Returns(new Uri(ProblemDetailsConstants.DefaultBaseUri));
+                .Setup(g => g.Generate(null, It.IsAny<HttpContext>()))
+                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(ProblemDetailsConstants.DefaultBaseUri));
         }
 
         [Fact]
@@ -68,7 +71,7 @@ namespace Zentient.Endpoints.Http.Tests
             result.Extensions.Should().NotContainKey(ProblemDetailsConstants.Extensions.Detail);
             result.Extensions[ProblemDetailsConstants.Extensions.TraceId].Should().Be(TraceId);
             result.Type.Should().Be($"{DefaultTestProblemTypeBaseUri}{ErrorCodes.InternalServerError.ToUpperInvariant().Replace(' ', '-')}");
-            this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri(ErrorCodes.InternalServerError), Times.Once);
+            this._mockProblemTypeUriGenerator.Verify(g => g.Generate(ErrorCodes.InternalServerError, It.IsAny<HttpContext>()), Times.Once);
         }
 
         [Fact]
@@ -91,7 +94,7 @@ namespace Zentient.Endpoints.Http.Tests
             result.Extensions[ProblemDetailsConstants.Extensions.Detail].Should().Be("Field X is required.");
             result.Extensions[ProblemDetailsConstants.Extensions.TraceId].Should().Be("trace-456");
             result.Type.Should().Be($"{DefaultTestProblemTypeBaseUri}VAL001");
-            this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("VAL001"), Times.Once);
+            this._mockProblemTypeUriGenerator.Verify(g => g.Generate("VAL001", It.IsAny<HttpContext>()), Times.Once);
         }
 
         [Theory]
@@ -108,15 +111,29 @@ namespace Zentient.Endpoints.Http.Tests
         [InlineData(ErrorCategory.ResourceGone, HttpStatusCode.Gone, "Gone")]
         [InlineData(ErrorCategory.NotImplemented, HttpStatusCode.NotImplemented, "Not Implemented")]
         [InlineData(ErrorCategory.RateLimit, HttpStatusCode.TooManyRequests, "Too Many Requests")]
-        public async Task Map_ErrorInfo_Category_MapsToExpectedStatusAndTitleAsync(ErrorCategory category, HttpStatusCode expectedStatus, string expectedTitle)
+        public async Task Map_ErrorInfo_Category_MapsToExpectedStatusAndTitleAsync(
+            ErrorCategory category,
+            HttpStatusCode expectedStatus,
+            string expectedTitle)
         {
             // Arrange
             ErrorInfo error = new ErrorInfo(category, "ERR", "Error message", "Error detail");
             var mockGenerator = new Mock<IProblemTypeUriGenerator>();
             mockGenerator
-                .Setup(g => g.GenerateProblemTypeUri(It.IsAny<string?>()))
-                .Returns((string? code) => code == null ? new Uri(ProblemDetailsConstants.DefaultBaseUri) : new Uri($"https://testdomain.com/errors/{code.ToUpperInvariant().Replace(' ', '-')}"));
-            DefaultProblemDetailsMapper mapper = new DefaultProblemDetailsMapper(mockGenerator.Object);
+                .Setup(g => g.Generate(It.IsAny<string?>(), It.IsAny<HttpContext>()))
+                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(code == null ? ProblemDetailsConstants.DefaultBaseUri : $"https://testdomain.com/errors/{code.ToUpperInvariant().Replace(' ', '-')}"));
+
+            var mockLogger = new Mock<Microsoft.Extensions.Logging.ILogger<DefaultProblemDetailsMapper>>();
+            var mockEnv = new Mock<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            mockEnv.SetupGet(e => e.EnvironmentName).Returns("Development");
+            Microsoft.Extensions.Options.IOptions<Options.EndpointsHttpOptions> options = Microsoft.Extensions.Options.Options.Create(new Options.EndpointsHttpOptions());
+
+            DefaultProblemDetailsMapper mapper = new DefaultProblemDetailsMapper(
+                mockGenerator.Object,
+                mockLogger.Object,
+                mockEnv.Object,
+                options
+            );
             HttpContext context = CreateHttpContext();
 
             // Act
@@ -125,7 +142,7 @@ namespace Zentient.Endpoints.Http.Tests
             // Assert
             result.Status.Should().Be((int)expectedStatus);
             result.Title.Should().Be(expectedTitle);
-            mockGenerator.Verify(g => g.GenerateProblemTypeUri("ERR"), Times.Once);
+            mockGenerator.Verify(g => g.Generate("ERR", It.IsAny<HttpContext>()), Times.Once);
         }
 
         [Fact]
@@ -164,8 +181,6 @@ namespace Zentient.Endpoints.Http.Tests
 
             result.Extensions.Should().ContainKey(ProblemDetailsConstants.Extensions.InnerErrors);
 
-            // --- IMPORTANT CHANGE HERE ---
-            // Construct the expected list of dictionaries, mirroring the mapper's logic
             var expectedInnerErrorsInExtensions = innerErrors
                 .Select(inner => new Dictionary<string, object?>
                 {
@@ -176,11 +191,11 @@ namespace Zentient.Endpoints.Http.Tests
                 })
                 .ToList();
 
-            // Now, assert that the actual list of dictionaries is equivalent to the expected list of dictionaries.
-            result.Extensions[ProblemDetailsConstants.Extensions.InnerErrors].Should().BeEquivalentTo(expectedInnerErrorsInExtensions);
-            // --- END IMPORTANT CHANGE ---
+            result.Extensions[ProblemDetailsConstants.Extensions.InnerErrors]
+                .Should()
+                .BeEquivalentTo(expectedInnerErrorsInExtensions, options => options.WithoutStrictOrdering());
 
-            this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("CONFLICT"), Times.Once);
+            this._mockProblemTypeUriGenerator.Verify(g => g.Generate("CONFLICT", It.IsAny<HttpContext>()), Times.Once);
         }
 
         [Fact]
@@ -208,7 +223,7 @@ namespace Zentient.Endpoints.Http.Tests
             // Based on typical ProblemDetails implementations, empty collections are usually omitted or empty.
             // Double-check your mapper's behavior regarding empty inner errors.
             result.Extensions.Should().NotContainKey("innerErrors");
-            this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("NOTFOUND"), Times.Once);
+            this._mockProblemTypeUriGenerator.Verify(g => g.Generate("NOTFOUND", It.IsAny<HttpContext>()), Times.Once);
         }
 
         [Fact]
@@ -239,7 +254,7 @@ namespace Zentient.Endpoints.Http.Tests
             // Assert
             result.Extensions.Should().NotContainKey("errorCode");
             result.Detail.Should().Be("Validation failed");
-            this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri(string.Empty), Times.Once);
+            this._mockProblemTypeUriGenerator.Verify(g => g.Generate(string.Empty, It.IsAny<HttpContext>()), Times.Once);
             result.Type.Should().Be(ProblemDetailsConstants.DefaultBaseUri);
         }
 
@@ -256,14 +271,30 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Assert
             result.Type.Should().Be($"{DefaultTestProblemTypeBaseUri}INVALID-INPUT");
-            this._mockProblemTypeUriGenerator.Verify(g => g.GenerateProblemTypeUri("Invalid Input"), Times.Once);
+            this._mockProblemTypeUriGenerator.Verify(g => g.Generate("Invalid Input", It.IsAny<HttpContext>()), Times.Once);
         }
 
-        private static DefaultProblemDetailsMapper CreateMapperWithMockGenerator(IProblemTypeUriGenerator generator) =>
-            new DefaultProblemDetailsMapper(generator);
+        private static DefaultProblemDetailsMapper CreateMapperWithMockGenerator(IProblemTypeUriGenerator generator)
+        {
+            var mockLogger = new Mock<Microsoft.Extensions.Logging.ILogger<DefaultProblemDetailsMapper>>();
+            var mockEnv = new Mock<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            mockEnv.SetupGet(e => e.EnvironmentName).Returns("Development");
+            Microsoft.Extensions.Options.IOptions<Options.EndpointsHttpOptions> options = Microsoft.Extensions.Options.Options.Create(new Options.EndpointsHttpOptions());
+            return new DefaultProblemDetailsMapper(generator, mockLogger.Object, mockEnv.Object, options);
+        }
 
         private static DefaultProblemDetailsMapper CreateMapper()
-            => new DefaultProblemDetailsMapper();
+        {
+            var mockGenerator = new Mock<IProblemTypeUriGenerator>();
+            mockGenerator
+                .Setup(g => g.Generate(It.IsAny<string?>(), It.IsAny<HttpContext>()))
+                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(ProblemDetailsConstants.DefaultBaseUri));
+            var mockLogger = new Mock<Microsoft.Extensions.Logging.ILogger<DefaultProblemDetailsMapper>>();
+            var mockEnv = new Mock<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            mockEnv.SetupGet(e => e.EnvironmentName).Returns("Development");
+            Microsoft.Extensions.Options.IOptions<Zentient.Endpoints.Http.Options.EndpointsHttpOptions> options = Microsoft.Extensions.Options.Options.Create(new Zentient.Endpoints.Http.Options.EndpointsHttpOptions());
+            return new DefaultProblemDetailsMapper(mockGenerator.Object, mockLogger.Object, mockEnv.Object, options);
+        }
 
         private static HttpContext CreateHttpContext(string? traceId = null, string? path = "/test")
         {
