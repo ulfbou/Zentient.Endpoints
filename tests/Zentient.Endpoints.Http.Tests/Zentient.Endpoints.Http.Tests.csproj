@@ -1,4 +1,4 @@
-﻿<!-- Zentient Endpoints HTTP Tests Project File -->
+<!-- Zentient Endpoints HTTP Tests Project File -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
@@ -10,8 +10,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="Moq" Version="4.20.72" />
-		<PackageReference Include="System.Collections.Immutable" Version="9.0.0" PrivateAssets="all" />
-		<PackageReference Include="Zentient.Results" Version="0.4.1" />
+		<PackageReference Include="System.Collections.Immutable" Version="9.0.6" PrivateAssets="all" />
+		<PackageReference Include="Zentient.Results" Version="0.4.4-beta0001" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -29,6 +29,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\Src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj" />
+		<ProjectReference Include="..\..\Src\Zentient.Endpoints.Tests.Shared\Zentient.Endpoints.Tests.Shared.csproj" />
 		<ProjectReference Include="..\..\Src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
 	</ItemGroup>
 </Project>
