@@ -1,4 +1,4 @@
-// <copyright file="EndpointHttpOptionsBuilderExtensions.cs" company="Zentient Framework Team">
+// <copyright file="HttpEndpointOptionsBuilderExtensions.cs" company="Zentient Framework Team">
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
@@ -16,7 +16,7 @@ namespace Zentient.Endpoints.Http.Options
     /// This static class encapsulates standard configuration practices for Zentient options,
     /// ensuring consistency across modules.
     /// </remarks>
-    public static class EndpointHttpOptionsBuilderExtensions
+    public static class HttpEndpointOptionsBuilderExtensions
     {
         /// <summary>
         /// Applies Zentient's default conventions to the options builder.
