@@ -17,7 +17,8 @@ using Moq;
 using Xunit;
 
 using Zentient.Endpoints;
-using Zentient.Endpoints.Http;
+using Zentient.Endpoints.Http.Extensions;
+using Zentient.Endpoints.Http.Mapping;
 using Zentient.Results;
 
 #pragma warning disable CS1591
@@ -33,14 +34,14 @@ namespace Zentient.Endpoints.Http.Tests
             DefaultHttpContext httpContext = CreateHttpContextWithMapper(mockMapper);
             IEndpointOutcome<string> endpointOutcome = EndpointOutcome<string>.Success("Success!");
             Microsoft.AspNetCore.Http.IResult expectedIResult = Microsoft.AspNetCore.Http.Results.Ok("Mapped!");
-            mockMapper.Setup(m => m.Map(endpointOutcome, httpContext)).Returns(Task.FromResult(expectedIResult));
+            mockMapper.Setup(m => m.Map(endpointOutcome, httpContext, It.IsAny<CancellationToken>())).Returns(Task.FromResult(expectedIResult));
 
             // Act
             Microsoft.AspNetCore.Http.IResult actualResult = await endpointOutcome.ToHttpResult(httpContext);
 
             // Assert
             actualResult.Should().BeSameAs(expectedIResult);
-            mockMapper.Verify(m => m.Map(endpointOutcome, httpContext), Times.Once);
+            mockMapper.Verify(m => m.Map(endpointOutcome, httpContext, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -50,17 +51,17 @@ namespace Zentient.Endpoints.Http.Tests
             Mock<IEndpointOutcomeToHttpMapper> mockMapper = new Mock<IEndpointOutcomeToHttpMapper>();
             DefaultHttpContext httpContext = CreateHttpContextWithMapper(mockMapper);
             ErrorInfo error = new ErrorInfo(ErrorCategory.InternalServerError, "TEST_ERROR", "Test error.");
-            IEndpointOutcome<int> endpointOutcome = EndpointOutcome<int>.From(error);
+            IEndpointOutcome<int> endpointOutcome = EndpointOutcome<int>.FromError(error);
             Microsoft.AspNetCore.Http.IResult expectedIResult = Microsoft.AspNetCore.Http.Results.Problem("Mapped Problem!");
 
-            mockMapper.Setup(m => m.Map(endpointOutcome, httpContext)).Returns(Task.FromResult(expectedIResult));
+            mockMapper.Setup(m => m.Map(endpointOutcome, httpContext, It.IsAny<CancellationToken>())).Returns(Task.FromResult(expectedIResult));
 
             // Act
             Microsoft.AspNetCore.Http.IResult actualResult = await endpointOutcome.ToHttpResult(httpContext);
 
             // Assert
             actualResult.Should().BeSameAs(expectedIResult);
-            mockMapper.Verify(m => m.Map(endpointOutcome, httpContext), Times.Once);
+            mockMapper.Verify(m => m.Map(endpointOutcome, httpContext, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -117,14 +118,14 @@ namespace Zentient.Endpoints.Http.Tests
             DefaultHttpContext httpContext = CreateHttpContextWithMapper(mockMapper);
             IEndpointOutcome<DateTime> endpointOutcome = EndpointOutcome<DateTime>.Success(DateTime.Now);
             Microsoft.AspNetCore.Http.IResult expectedIResult = Microsoft.AspNetCore.Http.Results.Ok("Mapped DateTime!");
-            mockMapper.Setup(m => m.Map(endpointOutcome, httpContext)).Returns(Task.FromResult(expectedIResult));
+            mockMapper.Setup(m => m.Map(endpointOutcome, httpContext, It.IsAny<CancellationToken>())).Returns(Task.FromResult(expectedIResult));
 
             // Act
             Microsoft.AspNetCore.Http.IResult actualResult = await endpointOutcome.ToHttpResult(httpContext);
 
             // Assert
             actualResult.Should().BeSameAs(expectedIResult);
-            mockMapper.Verify(m => m.Map(endpointOutcome, httpContext), Times.Once);
+            mockMapper.Verify(m => m.Map(endpointOutcome, httpContext, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -195,8 +196,8 @@ namespace Zentient.Endpoints.Http.Tests
             endpointOutcome.Should().NotBeNull();
             endpointOutcome.IsSuccess.Should().BeTrue();
             endpointOutcome.Value.Should().Be("Data");
-            endpointOutcome.TransportMetadata.Should().NotBeNull();
-            endpointOutcome.TransportMetadata.HttpStatusCode.Should().BeNull();
+            endpointOutcome.Metadata.Should().NotBeNull();
+            endpointOutcome.GetHttpStatusCodeHint().Should().BeNull();
         }
 
         [Fact]
@@ -214,8 +215,8 @@ namespace Zentient.Endpoints.Http.Tests
             endpointOutcome.IsSuccess.Should().BeFalse();
             endpointOutcome.Errors.Should().NotBeNull();
             endpointOutcome.Errors.Should().ContainSingle().Which.Should().BeEquivalentTo(error);
-            endpointOutcome.TransportMetadata.Should().NotBeNull();
-            endpointOutcome.TransportMetadata.HttpStatusCode.Should().BeNull();
+            endpointOutcome.Metadata.Should().NotBeNull();
+            endpointOutcome.Metadata.GetHttpStatusCodeHint().Should().BeNull();
         }
 
         [Fact]
@@ -244,8 +245,8 @@ namespace Zentient.Endpoints.Http.Tests
             endpointOutcome.Should().NotBeNull();
             endpointOutcome.IsSuccess.Should().BeTrue();
             endpointOutcome.Value.Should().Be(Unit.Value);
-            endpointOutcome.TransportMetadata.Should().NotBeNull();
-            endpointOutcome.TransportMetadata.HttpStatusCode.Should().BeNull();
+            endpointOutcome.Metadata.Should().NotBeNull();
+            endpointOutcome.Metadata.GetHttpStatusCodeHint().Should().BeNull();
         }
 
         [Fact]
@@ -263,8 +264,8 @@ namespace Zentient.Endpoints.Http.Tests
             endpointOutcome.IsSuccess.Should().BeFalse();
             endpointOutcome.ErrorMessage.Should().Be(error.Message);
             endpointOutcome.Errors.Should().ContainSingle().And.ContainEquivalentOf(error);
-            endpointOutcome.TransportMetadata.Should().NotBeNull();
-            endpointOutcome.TransportMetadata.HttpStatusCode.Should().BeNull();
+            endpointOutcome.Metadata.Should().NotBeNull();
+            endpointOutcome.Metadata.GetHttpStatusCodeHint().Should().BeNull();
         }
 
         [Fact]
@@ -287,8 +288,8 @@ namespace Zentient.Endpoints.Http.Tests
             endpointOutcome.Errors.Should().ContainSingle();
             endpointOutcome.Errors[0].Code.Should().Be("InternalError");
             endpointOutcome.Errors[0].Message.Should().Contain("An unknown error occurred.");
-            endpointOutcome.TransportMetadata.Should().NotBeNull();
-            endpointOutcome.TransportMetadata.HttpStatusCode.Should().BeNull();
+            endpointOutcome.Metadata.Should().NotBeNull();
+            endpointOutcome.Metadata.GetHttpStatusCodeHint().Should().BeNull();
         }
 
         [Fact]
