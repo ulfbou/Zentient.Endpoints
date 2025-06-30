@@ -29,7 +29,8 @@ namespace Zentient.Endpoints
         /// </exception>
         internal EndpointOutcome(IResult<TValue> result, TransportMetadata? metadata = null)
             : base(result, metadata)
-        { }
+        {
+        }
 
         /// <inheritdoc/>
         public TValue? Value =>
@@ -185,6 +186,9 @@ namespace Zentient.Endpoints
             return new EndpointOutcome<TValue>(Result<TValue>.FromException(default, ex, null), transportMetadata);
         }
 
+        /// <inheritdoc />
+        public override string ToString() => this.GetType().ToString();
+
         /// <summary>
         /// Creates a new <see cref="IEndpointOutcome{TValue}"/> instance with updated metadata.
         /// </summary>
@@ -193,16 +197,13 @@ namespace Zentient.Endpoints
         internal override EndpointOutcome WithMetadataInternal(Func<TransportMetadata, TransportMetadata> metadataTransform)
         {
             ArgumentNullException.ThrowIfNull(metadataTransform, nameof(metadataTransform));
-            var newMetadata = metadataTransform(Metadata);
+
             // Ensure we pass IResult<TValue> to the generic constructor
-            return new EndpointOutcome<TValue>((IResult<TValue>)UnderlyingResult, newMetadata);
+            var newMetadata = metadataTransform(this.Metadata);
+            return new EndpointOutcome<TValue>((IResult<TValue>)((IEndpointOutcomeInternal)this).GetUnderlyingResult(), newMetadata);
         }
 
-        /// <inheritdoc />
-        public override string ToString() => GetType().ToString();
-
-
         /// <inheritdoc/>
-        internal override object? GetValueAsObject() => ((IResult<TValue>)UnderlyingResult).Value;
+        internal override object? GetValueAsObject() => ((IResult<TValue>)((IEndpointOutcomeInternal)this).GetUnderlyingResult()).Value;
     }
 }
