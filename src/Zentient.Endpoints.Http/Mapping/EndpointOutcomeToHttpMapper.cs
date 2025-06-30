@@ -2,33 +2,20 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
-using System;
 using System.Collections.Immutable;
-using System.Linq;
-using System.Net;
-using System.Net.Mime;
-using System.Reflection; // Required for MethodInfo and dynamic invocation
+using System.Globalization; // Moved before Zentient.Results.Constants
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Hosting; // Required for IWebHostEnvironment
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
-using Zentient.Endpoints;
 using Zentient.Endpoints.Http.Extensions;
-using Zentient.Endpoints.Http.Models;
 using Zentient.Endpoints.Http.Options;
 using Zentient.Results;
 using Zentient.Results.Constants; // Needed for MetadataKeys.ExceptionStackTrace and JsonConstants.ErrorInfo
-using Zentient.Endpoints.Http.Constants;
-using System.Globalization; // Added explicit using for ProblemDetailsConstants
 
 namespace Zentient.Endpoints.Http.Mapping
 {
@@ -46,7 +33,7 @@ namespace Zentient.Endpoints.Http.Mapping
         private readonly JsonSerializerOptions _jsonSerializerOptions;
         private readonly SuccessResponseOptions _successResponseOptions;
         private readonly Options.ProblemDetailsOptions _problemDetailsOptions;
-        private readonly IWebHostEnvironment _environment;
+        private readonly bool _isDevelopment;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EndpointOutcomeToHttpMapper"/> class.
@@ -92,35 +79,31 @@ namespace Zentient.Endpoints.Http.Mapping
             IOptions<EndpointsHttpOptions> options,
             IWebHostEnvironment environment)
         {
+            ArgumentNullException.ThrowIfNull(problemDetailsMapper, nameof(problemDetailsMapper));
+            ArgumentNullException.ThrowIfNull(problemTypeUriGenerator, nameof(problemTypeUriGenerator));
+            ArgumentNullException.ThrowIfNull(successResponseFactory, nameof(successResponseFactory));
             ArgumentNullException.ThrowIfNull(options, nameof(options));
             ArgumentNullException.ThrowIfNull(environment, nameof(environment));
 
-            _problemDetailsMapper = problemDetailsMapper
-                ?? throw new ArgumentNullException(nameof(problemDetailsMapper));
-            _problemTypeUriGenerator = problemTypeUriGenerator
-                ?? throw new ArgumentNullException(nameof(problemTypeUriGenerator));
-            _successResponseFactory = successResponseFactory
-                ?? throw new ArgumentNullException(nameof(successResponseFactory));
-
-            _environment = environment;
-            _jsonSerializerOptions = options.Value.JsonSerializerOptions
-                ?? new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    WriteIndented = false,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                };
-
-            if (!_jsonSerializerOptions.Converters.OfType<JsonStringEnumConverter>().Any())
+            this._problemDetailsMapper = problemDetailsMapper;
+            this._problemTypeUriGenerator = problemTypeUriGenerator;
+            this._successResponseFactory = successResponseFactory;
+            this._isDevelopment = string.Equals(environment.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase);
+            this._jsonSerializerOptions = options.Value.JsonSerializerOptions ?? new JsonSerializerOptions
             {
-                _jsonSerializerOptions.Converters.Add(
-                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = this._isDevelopment,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            };
+
+            if (!this._jsonSerializerOptions.Converters.OfType<JsonStringEnumConverter>().Any())
+            {
+                this._jsonSerializerOptions.Converters.Add(
+                    new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
             }
 
-            _successResponseOptions = options.Value.SuccessResponse
-                ?? new SuccessResponseOptions();
-            _problemDetailsOptions = options.Value.ProblemDetails
-                ?? new Options.ProblemDetailsOptions();
+            this._successResponseOptions = options.Value.SuccessResponse ?? new SuccessResponseOptions();
+            this._problemDetailsOptions = options.Value.ProblemDetails ?? new Options.ProblemDetailsOptions();
         }
 
         /// <summary>
@@ -144,8 +127,8 @@ namespace Zentient.Endpoints.Http.Mapping
             ArgumentNullException.ThrowIfNull(httpContext, nameof(httpContext));
 
             Microsoft.AspNetCore.Http.IResult result = outcome.IsSuccess
-                ? await CreateSuccessResult(outcome, httpContext, ct).ConfigureAwait(false)
-                : await CreateFailureResult(outcome, httpContext, ct).ConfigureAwait(false);
+                ? await this.CreateSuccessResult(outcome, httpContext, ct).ConfigureAwait(false)
+                : await this.CreateFailureResult(outcome, httpContext, ct).ConfigureAwait(false);
 
             var metadata = outcome.Metadata;
             ImmutableDictionary<string, string> headers = metadata.GetHeaders().ToImmutableDictionary();
@@ -163,7 +146,7 @@ namespace Zentient.Endpoints.Http.Mapping
         {
             var metadata = outcome.Metadata;
             var statusCode = metadata.GetHttpStatusCodeHint()
-                ?? _successResponseOptions.DefaultOkStatusCode;
+                ?? this._successResponseOptions.DefaultOkStatusCode;
             var messages = outcome.Messages?.ToImmutableList()
                 ?? ImmutableList<string>.Empty;
             var statusDescription = ResultStatuses.GetStatus(statusCode).Description;
@@ -185,44 +168,43 @@ namespace Zentient.Endpoints.Http.Mapping
                 }
             }
 
-            if (statusCode == _successResponseOptions.DefaultNoContentStatusCode
+            // Always return StatusCode result for NoContent, regardless of factory return value
+            if (statusCode == this._successResponseOptions.DefaultNoContentStatusCode
                 && (value is Unit || value == null)
                 && messages.Count == 0)
             {
                 return Task.FromResult(Microsoft.AspNetCore.Http.Results.StatusCode(statusCode));
             }
 
-            object responsePayload;
+            object? responsePayload;
 
-            // FIXED: Correctly invoke CreateSuccessResponse
-            // Call the overload that takes object? for the value, simplifying the reflection if ISuccessResponseFactory supports it.
-            // If ISuccessResponseFactory's generic overload is strictly typed, this requires a cast or another pattern.
-            // Assuming the factory has an overload `CreateSuccessResponse(IEndpointOutcome outcome, ..., object? value)`
-            // OR the generic one can handle `outcome` being `IEndpointOutcome<TValue>` via dynamic.
-            // For now, let's keep the approach that `DefaultSuccessResponseFactory` should handle the cast internally.
             if (isGenericOutcomeWithConcreteValue)
             {
-                responsePayload = _successResponseFactory.CreateSuccessResponse(
+                responsePayload = this._successResponseFactory.CreateSuccessResponse(
                     (dynamic)outcome,
                     statusCode,
                     statusDescription,
                     messages,
-                    value
-                );
+                    value);
             }
             else
             {
-                responsePayload = _successResponseFactory.CreateSuccessResponse(
+                responsePayload = this._successResponseFactory.CreateSuccessResponse(
                     outcome,
                     statusCode,
                     statusDescription,
-                    messages
-                );
+                    messages);
+            }
+
+            // If the payload is null and status is NoContent, return StatusCode result
+            if (responsePayload is null && statusCode == this._successResponseOptions.DefaultNoContentStatusCode)
+            {
+                return Task.FromResult(Microsoft.AspNetCore.Http.Results.StatusCode(statusCode));
             }
 
             return Task.FromResult(Microsoft.AspNetCore.Http.Results.Json(
                 responsePayload,
-                _jsonSerializerOptions,
+                this._jsonSerializerOptions,
                 statusCode: statusCode));
         }
 
@@ -239,7 +221,7 @@ namespace Zentient.Endpoints.Http.Mapping
                     code: ResultStatuses.InternalServerError.Code.ToString(CultureInfo.InvariantCulture),
                     message: ResultStatuses.InternalServerError.Description);
             ProblemDetails problem = metadata.GetProblemDetailsOverride()
-                ?? await _problemDetailsMapper.Map(errorInfo, httpContext).ConfigureAwait(false);
+                ?? await this._problemDetailsMapper.Map(errorInfo, httpContext).ConfigureAwait(false);
             int statusCode = metadata.GetHttpStatusCodeHint()
                 ?? problem?.Status
                 ?? ResultStatuses.InternalServerError.Code;
@@ -256,12 +238,12 @@ namespace Zentient.Endpoints.Http.Mapping
                 Status = statusCode,
                 Title = ResultStatuses.GetStatus(statusCode, "An Error Occurred").Description,
                 Detail = errorInfo.Message,
-                Type = await _problemTypeUriGenerator.Generate(errorInfo.Code, httpContext).ConfigureAwait(false),
+                Type = await this._problemTypeUriGenerator.Generate(errorInfo.Code, httpContext).ConfigureAwait(false),
                 Instance = httpContext.Request.Path,
-                Extensions = new Dictionary<string, object?>(problem.Extensions)
+                Extensions = new Dictionary<string, object?>(problem.Extensions),
             };
 
-            if (_problemDetailsOptions.IncludeErrorCodeInExtensions
+            if (this._problemDetailsOptions.IncludeErrorCodeInExtensions
                 && !string.IsNullOrEmpty(errorInfo.Code)
                 && !problemDetailsToSerialize.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.ErrorCode))
             {
@@ -280,8 +262,7 @@ namespace Zentient.Endpoints.Http.Mapping
                 problemDetailsToSerialize.Extensions[ProblemDetailsConstants.Extensions.TraceId] = httpContext.TraceIdentifier;
             }
 
-            if (_problemDetailsOptions.IncludeStackTrace
-                && string.Equals(_environment.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase))
+            if (this._problemDetailsOptions.IncludeStackTrace && this._isDevelopment)
             {
                 if (errorInfo.Metadata != null
                     && errorInfo.Metadata.TryGetValue(MetadataKeys.ExceptionStackTrace, out var stackTrace)
@@ -312,10 +293,9 @@ namespace Zentient.Endpoints.Http.Mapping
             }
 
             return Microsoft.AspNetCore.Http.Results.Content(
-                JsonSerializer.Serialize(problemDetailsToSerialize, _jsonSerializerOptions),
+                JsonSerializer.Serialize(problemDetailsToSerialize, this._jsonSerializerOptions),
                 contentType: "application/problem+json",
-                statusCode: problemDetailsToSerialize.Status
-            );
+                statusCode: problemDetailsToSerialize.Status);
         }
     }
 }

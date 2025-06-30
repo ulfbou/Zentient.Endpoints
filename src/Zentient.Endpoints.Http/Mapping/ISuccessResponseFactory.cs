@@ -31,7 +31,7 @@ namespace Zentient.Endpoints.Http.Mapping
             int statusCode,
             string statusDescription,
             IReadOnlyList<string> messages,
-            TValue? data) where TValue : notnull;
+            TValue? data);
 
         /// <summary>
         /// Creates the final object to be serialized as the success response body for a non-generic
