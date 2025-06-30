@@ -25,8 +25,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\Src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj" />
-		<ProjectReference Include="..\..\Src\Zentient.Endpoints.Tests.Shared\Zentient.Endpoints.Tests.Shared.csproj" />
-		<ProjectReference Include="..\..\Src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
+		<ProjectReference Include="../../src/Zentient.Endpoints.Http/Zentient.Endpoints.Http.csproj" />
+		<ProjectReference Include="../../src/Zentient.Endpoints.Tests.Shared/Zentient.Endpoints.Tests.Shared.csproj" />
+		<ProjectReference Include="../../src/Zentient.Endpoints/Zentient.Endpoints.csproj" />
 	</ItemGroup>
 </Project>

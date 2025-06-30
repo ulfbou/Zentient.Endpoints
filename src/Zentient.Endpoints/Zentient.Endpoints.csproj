@@ -6,11 +6,11 @@
 		<RootNamespace>Zentient.Endpoints</RootNamespace>
 		<IsPackable>true</IsPackable>
 		<Description>Core abstractions and utilities for unifying result handling across transport protocols (HTTP, gRPC, Messaging) using Zentient.Results.</Description>
-		<AssemblyOriginatorKeyFile>..\..\Zentient.snk</AssemblyOriginatorKeyFile>
+		<AssemblyOriginatorKeyFile>../../Zentient.snk</AssemblyOriginatorKeyFile>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
+		<!--<ProjectReference Include="../Zentient.Results/src/Results/Zentient.Results.csproj" />-->
 		<PackageReference Include="System.Collections.Immutable" Version="9.0.6" />
 		<PackageReference Include="Zentient.Results" Version="0.4.2" />
 	</ItemGroup>
