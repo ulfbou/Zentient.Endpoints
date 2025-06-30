@@ -2,12 +2,12 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using System.Text.Json;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-
-using System.Text.Json;
 
 using Zentient.Endpoints.Http.Mapping;
 using Zentient.Endpoints.Http.Options;
