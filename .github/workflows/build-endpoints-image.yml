@@ -1,0 +1,82 @@
+name: 🐳 Build & Pack Zentient.Endpoints Docker Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "**/*.csproj"
+      - "**/*.sln"
+      - ".github/workflows/build-endpoints-image.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "**/*.csproj"
+      - "**/*.sln"
+      - ".github/workflows/build-endpoints-image.yml"
+
+env:
+  IMAGE_NAME: zentient-endpoints
+  DOCKERFILE_PATH: ./Dockerfile
+  CONTEXT: .
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build:
+    name: 🧱 Build Docker Image & Pack NuGet
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 📥 Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for GitVersion to work correctly
+
+      - name: 🔢 Determine version via GitVersion
+        uses: gittools/actions/gitversion/setup@v1
+        with:
+          versionSpec: "5.x"
+
+      - name: 🧠 Run GitVersion
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v1
+
+      - name: 🛠️ Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 📦 Docker Build with GitVersion
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ env.CONTEXT }}
+          file: ${{ env.DOCKERFILE_PATH }}
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.gitversion.outputs.semVer }}
+          build-args: |
+            ZENTIENT_VERSION_FINAL_OVERRIDE=${{ steps.gitversion.outputs.semVer }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 📤 Export artifacts from container
+        run: |
+          CONTAINER_ID=$(docker create ${{ env.IMAGE_NAME }}:${{ steps.gitversion.outputs.semVer }})
+          docker cp "$CONTAINER_ID:/app" ./artifacts
+          docker rm "$CONTAINER_ID"
+
+      - name: 🧪 Show packed artifacts
+        run: ls -lh ./artifacts
+
+      # Optionally upload artifacts (NuGet packages)
+      - name: 📤 Upload .nupkg artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zentient-endpoints-nugets
+          path: ./artifacts/*.nupkg
