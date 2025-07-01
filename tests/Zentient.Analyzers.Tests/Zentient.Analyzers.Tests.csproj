@@ -34,8 +34,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\Src\Zentient.Analyzers\Zentient.Analyzers.csproj" />
-		<ProjectReference Include="..\..\src\Zentient.Endpoints.tests.Shared\Zentient.Endpoints.Tests.Common.csproj" />
-		<ProjectReference Include="..\..\Src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Analyzers\Zentient.Analyzers.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Endpoints.Tests.Common\Zentient.Endpoints.Tests.Common.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
 	</ItemGroup>
 </Project>
