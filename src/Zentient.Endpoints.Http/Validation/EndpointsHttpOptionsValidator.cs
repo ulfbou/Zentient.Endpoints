@@ -2,6 +2,7 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using System.Collections.Generic;
 using System.Text.Json;
 
 using Microsoft.AspNetCore.Builder;

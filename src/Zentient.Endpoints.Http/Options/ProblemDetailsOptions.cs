@@ -2,6 +2,13 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Net;
+
+using Microsoft.AspNetCore.Http;
+
 namespace Zentient.Endpoints.Http.Options
 {
     /// <summary>
