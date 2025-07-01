@@ -1,0 +1,42 @@
+# GitVersion.yml - Root of the repository
+
+# Global settings
+mode: ContinuousDelivery
+assembly-versioning-scheme: MajorMinorPatch
+assembly-file-versioning-scheme: MajorMinorPatchTag
+assembly-informational-format: '{NuGetVersionV2}+{CommitDate:yyyyMMddHHmmss}'
+
+branches:
+  main:
+    mode: ContinuousDelivery # Ensures versions on main increment predictably.
+    tag: '' # No pre-release tag for main (stable releases)
+    increment: Patch # Increment patch on every merge to main
+    commit-message-incrementing: Enabled
+
+  release:
+    regex: ^release[/-]v(?<Major>\d+)\.(?<Minor>\d+)\.(?<Patch>\d+)$
+    mode: ContinuousDelivery
+    increment: Patch
+    is-release-branch: true
+    tag: ''
+    source-branches: ['main']
+
+  specific-package-release:
+    regex: ^release/(?!v\d+\.\d+\.\d+)(?<BranchName>.+)$
+    mode: ContinuousDelivery
+    increment: Patch
+    label: '{BranchName}'
+    is-branch-specific: true
+    source-branches: ['main']
+
+ignore:
+  sha: []
+
+commit-message-incrementing:
+  Enabled
+
+default:
+  mode: ContinuousDelivery
+  increment: Inherit
+  label: '{BranchName}'
+  tag-pre-release-weight: 20000
