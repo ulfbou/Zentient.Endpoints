@@ -1,12 +1,20 @@
+// <copyright file="TransportMetadataTests.cs" company="Zentient Framework Team">
+// Copyright © 2025 Zentient Framework Team. All rights reserved.
+// </copyright>
+
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+
 using FluentAssertions;
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
-using System.Collections.Immutable;
+using Moq;
 
 using Xunit;
-using Microsoft.Extensions.Logging;
-using Moq;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 namespace Zentient.Endpoints.Tests
