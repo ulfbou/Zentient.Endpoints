@@ -2,6 +2,8 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using System.Threading.Tasks;
+
 using Xunit;
 
 namespace Zentient.Endpoints.Http.Tests
