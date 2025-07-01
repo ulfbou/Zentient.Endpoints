@@ -15,7 +15,7 @@ using Moq;
 
 using Zentient.Endpoints.Http.Extensions;
 
-namespace Zentient.Endpoints.Tests.Shared
+namespace Zentient.Endpoints.Tests.Common
 {
     /// <summary>
     /// Provides sophisticated helper methods for creating mock objects and test contexts
