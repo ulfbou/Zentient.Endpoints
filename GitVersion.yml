@@ -35,7 +35,6 @@ branches:
     mode: ContinuousDelivery
     increment: Patch
     tag: '{BranchName}'
-    is-branch-specific: true
     source-branches: ['main']
 
 ignore:
