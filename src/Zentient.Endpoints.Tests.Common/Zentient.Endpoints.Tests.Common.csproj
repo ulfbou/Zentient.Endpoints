@@ -4,8 +4,7 @@
 	<PropertyGroup>
 		<!-- Analyzer test projects should usually target the same netstandard as the analyzer -->
 		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
-
-		<RootNamespace>Zentient.Endpoints.Tests.Shared</RootNamespace>
+		<RootNamespace>Zentient.Endpoints.Tests.Common</RootNamespace>
 		<IsPackable>false</IsPackable>
 		<IsTestProject>true</IsTestProject>
 	</PropertyGroup>

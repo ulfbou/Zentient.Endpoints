@@ -48,7 +48,7 @@ RUN dotnet test Zentient.Endpoints.sln --no-build --configuration Release
 # not just those *modified* (that logic is in the CI workflow).
 
 # Get all packable projects from src/ (excluding Tests.Shared)
-RUN PROJECT_FILES=$(find src/ -name "*.csproj" ! -path "src/Zentient.Endpoints.Tests.Shared/*" -print) && \
+RUN PROJECT_FILES=$(find src/ -name "*.csproj" ! -path "src/Zentient.Endpoints.Tests.Common/*" -print) && \
     echo "Identified projects for packing: $PROJECT_FILES" && \
     for PROJECT_PATH in $PROJECT_FILES; do \
         echo "Packing $PROJECT_PATH..."; \
