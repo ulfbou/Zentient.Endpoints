@@ -2,8 +2,11 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -14,7 +17,7 @@ using Moq;
 
 using Zentient.Endpoints.Http.Mapping;
 
-namespace Zentient.Endpoints.Tests.Shared
+namespace Zentient.Endpoints.Tests.Common
 {
     /// <summary>
     /// Provides helper methods for working with <see cref="HttpContext"/> in tests,
@@ -24,7 +27,7 @@ namespace Zentient.Endpoints.Tests.Shared
     /// It includes methods to create a <see cref="DefaultHttpContext"/> with a writable response body,
     /// and to deserialize <see cref="ProblemDetails"/> from a <see cref="ContentHttpResult"/>.
     /// </summary>
-    public static class HttpContextHelper
+    internal static class HttpContextHelper
     {
         /// <summary>
         /// Executes a ContentHttpResult and deserializes the response body as ProblemDetails.

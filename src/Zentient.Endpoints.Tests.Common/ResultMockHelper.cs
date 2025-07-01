@@ -2,8 +2,11 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 using Moq; // For mocking interfaces
 
@@ -11,7 +14,7 @@ using Zentient.Results;
 using Zentient.Results.Constants;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-namespace Zentient.Endpoints.Tests.Shared
+namespace Zentient.Endpoints.Tests.Common
 {
     [SuppressMessage("Design", "CA1515:Use value objects where appropriate", Justification = "This is a test helper, not a domain model.")]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1600:Elements should be documented", Justification = "This is a test helper class, documentation is not required for tests.")]

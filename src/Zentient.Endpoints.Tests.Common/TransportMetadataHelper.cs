@@ -2,6 +2,8 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable; // For ImmutableDictionary
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
@@ -13,7 +15,7 @@ using Moq;
 
 using Zentient.Endpoints.Http.Extensions;
 
-namespace Zentient.Endpoints.Tests.Shared
+namespace Zentient.Endpoints.Tests.Common
 {
     /// <summary>
     /// Provides sophisticated helper methods for creating mock objects and test contexts

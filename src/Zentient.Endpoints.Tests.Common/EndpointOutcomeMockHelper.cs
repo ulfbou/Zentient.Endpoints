@@ -24,7 +24,7 @@ using Zentient.Endpoints.Http.Mapping;
 using Zentient.Results;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-namespace Zentient.Endpoints.Tests.Shared
+namespace Zentient.Endpoints.Tests.Common
 {
     [SuppressMessage("Design", "CA1515:Use value objects where appropriate", Justification = "This is a test helper, not a domain model.")]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1600:Elements should be documented", Justification = "This is a test helper class, documentation is not required for tests.")]

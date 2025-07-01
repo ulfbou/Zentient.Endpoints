@@ -6,13 +6,13 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Zentient.Endpoints.Tests.Shared
+namespace Zentient.Endpoints.Tests.Common
 {
     /// <summary>
     /// Provides helper methods and properties for configuring <see cref="JsonSerializerOptions"/>
     /// used in Zentient.Results and Zentient.Endpoints tests.
     /// </summary>
-    public static class OptionsHelper
+    internal static class OptionsHelper
     {
         /// <summary>
         /// Gets default <see cref="JsonSerializerOptions"/> configured for Zentient.Results and Endpoints.
