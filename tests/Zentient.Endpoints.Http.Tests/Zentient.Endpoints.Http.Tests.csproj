@@ -2,9 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<!-- Analyzer test projects should usually target the same netstandard as the analyzer -->
 		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
-
 		<IsTestProject>true</IsTestProject>
 		<IsPackable>false</IsPackable>
 		<RootNamespace>Zentient.Endpoints.Http.Tests</RootNamespace>
@@ -31,7 +29,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj" />
-		<ProjectReference Include="..\..\src\Zentient.Endpoints.Tests.Common\Zentient.Endpoints.Tests.Common.csproj" />
 		<ProjectReference Include="..\..\src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Endpoints.Tests.Common\Zentient.Endpoints.Tests.Common.csproj" />
 	</ItemGroup>
 </Project>

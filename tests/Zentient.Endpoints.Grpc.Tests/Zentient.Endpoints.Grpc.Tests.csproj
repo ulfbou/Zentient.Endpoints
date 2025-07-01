@@ -35,5 +35,6 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Endpoints.Tests.Common\Zentient.Endpoints.Tests.Common.csproj" />
 	</ItemGroup>
 </Project>
