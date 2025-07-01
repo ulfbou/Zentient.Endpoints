@@ -8,12 +8,12 @@ using System.Diagnostics.CodeAnalysis;
 using Zentient.Results;
 using Zentient.Results.Constants;
 
-namespace Zentient.Endpoints.Tests.Shared
+namespace Zentient.Endpoints.Tests.Common
 {
     /// <summary>
     /// Provides helper methods for creating <see cref="ErrorInfo"/> instances for testing purposes.
     /// </summary>
-    public static class ErrorInfoHelper
+    internal static class ErrorInfoHelper
     {
         /// <summary>
         /// Creates an <see cref="ErrorInfo"/> instance with common properties.
