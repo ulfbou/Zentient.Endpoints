@@ -1,0 +1,123 @@
+# This workflow is designed to publish NuGet packages for ulfbou/Zentient.Endpoints
+# Path: .github/workflows/release-packages.yml
+name: CD - Zentient.Endpoints (Publish Packages)
+
+on:
+  push:
+    branches:
+      - 'release/v*.*.*'
+      - 'release/*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    needs: build_and_test
+    if: |
+      github.event_name == 'push' && 
+      startsWith(github.ref, 'refs/heads/release/') && 
+      github.repository_owner == 'ulfbou'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK (minimal)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0
+
+      - name: Install GitVersion (minimal)
+        uses: GitTools/actions/gitversion/setup@v0.10.2
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Semantic Version for Release
+        id: gitversion_release
+        uses: GitTools/actions/gitversion/execute@v0.10.2
+
+      - name: Download NuGet Package Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages-${{ needs.build_and_test.outputs.commit_sha }} 
+          path: artifacts/packages
+
+      - name: Get Modified Packable Projects for Release
+        id: get_modified_for_release
+        run: |
+          # Determine the base ref for comparison
+          BASE_REF=""
+          CURRENT_REF="${{ github.sha }}"
+          BRANCH_PATH=$(echo "${{ github.ref }}" | sed 's|refs/heads/||')
+
+          if [[ "$BRANCH_PATH" == release/v* ]]; then
+            # For stable release branches (e.g., release/v1.0.0), compare against main
+            git fetch origin main
+            BASE_REF="origin/main"
+            echo "Stable release: comparing against main branch for diff."
+            
+            # Find ALL packable projects that have changed since the BASE_REF
+            ALL_PACKABLE_PROJECTS=$(find src/ -name "*.csproj" ! -path "src/Zentient.Endpoints.Tests.Shared/*" -exec grep -l -E '<IsPackable>true</IsPackable>' {} + || true)
+            MODIFIED_PACKABLE_PROJECTS=""
+            for PROJECT_PATH in $ALL_PACKABLE_PROJECTS; do
+              if git diff --name-only "$BASE_REF" "$CURRENT_REF" -- "$PROJECT_PATH" "${PROJECT_PATH%/*}\" | grep -q .; then
+                MODIFIED_PACKABLE_PROJECTS="$MODIFIED_PACKABLE_PROJECTS $PROJECT_PATH"
+                echo "Detected changes in $PROJECT_PATH for stable release."
+              fi
+            done
+
+          elif [[ "$BRANCH_PATH" == release/* ]]; then
+            # For package-specific pre-release branches (e.g., release/Http)
+            # Compare against main to see if the *specific* package changed
+            git fetch origin main
+            BASE_REF="origin/main"
+            echo "Pre-release: comparing specific package against main branch for diff."
+            
+            # Determine the target project path based on the branch name
+            PACKAGE_NAME_FROM_BRANCH=$(echo "$BRANCH_PATH" | sed 's|release/||')
+            TARGET_PROJECT_PATH=""
+            if [[ "$PACKAGE_NAME_FROM_BRANCH" == "Endpoints" ]]; then
+              TARGET_PROJECT_PATH="src/Zentient.Endpoints/Zentient.Endpoints.csproj"
+            else
+              TARGET_PROJECT_PATH="src/Zentient.Endpoints.${PACKAGE_NAME_FROM_BRANCH}/Zentient.Endpoints.${PACKAGE_NAME_FROM_BRANCH}.csproj"
+            fi
+            
+            echo "Targeting specific project for this branch: $TARGET_PROJECT_PATH"
+
+            if git diff --name-only "$BASE_REF" "$CURRENT_REF" -- "$TARGET_PROJECT_PATH" "${TARGET_PROJECT_PATH%/*}\" | grep -q .; then
+              MODIFIED_PACKABLE_PROJECTS="$TARGET_PROJECT_PATH"
+              echo "Detected changes in specific project $TARGET_PROJECT_PATH for pre-release."
+            else
+              echo "No changes detected in specific project $TARGET_PROJECT_PATH - skipping release."
+            fi
+          else
+            echo "Unhandled branch pattern: ${{ github.ref }}"
+            exit 1
+          fi
+
+          echo "modified_projects_for_release=$MODIFIED_PACKABLE_PROJECTS" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Push Modified NuGet Packages to NuGet.org
+        if: steps.get_modified_for_release.outputs.modified_projects_for_release != ''
+        run: |
+          MODIFIED_PROJECTS="${{ steps.get_modified_for_release.outputs.modified_projects_for_release }}"
+          NUGET_API_KEY=${{ secrets.NUGET_API_KEY }}
+          RELEASE_VERSION="${{ steps.gitversion_release.outputs.NuGetVersionV2 }}"
+
+          for PROJECT_PATH in $MODIFIED_PROJECTS; do
+            PROJECT_NAME=$(basename "$PROJECT_PATH" .csproj)
+            PACKAGE_NAME=$(echo "$PROJECT_NAME" | sed 's//.csproj$//')
+            
+            NUPKG_FILE=$(find artifacts/packages -name "${PACKAGE_NAME}.${RELEASE_VERSION}.nupkg" -print -quit)
+            
+            if [ -n "$NUPKG_FILE" ]; then
+              echo "Pushing $NUPKG_FILE to NuGet.org..."
+              dotnet nuget push "$NUPKG_FILE" --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY" --skip-duplicate
+            else
+              echo "Error: Could not find NuGet package for $PROJECT_NAME with version $RELEASE_VERSION in artifacts/packages. Skipping."
+              exit 1
+            fi
+          done
+        shell: bash
