@@ -2,9 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<!-- Analyzer test projects should usually target the same netstandard as the analyzer -->
 		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
-
 		<IsTestProject>true</IsTestProject>
 		<IsPackable>false</IsPackable>
 		<RootNamespace>Zentient.Endpoints.Http.Tests</RootNamespace>
@@ -12,8 +10,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="Moq" Version="4.20.72" />
-		<PackageReference Include="System.Collections.Immutable" Version="9.0.6" PrivateAssets="all" />
-		<PackageReference Include="Zentient.Results" Version="0.4.2" />
+		<PackageReference Include="System.Collections.Immutable" Version="9.0.0" PrivateAssets="all" />
+		<PackageReference Include="Zentient.Results" Version="[0.4.4, 5.0.0)" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -30,8 +28,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="../../src/Zentient.Endpoints.Http/Zentient.Endpoints.Http.csproj" />
-		<ProjectReference Include="../../src/Zentient.Endpoints.Tests.Shared/Zentient.Endpoints.Tests.Shared.csproj" />
-		<ProjectReference Include="../../src/Zentient.Endpoints/Zentient.Endpoints.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Endpoints.Tests.Common\Zentient.Endpoints.Tests.Common.csproj" />
 	</ItemGroup>
 </Project>
