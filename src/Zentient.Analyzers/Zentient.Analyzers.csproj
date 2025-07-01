@@ -2,14 +2,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
+		<!-- Analyzer test projects should usually target the same netstandard as the analyzer -->
 		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+
 		<RootNamespace>Zentient.Endpoints.Analyzers</RootNamespace>
 		<Description>Roslyn analyzers and code fixes for Zentient.Endpoints usage.</Description>
 		<IsPackable>true</IsPackable>
 		<IncludeBuildOutput>true</IncludeBuildOutput>
 		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-		<PublicSign Condition="'$(OS)' == 'Windows_NT'">false</PublicSign>
-		<PublicSign Condition="'$(OS)' != 'Windows_NT'">true</PublicSign>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
 

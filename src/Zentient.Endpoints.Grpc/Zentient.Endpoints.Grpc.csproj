@@ -1,7 +1,10 @@
-﻿<!-- Zentient Endpoints gRPC Project File -->
+<!-- Zentient Endpoints gRPC Project File -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
+		<!-- Analyzer test projects should usually target the same netstandard as the analyzer -->
+		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+
 		<RootNamespace>Zentient.Endpoints.Grpc</RootNamespace>
 		<Description>gRPC integration for Zentient.Endpoints.</Description>
 		<NoWarn>NU1605</NoWarn>
