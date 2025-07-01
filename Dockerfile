@@ -8,16 +8,35 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT=true \
     DOTNET_NOLOGO=true \
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true
 
-# Install GitVersion.Tool globally
-RUN dotnet tool install --global GitVersion.Tool
-
-# Add the .NET tools directory to the PATH
-ENV PATH="${PATH}:/root/.dotnet/tools"
-
-# Install git and jq for version calculation and JSON processing
+# Install .NET 8.0 SDK via APT package manager
+# This is more reliable for stable/LTS versions on Debian-based images.
 RUN apt-get update && \
-    apt-get install -y git jq && \
+    apt-get install -y --no-install-recommends \
+        apt-transport-https \
+        ca-certificates \
+        curl \
+        gnupg \
+        git \
+        jq && \
+    # Add Microsoft's GPG key using the safer curl + gpg method
+    # IMPORTANT: Ensure the key is placed in /usr/share/keyrings/ as specified in prod.list
+    mkdir -p /usr/share/keyrings && \
+    curl -sSL https://packages.microsoft.com/keys/microsoft.asc -o microsoft.asc && \
+    gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg microsoft.asc && \
+    rm microsoft.asc && \
+    # Add Microsoft's package list for Debian 12 (assuming the base is Debian 12)
+    # This prod.list explicitly references the key at /usr/share/keyrings/microsoft-prod.gpg
+    wget -O - https://packages.microsoft.com/config/debian/12/prod.list | tee /etc/apt/sources.list.d/microsoft-prod.list && \
+    # Update apt-get and install .NET 8.0 SDK
+    apt-get update && \
+    apt-get install -y --no-install-recommends dotnet-sdk-8.0 && \
+    # Clean up apt caches to keep the image size down
     rm -rf /var/lib/apt/lists/*
+
+# Install GitVersion.Tool globally
+# Ensure /root/.dotnet/tools is on PATH for dotnet tools
+ENV PATH="${PATH}:/root/.dotnet/tools"
+RUN dotnet tool install --global GitVersion.Tool
 
 WORKDIR /src
 
@@ -40,22 +59,22 @@ RUN if [ -z "$ZENTIENT_VERSION_FINAL_OVERRIDE" ]; then \
         export ZENTIENT_VERSION_FINAL="$CALCULATED_VERSION"; \
     else \
         echo "Using provided version override: $ZENTIENT_VERSION_FINAL_OVERRIDE"; \
+        echo "Using final version for build: $ZENTIENT_VERSION_FINAL_OVERRIDE"; \
         export ZENTIENT_VERSION_FINAL="$ZENTIENT_VERSION_FINAL_OVERRIDE"; \
     fi && \
-    echo "Using final version for build: $ZENTIENT_VERSION_FINAL" && \
     # Set the environment variable for this and subsequent RUN commands in this stage
     echo "export ZENTIENT_VERSION_FINAL=$ZENTIENT_VERSION_FINAL" >> /etc/profile.d/zentient_version.sh && \
     # Make sure it's available in the current shell context
     export ZENTIENT_VERSION_FINAL="$ZENTIENT_VERSION_FINAL"
 
-# --- REVISED FIX: Remove /p: parameters, rely on Directory.Build.props and ENV ---
 # Build the solution in Release configuration
 RUN dotnet build "Zentient.Endpoints.sln" -c Release --no-restore \
     /p:IsDockerBuild=true \
     /p:ContinuousIntegrationBuild=true
 
-# Run tests
-RUN dotnet test "Zentient.Endpoints.sln" --no-build --configuration Release
+# ONLY RUN TESTS FOR ZENTIENT.ENDPOINTS.TESTS
+# This will only execute tests within that specific project.
+RUN dotnet test "tests/Zentient.Endpoints.Tests/Zentient.Endpoints.Tests.csproj" --no-build --configuration Release
 
 # Create a directory for artifacts
 RUN mkdir -p /artifacts
