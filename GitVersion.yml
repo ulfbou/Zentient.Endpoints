@@ -2,16 +2,25 @@
 
 # Global settings
 mode: ContinuousDelivery
-assembly-versioning-scheme: MajorMinorPatch
-assembly-file-versioning-scheme: MajorMinorPatchTag
-assembly-informational-format: '{NuGetVersionV2}+{CommitDate:yyyyMMddHHmmss}'
+increment: Inherit
+tag-prefix: '[vV]'
+major-version-bump-message: '\+semver:\s?(major)'
+minor-version-bump-message: '\+semver:\s?(minor)'
+patch-version-bump-message: '\+semver:\s?(patch)'
+commit-message-incrementing: Enabled
 
 branches:
   main:
-    mode: ContinuousDelivery # Ensures versions on main increment predictably.
-    tag: '' # No pre-release tag for main (stable releases)
-    increment: Patch # Increment patch on every merge to main
-    commit-message-incrementing: Enabled
+    mode: ContinuousDelivery
+    tag: ''
+    increment: Patch
+    is-release-branch: true
+    prevent-increment-of-merged-branch-version: true
+  develop:
+    mode: ContinuousDelivery
+    tag: beta
+    increment: Minor 
+    is-release-branch: false
 
   release:
     regex: ^release[/-]v(?<Major>\d+)\.(?<Minor>\d+)\.(?<Patch>\d+)$
@@ -31,9 +40,6 @@ branches:
 
 ignore:
   sha: []
-
-commit-message-incrementing:
-  Enabled
 
 default:
   mode: ContinuousDelivery
