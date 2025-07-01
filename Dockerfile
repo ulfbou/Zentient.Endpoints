@@ -79,16 +79,11 @@ RUN dotnet test "tests/Zentient.Endpoints.Tests/Zentient.Endpoints.Tests.csproj"
 # Create a directory for artifacts
 RUN mkdir -p /artifacts
 
-# Pack all non-test, packable projects
-RUN find src/ -maxdepth 2 -name "*.csproj" \
-    ! -path "src/Zentient.Endpoints.Tests.Shared/*" \
-    ! -path "src/Zentient.Analyzers/*" \
-    ! -path "src/*/*Tests.csproj" \
-    -print0 | while IFS= read -r -d $'\0' PROJECT_PATH; do \
-        echo "Packing $PROJECT_PATH..."; \
-        dotnet pack "$PROJECT_PATH" -c Release -o /artifacts --no-build \
-        /p:ContinuousIntegrationBuild=true; \
-    done
+# Pack ONLY Zentient.Endpoints.csproj for the initial beta release
+RUN echo "Packing src/Zentient.Endpoints/Zentient.Endpoints.csproj..."; \
+    dotnet pack "src/Zentient.Endpoints/Zentient.Endpoints.csproj" -c Release -o /artifacts --no-build \
+    /p:ContinuousIntegrationBuild=true \
+    /p:Version=$ZENTIENT_VERSION_FINAL # Ensure the final version from GitVersion is used
 
 # Final stage: copy artifacts out (using scratch for smallest image for artifacts)
 FROM scratch AS artifacts

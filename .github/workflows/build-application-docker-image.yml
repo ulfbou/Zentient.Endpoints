@@ -1,12 +1,14 @@
-# This workflow builds and pushes a Docker image for ulfbou/Zentient.Endpoints
-# Path: .github/workflows/build-application-docker-image.yml
+# .github/workflows/build-application-docker-image.yml
 name: CD - Zentient.Endpoints (Build Application Docker Image)
 
 on:
   push:
     branches:
-      - main
       - 'release/v*.*.*'
+      - 'release/*'
+  pull_request: 
+    branches:
+      - main
 
 jobs:
   docker_build:
@@ -14,6 +16,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs: 
+      image_tag: ${{ steps.gitversion.outputs.NuGetVersionV2 }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,15 +42,14 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/zentient-endpoints
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=${{ steps.gitversion.outputs.NuGetVersionV2 }},enable=${{ startsWith(github.ref, 'refs/heads/release/v') }}
-            type=raw,value=sha-${{ github.sha }},enable=false
+            type=raw,value=${{ steps.gitversion.outputs.NuGetVersionV2 }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }} 
       
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile 
+          file: ./Dockerfile  
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
