@@ -2,7 +2,6 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
-#pragma warning disable CS1591
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -30,10 +29,11 @@ using Zentient.Endpoints;
 using Zentient.Endpoints.Http.Mapping;
 using Zentient.Endpoints.Http.Models;
 using Zentient.Endpoints.Http.Options;
-using Zentient.Endpoints.Tests.Shared;
+using Zentient.Endpoints.Tests.Common;
 using Zentient.Results;
 using Zentient.Results.Constants;
 
+#pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
 {
     public class EndpointOutcomeHttpMapperTests : IDisposable
