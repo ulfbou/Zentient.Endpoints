@@ -10,8 +10,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Http", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Messaging", "src\Zentient.Endpoints.Messaging\Zentient.Endpoints.Messaging.csproj", "{8F88D0FD-713A-465D-BCB4-43FBF47C8BB5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Tests.Shared", "src\Zentient.Endpoints.Tests.Shared\Zentient.Endpoints.Tests.Shared.csproj", "{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints", "src\Zentient.Endpoints\Zentient.Endpoints.csproj", "{0C510030-6FEA-4358-B9AE-6EE48CF648EF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Grpc.Tests", "tests\Zentient.Endpoints.Grpc.Tests\Zentient.Endpoints.Grpc.Tests.csproj", "{5EDA69F2-DE1B-419D-B58F-BB3CC550D4C0}"
@@ -30,9 +28,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Analyzers.Tests", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{DE3FA01E-48A0-4BE2-94F1-DA91B39F9CEA}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{64C801C5-9E29-46C6-A0EE-7F4B36C96565}"
 	ProjectSection(SolutionItems) = preProject
-		release-packages.yml = release-packages.yml
+		build-and-release.yml = build-and-release.yml
+		build-docker-image.yml = build-docker-image.yml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Tests.Common", "src\Zentient.Endpoints.Tests.Common\Zentient.Endpoints.Tests.Common.csproj", "{A9B2CA13-DF64-4359-81CC-B941F4399D0C}"
@@ -83,18 +82,6 @@ Global
 		{8F88D0FD-713A-465D-BCB4-43FBF47C8BB5}.Release|x64.Build.0 = Release|Any CPU
 		{8F88D0FD-713A-465D-BCB4-43FBF47C8BB5}.Release|x86.ActiveCfg = Release|Any CPU
 		{8F88D0FD-713A-465D-BCB4-43FBF47C8BB5}.Release|x86.Build.0 = Release|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Debug|x64.Build.0 = Debug|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Debug|x86.Build.0 = Debug|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Release|x64.ActiveCfg = Release|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Release|x64.Build.0 = Release|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Release|x86.ActiveCfg = Release|Any CPU
-		{2EA7E4E8-A73F-4241-A28A-A86B42C954A4}.Release|x86.Build.0 = Release|Any CPU
 		{0C510030-6FEA-4358-B9AE-6EE48CF648EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0C510030-6FEA-4358-B9AE-6EE48CF648EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0C510030-6FEA-4358-B9AE-6EE48CF648EF}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -207,6 +194,8 @@ Global
 		{157ED0A0-02B4-4290-9D8E-E3388566153F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{238A52C1-1B8A-43F9-9A97-83D88FC58EFB} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{02EA681E-C7D8-13C7-8484-4AC65E1B71E8} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{64C801C5-9E29-46C6-A0EE-7F4B36C96565} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{A9B2CA13-DF64-4359-81CC-B941F4399D0C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F04A1460-F873-490E-B208-F2BCC51C0A8C}
