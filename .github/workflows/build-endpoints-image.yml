@@ -38,7 +38,7 @@ jobs:
       - name: 📥 Checkout source code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required for GitVersion to work correctly
+          fetch-depth: 0
 
       - name: 🔢 Determine version via GitVersion
         uses: gittools/actions/gitversion/setup@v1
