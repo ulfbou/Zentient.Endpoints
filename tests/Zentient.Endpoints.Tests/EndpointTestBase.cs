@@ -16,7 +16,7 @@ using Moq;
 using Zentient.Results;
 using Zentient.Results.Constants;
 using Zentient.Endpoints.Constants;
-using Zentient.Endpoints.Tests.Shared;
+using Zentient.Endpoints.Tests.Common;
 using Zentient.Endpoints.Http.Mapping;
 using System.Threading.Tasks;
 
@@ -35,8 +35,6 @@ namespace Zentient.Endpoints.Tests
         /// <returns>A mocked IResultStatus instance.</returns>
         protected static IResultStatus CreateMockResultStatus(int code, string description)
             => ResultMockHelper.CreateMockResultStatus(code, description);
-
-        // --- ErrorInfo Helpers ---
 
         /// <summary>Creates an ErrorInfo instance with common properties.</summary>
         /// <param name="category">The error category.</param>
