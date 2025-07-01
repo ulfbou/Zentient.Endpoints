@@ -2,6 +2,9 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using System;
+using System.Threading.Tasks;
+
 using Microsoft.AspNetCore.Http;
 
 namespace Zentient.Endpoints.Http

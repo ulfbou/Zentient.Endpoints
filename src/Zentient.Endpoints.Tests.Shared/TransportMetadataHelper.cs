@@ -2,6 +2,8 @@
 // Copyright © 2025 Zentient Framework Team. All rights reserved.
 // </copyright>
 
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable; // For ImmutableDictionary
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
