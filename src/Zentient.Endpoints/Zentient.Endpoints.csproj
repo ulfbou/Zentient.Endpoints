@@ -11,6 +11,8 @@
 
 	<ItemGroup>
 		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
+		<PackageReference Include="FluentAssertions" Version="8.4.0" />
+		<PackageReference Include="Moq" Version="4.20.72" />
 		<PackageReference Include="System.Collections.Immutable" Version="9.0.0" />
 		<PackageReference Include="Zentient.Results" Version="0.4.4" />
 	</ItemGroup>
