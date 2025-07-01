@@ -15,8 +15,9 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
 		<PackageReference Include="System.Collections.Immutable" Version="9.0.6" PrivateAssets="all" />
-		<PackageReference Include="Zentient.Results" Version="0.4.2" />
+		<PackageReference Include="Zentient.Results" Version="[0.4.4, 5.0.0)" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -33,8 +34,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="../../src/Zentient.Analyzers/Zentient.Analyzers.csproj" />
-		<ProjectReference Include="../../src/Zentient.Endpoints.Tests.Shared/Zentient.Endpoints.Tests.Shared.csproj" />
-		<ProjectReference Include="../../src/Zentient.Endpoints/Zentient.Endpoints.csproj" />
+		<ProjectReference Include="..\..\Src\Zentient.Analyzers\Zentient.Analyzers.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Endpoints.tests.Shared\Zentient.Endpoints.Tests.Common.csproj" />
+		<ProjectReference Include="..\..\Src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
 	</ItemGroup>
 </Project>
