@@ -1,25 +1,16 @@
-﻿[*.cs]
-# Suppress SA1636: The file header copyright text should match the copyright text from the settings.
-dotnet_diagnostic.SA1636.severity = none
-# SA1600: Elements should be documented
-#dotnet_diagnostic.SA1600.severity = none
-# SA1601: Partial elements should be documented
-#dotnet_diagnostic.SA1601.severity = none
-# SA1602: Enumeration items should be documented
-#dotnet_diagnostic.SA1602.severity = none
-# SA1633: File should have a file header
-#dotnet_diagnostic.SA1633.severity = none
-# SA1649: File name should match first type's name
-#dotnet_diagnostic.SA1649.severity = none
-# SA1413: Use trailing comma for array/collection initializers
-#dotnet_diagnostic.SA1413.severity = none
-# SA1516: Elements should be separated by blank line
-#dotnet_diagnostic.SA1516.severity = none
-# SA1652: Enable XML documentation output for your project
-#dotnet_diagnostic.SA1652.severity = none
+﻿# .editorconfig for Zentient.Endpoints solution
+# Analyzer severities (Overrides)
 
-# CA1032: Implement standard exception constructors
-dotnet_diagnostic.CA1032.severity = none
+root = true
+
+[*.cs]
+# Documentation rules
+dotnet_diagnostic.CS1591.severity = warning      # Missing XML comments on public members
+dotnet_diagnostic.SA1600.severity = warning      # Elements must be documented
+dotnet_diagnostic.SA1210.severity = warning      # Using directives should be ordered alphabetically
+dotnet_diagnostic.SA1200.severity = warning      # Using directives should be placed correctly (related to SA1210)
+
+# Other code style rules (copy relevant ones from your tests/.editorconfig if they apply globally)
 csharp_indent_labels = one_less_than_current
 csharp_using_directive_placement = outside_namespace:suggestion
 csharp_prefer_simple_using_statement = true:suggestion
@@ -42,7 +33,6 @@ csharp_style_expression_bodied_local_functions = true:silent
 #### Naming styles ####
 
 # Naming rules
-
 dotnet_naming_rule.interface_should_be_begins_with_i.severity = suggestion
 dotnet_naming_rule.interface_should_be_begins_with_i.symbols = interface
 dotnet_naming_rule.interface_should_be_begins_with_i.style = begins_with_i
@@ -56,7 +46,6 @@ dotnet_naming_rule.non_field_members_should_be_pascal_case.symbols = non_field_m
 dotnet_naming_rule.non_field_members_should_be_pascal_case.style = pascal_case
 
 # Symbol specifications
-
 dotnet_naming_symbols.interface.applicable_kinds = interface
 dotnet_naming_symbols.interface.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
 dotnet_naming_symbols.interface.required_modifiers = 
@@ -70,7 +59,6 @@ dotnet_naming_symbols.non_field_members.applicable_accessibilities = public, int
 dotnet_naming_symbols.non_field_members.required_modifiers = 
 
 # Naming styles
-
 dotnet_naming_style.begins_with_i.required_prefix = I
 dotnet_naming_style.begins_with_i.required_suffix = 
 dotnet_naming_style.begins_with_i.word_separator = 
