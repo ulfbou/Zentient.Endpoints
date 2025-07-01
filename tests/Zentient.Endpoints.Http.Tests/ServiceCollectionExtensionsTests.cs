@@ -13,32 +13,28 @@ using System.Reflection;
 using System.Runtime;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
-// xUnit
 using Xunit;
 
-// ASP.NET Core
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 
-// Dependency Injection
 using Microsoft.Extensions.DependencyInjection;
 
-// FluentAssertions
 using FluentAssertions;
 
-// Moq
 using Moq;
 
-// Zentient
 using Zentient.Endpoints;
 using Zentient.Endpoints.Http;
 using Zentient.Results;
 using Zentient.Endpoints.Http.Mapping;
 using Zentient.Endpoints.Http.Models;
+using System.Net.Http;
 
 #pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
