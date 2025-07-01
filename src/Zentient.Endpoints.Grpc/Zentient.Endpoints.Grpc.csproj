@@ -1,4 +1,4 @@
-﻿<!-- Zentient Endpoints gRPC Project File -->
+<!-- Zentient Endpoints gRPC Project File -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
@@ -10,7 +10,7 @@
 	<ItemGroup>
 		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
 		<PackageReference Include="System.Collections.Immutable" Version="9.0.0" PrivateAssets="all" />
-		<PackageReference Include="Zentient.Results" Version="0.4.1" />
+		<PackageReference Include="Zentient.Results" Version="[0.4.4, 5.0.0)" />
 		<PackageReference Include="Grpc.AspNetCore" Version="2.71.0" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.6" Condition="'$(TargetFramework)' == 'net8.0'" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="[9.0.0,)" Condition="'$(TargetFramework)' == 'net9.0'" />

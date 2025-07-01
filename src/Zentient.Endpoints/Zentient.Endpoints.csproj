@@ -1,4 +1,4 @@
-﻿<!-- Zentient Endpoints Core Project File -->
+<!-- Zentient Endpoints Core Project File -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
@@ -11,8 +11,8 @@
 
 	<ItemGroup>
 		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
-		<PackageReference Include="System.Collections.Immutable" Version="9.0.6" />
-		<PackageReference Include="Zentient.Results" Version="0.4.4-beta0001" />
+		<PackageReference Include="System.Collections.Immutable" Version="9.0.0" />
+		<PackageReference Include="Zentient.Results" Version="0.4.4" />
 	</ItemGroup>
 
 </Project>

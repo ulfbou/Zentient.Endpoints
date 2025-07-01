@@ -1,4 +1,4 @@
-﻿<!-- Zentient Endpoints Analyzers Tests Project File -->
+<!-- Zentient Endpoints Analyzers Tests Project File -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
@@ -17,7 +17,7 @@
 	<ItemGroup>
 		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
 		<PackageReference Include="System.Collections.Immutable" Version="9.0.0" PrivateAssets="all" />
-		<PackageReference Include="Zentient.Results" Version="0.4.1" />
+		<PackageReference Include="Zentient.Results" Version="[0.4.4, 5.0.0)" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -35,7 +35,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\Src\Zentient.Analyzers\Zentient.Analyzers.csproj" />
-		<ProjectReference Include="..\..\Src\Zentient.Endpoints.Tests.Shared\Zentient.Endpoints.Tests.Shared.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Endpoints.tests.Shared\Zentient.Endpoints.Tests.Common.csproj" />
 		<ProjectReference Include="..\..\Src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
 	</ItemGroup>
 </Project>
