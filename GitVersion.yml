@@ -39,9 +39,3 @@ branches:
 
 ignore:
   sha: []
-
-default:
-  mode: ContinuousDelivery
-  increment: Inherit
-  tag: '{BranchName}'
-  tag-pre-release-weight: 20000
