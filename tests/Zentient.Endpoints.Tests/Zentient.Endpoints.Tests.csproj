@@ -21,7 +21,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\Src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj" />
+		<ProjectReference Include="..\..\src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj" />
 		<ProjectReference Include="..\..\Src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
 	</ItemGroup>
 </Project>
