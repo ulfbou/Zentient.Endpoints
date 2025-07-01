@@ -18,6 +18,7 @@ using Zentient.Results.Constants;
 using Zentient.Endpoints.Constants;
 using Zentient.Endpoints.Tests.Shared;
 using Zentient.Endpoints.Http.Mapping;
+using System.Threading.Tasks;
 
 namespace Zentient.Endpoints.Tests
 {
