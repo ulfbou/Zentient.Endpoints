@@ -1,9 +1,9 @@
-﻿<!-- Zentient Endpoints Tests Shared Project File -->
+<!-- Zentient Endpoints Tests Shared Project File -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
-		<RootNamespace>Zentient.Endpoints.Tests.Shared</RootNamespace>
+		<RootNamespace>Zentient.Endpoints.Tests.Common</RootNamespace>
 		<IsPackable>false</IsPackable>
 		<IsTestProject>true</IsTestProject>
 	</PropertyGroup>
