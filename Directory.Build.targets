@@ -4,26 +4,26 @@
 	<!-- Unified output structure -->
 	<PropertyGroup>
 		<ArtifactsDir>$(SolutionDir)artifacts</ArtifactsDir>
-		<PackageOutputPath>$(ArtifactsDir)\packages</PackageOutputPath>
+		<PackageOutputPath>$(ArtifactsDir)/packages</PackageOutputPath>
 
-		<!-- Use a consistent OutputPath across all projects, overriding default bin\Debug/Release -->
-		<OutputPath Condition="'$(IsTestProject)' != 'true'">$(ArtifactsDir)\bin\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
-		<OutputPath Condition="'$(IsTestProject)' == 'true'">$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\</OutputPath>
-		<TestResultsDirectory>$(ArtifactsDir)\test-results\$(MSBuildProjectName)</TestResultsDirectory>
+		<!-- Use a consistent OutputPath across all projects, overriding default bin/Debug/Release -->
+		<OutputPath Condition="'$(IsTestProject)' != 'true'">$(ArtifactsDir)/bin/$(MSBuildProjectName)/$(Configuration)/</OutputPath>
+		<OutputPath Condition="'$(IsTestProject)' == 'true'">$(MSBuildProjectDirectory)/bin/$(Configuration)/$(TargetFramework)/</OutputPath>
+		<TestResultsDirectory>$(ArtifactsDir)/test-results/$(MSBuildProjectName)</TestResultsDirectory>
 	</PropertyGroup>
 
 	<!-- Analyzer support: allow repo-wide custom analyzers or rulesets -->
 	<PropertyGroup>
 		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 		<AnalysisMode>AllEnabledByDefault</AnalysisMode>
-		<CodeAnalysisRuleSet>$(SolutionDir)analyzers\Zentient.ruleset</CodeAnalysisRuleSet>
+		<CodeAnalysisRuleSet>$(SolutionDir)analyzers/Zentient.ruleset</CodeAnalysisRuleSet>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<AdditionalFiles Include="$(SolutionDir).editorconfig" />
 
 		<!-- Internal rulesets or config files. Use AdditionalFiles for rule sets. -->
-		<AdditionalFiles Include="$(SolutionDir)analyzers\**\*.ruleset" Condition="Exists('$(SolutionDir)analyzers')" />
+		<AdditionalFiles Include="$(SolutionDir)analyzers/**/*.ruleset" Condition="Exists('$(SolutionDir)analyzers')" />
 	</ItemGroup>
 
 	<!-- Ensure all test projects isolate their results -->
