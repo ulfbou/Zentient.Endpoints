@@ -34,7 +34,7 @@ branches:
     regex: ^release/(?!v\d+\.\d+\.\d+)(?<BranchName>.+)$
     mode: ContinuousDelivery
     increment: Patch
-    label: '{BranchName}'
+    tag: '{BranchName}'
     is-branch-specific: true
     source-branches: ['main']
 
@@ -44,5 +44,5 @@ ignore:
 default:
   mode: ContinuousDelivery
   increment: Inherit
-  label: '{BranchName}'
+  tag: '{BranchName}'
   tag-pre-release-weight: 20000
