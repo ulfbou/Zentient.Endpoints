@@ -8,17 +8,19 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading.Tasks;
+
 using Microsoft.Extensions.Logging;
 
-using Xunit;
 using Moq;
+
+using Xunit;
 
 using Zentient.Results;
 using Zentient.Results.Constants;
 using Zentient.Endpoints.Constants;
 using Zentient.Endpoints.Tests.Common;
 using Zentient.Endpoints.Http.Mapping;
-using System.Threading.Tasks;
 
 namespace Zentient.Endpoints.Tests
 {
