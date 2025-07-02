@@ -7,6 +7,7 @@
 		<IsPackable>true</IsPackable>
 		<Description>Core abstractions and utilities for unifying result handling across transport protocols (HTTP, gRPC, Messaging) using Zentient.Results.</Description>
 		<AssemblyOriginatorKeyFile>..\..\Zentient.snk</AssemblyOriginatorKeyFile>
+		<PackageId>Zentient.Endpoints</PackageId>
 	</PropertyGroup>
 
 	<ItemGroup>

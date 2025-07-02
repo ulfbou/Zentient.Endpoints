@@ -6,6 +6,7 @@
 		<Description>ASP.NET Core HTTP integration for Zentient.Endpoints.</Description>
 		<IsPackable>true</IsPackable>
 		<NoWarn>$(NoWarn);CS1591</NoWarn>
+		<PackageId>Zentient.Endpoints.Http</PackageId>
 	</PropertyGroup>
 
 	<ItemGroup>
