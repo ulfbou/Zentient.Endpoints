@@ -63,8 +63,8 @@ jobs:
         run: dotnet restore Zentient.Endpoints.sln
 
       - name: Build Solution
-        run: dotnet build Zentient.Endpoints.sln --configuration Release --no-restore \
-          /p:ZENTIENT_VERSION_FINAL=${{ steps.gitversion.outputs.semVer }}
+        run: |
+          dotnet build Zentient.Endpoints.sln --configuration Release --no-restore /p:ZENTIENT_VERSION_FINAL=${{ steps.gitversion.outputs.semVer }}
 
       - name: Run Tests
         run: dotnet test Zentient.Endpoints.sln --configuration Release --no-build --logger trx
