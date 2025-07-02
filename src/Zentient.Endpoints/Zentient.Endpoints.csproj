@@ -8,6 +8,7 @@
 		<Description>Core abstractions and utilities for unifying result handling across transport protocols (HTTP, gRPC, Messaging) using Zentient.Results.</Description>
 		<AssemblyOriginatorKeyFile>..\..\Zentient.snk</AssemblyOriginatorKeyFile>
 		<PackageId>Zentient.Endpoints</PackageId>
+		<PackageTags>Zentient;Endpoints;Results;Outcomes;Abstractions;Utilities;HTTP;gRPC;Messaging</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
