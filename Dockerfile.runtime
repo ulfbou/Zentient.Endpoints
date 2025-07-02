@@ -1,67 +1,26 @@
-# Dockerfile for Zentient.Endpoints application
-# This Dockerfile focuses on creating a runnable application image,
-# assuming the build (including restore and publishing) happens in the CI pipeline.
+# Dockerfile.runtime
+# This Dockerfile is used by the CI pipeline to create the final runtime image
+# from already published application output (which is the build context).
 
-ARG TARGET_FRAMEWORK=net9.0 # Default to net9.0, can be overridden during docker build
+# ARG for the target framework version, passed from GitHub Actions
+ARG TARGET_FRAMEWORK
 
-# Stage 1: Build - Use the SDK to publish the application
-# This stage is for building and publishing the application within the Docker context,
-# which can be useful if you prefer to build the deployable artifact here,
-# or if you want to ensure the exact environment.
-# Alternatively, this can be entirely skipped if 'dotnet publish' is done in CI,
-# and only the published output is copied.
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-LABEL stage=build
+# Multi-stage build for different .NET runtime bases
+# Use specific tags (e.g., '8.0' or '9.0') for Microsoft's images.
+# '9.0' will point to the latest preview/RC for .NET 9 until GA.
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base8
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base9
 
-# Set environment variables for non-interactive dotnet CLI
-ENV DOTNET_CLI_TELEMETRY_OPTOUT=true \
-    DOTNET_NOLOGO=true \
-    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true
-
-WORKDIR /src
-
-# Copy project files and restore as distinct layers for caching
-COPY ["src/Zentient.Endpoints/Zentient.Endpoints.csproj", "src/Zentient.Endpoints/"]
-COPY ["src/Zentient.Endpoints.Http/Zentient.Endpoints.Http.csproj", "src/Zentient.Endpoints.Http/"]
-# Add other relevant project files needed for restore/build
-# COPY ["src/YourOtherProject/YourOtherProject.csproj", "src/YourOtherProject/"]
-# You'd copy the Directory.Build.props/targets as well if they affect restore
-COPY ["Directory.Build.props", "Directory.Build.targets", "Directory.Pack.targets", "./"]
-
-# Restore all projects. The SDK image should have both runtimes if needed.
-# Since build pipeline handles multi-target, here we restore based on the primary target for the image.
-# If you need to build both net8.0 and net9.0 versions *within* the Dockerfile,
-# you'd run dotnet restore and dotnet publish for each target framework.
-# For simplicity and efficiency, I'd lean towards publishing *one* specific target framework for the image.
-RUN dotnet restore "src/Zentient.Endpoints/Zentient.Endpoints.csproj"
-
-# Copy the remaining source code
-COPY . .
-
-# Publish the application to a directory, targeting a specific framework
-# This creates the self-contained (or framework-dependent) deployable output.
-# The TARGET_FRAMEWORK ARG allows selecting which target to publish.
-RUN dotnet publish "src/Zentient.Endpoints/Zentient.Endpoints.csproj" -c Release -o /app/publish \
-    --no-restore \
-    --framework ${TARGET_FRAMEWORK} \
-    /p:UseAppHost=false # Optional: if you don't need a native executable, makes image smaller
-
-# Stage 2: Final - Create the runtime image
-# Use the minimal ASP.NET Core runtime image for the chosen target framework
-FROM mcr.microsoft.com/dotnet/aspnet:${TARGET_FRAMEWORK} AS final
-LABEL stage=final
-
-# Set environment variables (same as build stage for consistency, though less critical here)
-ENV DOTNET_CLI_TELEMETRY_OPTOUT=true \
-    DOTNET_NOLOGO=true \
-    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true
+# Select the appropriate base image based on the TARGET_FRAMEWORK ARG
+FROM ${TARGET_FRAMEWORK == '8.0' ? 'base8' : 'base9'}
 
 WORKDIR /app
 
-# Copy the published application from the 'build' stage
-COPY --from=build /app/publish .
+# Copy the pre-published application from the build context (which is /tmp/app_net80 or /tmp/app_net90)
+# This directory already contains the DLLs, dependencies, etc., ready to run.
+COPY . .
 
-# Expose the port your ASP.NET Core app listens on (default for Kestrel HTTP)
+# Expose the default ASP.NET Core HTTP port
 EXPOSE 8080
 
 # Define the entry point for the application
