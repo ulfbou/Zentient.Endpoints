@@ -3,7 +3,10 @@ name: 🐳 Build & Pack Zentient.Endpoints Docker Image
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: 
+      - main
+      - 'release/v*.*.*'
+      - 'release/*'
     paths:
       - "Dockerfile"
       - "**/*.csproj"
