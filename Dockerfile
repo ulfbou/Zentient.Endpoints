@@ -46,7 +46,8 @@ RUN git config --global --add safe.directory /app
 # Copy the entire repository to ensure .git directory and Directory.Build.props are present
 COPY . .
 
-# Ensure the solution file has the correct path separators
+# IMPORTANT: Fix path separators in the solution file for Linux compatibility
+# This command replaces all '\' with '/' in the .sln file
 RUN sed -i 's|\\|/|g' Zentient.Endpoints.sln
 
 # Restore dependencies
@@ -77,21 +78,26 @@ RUN dotnet build "Zentient.Endpoints.sln" -c Release --no-restore \
 
 # ONLY RUN TESTS FOR ZENTIENT.ENDPOINTS.TESTS
 # This will only execute tests within that specific project.
-RUN dotnet test "tests/Zentient.Endpoints.Tests/Zentient.Endpoints.Tests.csproj" --no-build --configuration Release
+# Store test results in a well-known path within the container.
+RUN dotnet test "tests/Zentient.Endpoints.Tests/Zentient.Endpoints.Tests.csproj" --no-build --configuration Release --logger "trx;LogFileName=test-results.trx" --collect "XPlat Code Coverage" --results-directory "/app/test-results"
 
-# Create a directory for artifacts
-RUN mkdir -p /artifacts
+# Create a directory for NuGet package artifacts
+RUN mkdir -p /app/nuget-packages
 
 # Pack ONLY Zentient.Endpoints.csproj for the initial beta release
+# Store packed NuGet packages in a well-known path within the container.
 RUN echo "Packing src/Zentient.Endpoints/Zentient.Endpoints.csproj..."; \
-    dotnet pack "src/Zentient.Endpoints/Zentient.Endpoints.csproj" -c Release -o /artifacts --no-build \
+    dotnet pack "src/Zentient.Endpoints/Zentient.Endpoints.csproj" -c Release -o /app/nuget-packages --no-build \
     /p:ContinuousIntegrationBuild=true \
     /p:Version=$ZENTIENT_VERSION_FINAL # Ensure the final version from GitVersion is used
 
 # Final stage: copy artifacts out (using scratch for smallest image for artifacts)
 FROM scratch AS artifacts
 WORKDIR /app
-COPY --from=build /artifacts .
 
-# Default command to list the built artifacts for verification
-CMD ["ls", "-l", "/app"]
+# Copy the NuGet packages and test results from the build stage
+COPY --from=build /app/nuget-packages /app/nuget-packages
+COPY --from=build /app/test-results /app/test-results
+
+# Default command to list the built artifacts for verification (useful for debugging)
+CMD ["ls", "-lR", "/app"]

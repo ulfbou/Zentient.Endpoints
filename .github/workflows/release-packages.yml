@@ -29,13 +29,13 @@ jobs:
           dotnet-version: 9.0
 
       - name: Install GitVersion (minimal)
-        uses: GitTools/actions/gitversion/setup@v0.10.2
+        uses: GitTools/actions/gitversion/setup@v1
         with:
           versionSpec: '5.x'
 
       - name: Determine Semantic Version for Release
         id: gitversion_release
-        uses: GitTools/actions/gitversion/execute@v0.10.2
+        uses: GitTools/actions/gitversion/execute@v1
 
       - name: Download NuGet Package Artifacts
         uses: actions/download-artifact@v4
@@ -61,7 +61,8 @@ jobs:
             ALL_PACKABLE_PROJECTS=$(find src/ -name "*.csproj" ! -path "src/Zentient.Endpoints.Tests.Shared/*" -exec grep -l -E '<IsPackable>true</IsPackable>' {} + || true)
             MODIFIED_PACKABLE_PROJECTS=""
             for PROJECT_PATH in $ALL_PACKABLE_PROJECTS; do
-              if git diff --name-only "$BASE_REF" "$CURRENT_REF" -- "$PROJECT_PATH" "${PROJECT_PATH%/*}\" | grep -q .; then
+              # IMPORTANT: Changed trailing backslash to forward slash for path consistency
+              if git diff --name-only "$BASE_REF" "$CURRENT_REF" -- "$PROJECT_PATH" "${PROJECT_PATH%/*}/" | grep -q .; then
                 MODIFIED_PACKABLE_PROJECTS="$MODIFIED_PACKABLE_PROJECTS $PROJECT_PATH"
                 echo "Detected changes in $PROJECT_PATH for stable release."
               fi
@@ -85,7 +86,7 @@ jobs:
             
             echo "Targeting specific project for this branch: $TARGET_PROJECT_PATH"
 
-            if git diff --name-only "$BASE_REF" "$CURRENT_REF" -- "$TARGET_PROJECT_PATH" "${TARGET_PROJECT_PATH%/*}\" | grep -q .; then
+            if git diff --name-only "$BASE_REF" "$CURRENT_REF" -- "$TARGET_PROJECT_PATH" "${TARGET_PROJECT_PATH%/*}/" | grep -q .; then
               MODIFIED_PACKABLE_PROJECTS="$TARGET_PROJECT_PATH"
               echo "Detected changes in specific project $TARGET_PROJECT_PATH for pre-release."
             else
@@ -108,9 +109,11 @@ jobs:
 
           for PROJECT_PATH in $MODIFIED_PROJECTS; do
             PROJECT_NAME=$(basename "$PROJECT_PATH" .csproj)
-            PACKAGE_NAME=$(echo "$PROJECT_NAME" | sed 's//.csproj$//')
+            PACKAGE_NAME=$(echo "$PROJECT_NAME" | sed 's/\.csproj$//')
             
-            NUPKG_FILE=$(find artifacts/packages -name "${PACKAGE_NAME}.${RELEASE_VERSION}.nupkg" -print -quit)
+            # Find the actual .nupkg file in the downloaded artifacts
+            # Use 'head -n 1' in case multiple files match, though it should be unique
+            NUPKG_FILE=$(find artifacts/packages -name "${PACKAGE_NAME}.${RELEASE_VERSION}*.nupkg" -print -quit | head -n 1) 
             
             if [ -n "$NUPKG_FILE" ]; then
               echo "Pushing $NUPKG_FILE to NuGet.org..."
