@@ -213,8 +213,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner | toLower }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
-            ${{ github.ref_type == 'tag' && 'ghcr.io/' + (github.repository_owner | toLower) + '/zentient-endpoints:latest' || '' }}
+            ghcr.io/${{ toLower(github.repository_owner) }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
+            ${{ github.ref_type == 'tag' && format('ghcr.io/{0}/zentient-endpoints:latest', toLower(github.repository_owner)) || '' }}
 
       - name: Create GitHub Release
         if: github.ref_type == 'tag'
