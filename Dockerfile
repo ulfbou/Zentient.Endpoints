@@ -46,6 +46,10 @@ RUN git config --global --add safe.directory /app
 # Copy the entire repository to ensure .git directory and Directory.Build.props are present
 COPY . .
 
+# Copy all MSBuild configuration files from repo root
+COPY *.props ./
+COPY *.targets ./
+
 # IMPORTANT: Fix path separators in the solution file for Linux compatibility
 # This command replaces all '\' with '/' in the .sln file
 RUN sed -i 's|\\|/|g' Zentient.Endpoints.sln
