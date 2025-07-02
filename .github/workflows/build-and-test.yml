@@ -8,7 +8,7 @@ on:
       - main
       - 'feature/*'
       - 'bugfix/*'
-      - 'release/**' # This will trigger CI for all release branches, which then triggers CD via workflow_run
+      - 'release/**'
   pull_request:
     branches:
       - main
@@ -22,7 +22,7 @@ jobs:
 
     permissions:
       contents: read
-      packages: write # Necessary for pushing Docker images to GitHub Packages (GHCR)
+      packages: write
 
     concurrency:
       group: ${{ github.ref }}-build
@@ -33,8 +33,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # GitVersion is run on the host to get the semantic version
-      # for tagging the Docker image and passing to the Docker build.
       - name: Setup GitVersion (host)
         uses: GitTools/actions/gitversion/setup@v1
         with:
@@ -54,24 +52,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build the Docker image, which now includes restore, build, test, and pack steps
-      # This step will now also PUSH the image to GHCR.
       - name: Build and Push Docker Image with GitVersion
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          push: true # Changed from 'false' to 'true' to push the image
+          push: true
           tags: |
-            ghcr.io/${{ github.repository }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
-            ghcr.io/${{ github.repository }}/zentient-endpoints:latest # Consider conditional 'latest' for production builds only
+            # Convert github.repository to lowercase here
+            ghcr.io/${{ github.repository | lower }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
+            ghcr.io/${{ github.repository | lower }}/zentient-endpoints:latest
           build-args: |
             ZENTIENT_VERSION_FINAL_OVERRIDE=${{ steps.gitversion.outputs.semVer }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # --- Extracting Artifacts from the Built Docker Image ---
-      # These steps remain to get the NuGet packages and test results for artifact upload.
       - name: Create directory for extracted artifacts
         run: |
           mkdir -p artifacts/packages
@@ -79,16 +74,16 @@ jobs:
 
       - name: Extract NuGet packages from container
         run: |
-          # Use the full GHCR image tag to create the container for extraction
-          CONTAINER_ID=$(docker create ghcr.io/${{ github.repository }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
+          # Use the lowercase repository name here as well
+          CONTAINER_ID=$(docker create ghcr.io/${{ github.repository | lower }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
           docker cp "$CONTAINER_ID:/app/nuget-packages/." ./artifacts/packages/
           docker rm "$CONTAINER_ID"
         shell: bash
 
       - name: Extract Test Results from container
         run: |
-          # Use the full GHCR image tag to create the container for extraction
-          CONTAINER_ID=$(docker create ghcr.io/${{ github.repository }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
+          # Use the lowercase repository name here as well
+          CONTAINER_ID=$(docker create ghcr.io/${{ github.repository | lower }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
           docker cp "$CONTAINER_ID:/app/test-results/." ./test-results/
           docker rm "$CONTAINER_ID"
         shell: bash
@@ -101,7 +96,6 @@ jobs:
         run: ls -lh test-results
         shell: bash
 
-      # Upload the extracted artifacts
       - name: Upload Test Results Artifact
         uses: actions/upload-artifact@v4
         if: always()
