@@ -168,13 +168,11 @@ jobs:
           echo "${{ needs.detect-changes.outputs.modified_projects }}" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
 
   publish:
-    needs: build_and_test
+    needs: build-and-test
     runs-on: ubuntu-latest
     if: |
-      always() &&
-      (startsWith(github.ref, 'refs/heads/release/') || github.ref_type == 'tag') &&
-      needs.build_and_test.outputs.commit_sha == github.sha
-
+      success() &&
+      (startsWith(github.ref, 'refs/heads/release/') || github.ref_type == 'tag')
     steps:
       - name: Download NuGet Artifacts
         uses: actions/download-artifact@v4
@@ -205,7 +203,7 @@ jobs:
           done
         if: |
           startsWith(github.ref, 'refs/heads/release/') ||
-          (github.ref_type == 'tag' && gitversion.outputs.preReleaseTag == '')
+          (github.ref_type == 'tag' && steps.gitversion.outputs.preReleaseTag == '')
 
       - name: Build & Push Docker Image
         uses: docker/build-push-action@v5
@@ -220,16 +218,20 @@ jobs:
             ghcr.io/${{ env.REPO_OWNER_LOWER }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
             ${{ github.ref_type == 'tag' && format('ghcr.io/{0}/zentient-endpoints:latest', env.REPO_OWNER_LOWER) || '' }}
 
+      - name: Extract Release Notes
+        if: github.ref_type == 'tag'
+        run: |
+          awk "/## \[${{ steps.gitversion.outputs.majorMinorPatch }}\]/,/^## /" src/Zentient.Endpoints/CHANGELOG.md > release-notes.md
+
       - name: Create GitHub Release
         if: github.ref_type == 'tag'
         uses: actions/create-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          release_name: "$GitVersion: semVer ${{ steps.gitversion.outputs.semVer }}"
+          release_name: "Zentient.Endpoints ${{ steps.gitversion.outputs.semVer }}"
+          body_path: ./release-notes.md
           draft: false
           prerelease: false
-          body: |
-            $(awk '/## \[${{ steps.gitversion.outputs.majorMinorPatch }}\]/,/^## / {{print}}' src/Zentient.Endpoints/CHANGELOG.md)
 
       - name: Upload Release Assets
         if: github.ref_type == 'tag'
