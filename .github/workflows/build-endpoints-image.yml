@@ -1,4 +1,6 @@
-name: 🐳 Build & Pack Zentient.Endpoints Docker Image
+# Build & Pack Docker Image for ulfbou/Zentient.Endpoints
+# Path: .github/workflows/build-endpoints-image.yml
+name: CI - Build & Pack Docker Image (Zentient.Endpoints)
 
 on:
   workflow_dispatch:
@@ -7,11 +9,6 @@ on:
       - main
       - 'release/v*.*.*'
       - 'release/*'
-    paths:
-      - "Dockerfile"
-      - "**/*.csproj"
-      - "**/*.sln"
-      - ".github/workflows/build-endpoints-image.yml"
   pull_request:
     branches: [main]
     paths:

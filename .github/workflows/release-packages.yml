@@ -1,6 +1,6 @@
 # This workflow is designed to publish NuGet packages for ulfbou/Zentient.Endpoints
 # Path: .github/workflows/release-packages.yml
-name: CD - Zentient.Endpoints (Publish Packages)
+name: CD - Publish Packages (Zentient.Endpoints)
 
 on:
   workflow_run:
