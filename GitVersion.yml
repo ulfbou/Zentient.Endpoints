@@ -1,3 +1,5 @@
+# GitVersion configuration for the Zentient.Endpoints project
+
 mode: ContinuousDelivery
 increment: Inherit
 tag-prefix: '[vV]'
@@ -16,7 +18,7 @@ branches:
   develop:
     mode: ContinuousDelivery
     tag: beta
-    increment: Minor 
+    increment: Minor
     is-release-branch: false
 
   release:
@@ -31,7 +33,7 @@ branches:
     regex: ^release/(?!v\d+\.\d+\.\d+)(?<BranchName>.+)$
     mode: ContinuousDelivery
     increment: Patch
-    tag: '{BranchName}'
+    tag: 'rc'
     source-branches: ['main']
 
 ignore:
