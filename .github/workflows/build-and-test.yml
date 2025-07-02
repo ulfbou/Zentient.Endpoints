@@ -1,0 +1,103 @@
+# Release Workflow for ulfbou/Zentient.Endpoints
+# Path: .github/workflows/build-and-test.yml
+name: CI - Zentient.Endpoints (Full Solution Build & Test)
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/*'
+      - 'bugfix/*'
+      - 'release/**'
+  pull_request:
+    branches:
+      - main
+      - 'release/**'
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    outputs:
+      commit_sha: ${{ github.sha }}
+      
+    concurrency:
+      group: ${{ github.ref }}-build
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # GitVersion is run on the host to get the semantic version
+      # for tagging the Docker image and passing to the Docker build.
+      - name: Setup GitVersion (host)
+        uses: GitTools/actions/gitversion/setup@v1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Semantic Version (host)
+        id: gitversion
+        uses: GitTools/actions/gitversion/execute@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the Docker image, which now includes restore, build, test, and pack steps
+      - name: Build Docker Image with GitVersion
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: |
+            zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
+            zentient-endpoints:latest
+          build-args: |
+            ZENTIENT_VERSION_FINAL_OVERRIDE=${{ steps.gitversion.outputs.semVer }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # --- Extracting Artifacts from the Built Docker Image ---
+      - name: Create directory for extracted artifacts
+        run: |
+          mkdir -p artifacts/packages
+          mkdir -p test-results
+
+      - name: Extract NuGet packages from container
+        run: |
+          CONTAINER_ID=$(docker create zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
+          docker cp "$CONTAINER_ID:/app/nuget-packages/." ./artifacts/packages/
+          docker rm "$CONTAINER_ID"
+        shell: bash
+
+      - name: Extract Test Results from container
+        run: |
+          CONTAINER_ID=$(docker create zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
+          docker cp "$CONTAINER_ID:/app/test-results/." ./test-results/
+          docker rm "$CONTAINER_ID"
+        shell: bash
+        
+      - name: Show Extracted NuGet Packages
+        run: ls -lh artifacts/packages
+        shell: bash
+
+      - name: Show Extracted Test Results
+        run: ls -lh test-results
+        shell: bash
+
+      # Upload the extracted artifacts
+      - name: Upload Test Results Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ github.sha }}
+          path: test-results/
+
+      - name: Upload NuGet Packages Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages-${{ github.sha }}
+          path: artifacts/packages/**/*.nupkg
+          if-no-files-found: ignore
