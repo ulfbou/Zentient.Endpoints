@@ -19,11 +19,11 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
 jobs:
-  build-and-test: # Renamed for consistency
+  build-and-test: 
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # Necessary for pushing Docker images to GitHub Packages (GHCR)
+      packages: write 
 
     outputs:
       head_sha: ${{ github.sha }}
@@ -55,7 +55,7 @@ jobs:
           versionSpec: '5.x'
 
       - name: Determine Semantic Version
-        id: gitversion # This ID is unique within this job scope
+        id: gitversion 
         uses: GitTools/actions/gitversion/execute@v1
 
       - name: Restore dependencies
@@ -117,18 +117,18 @@ jobs:
 
       - name: Upload Test Results Artifact
         uses: actions/upload-artifact@v4
-        if: always() # Always upload test results, even if tests fail
+        if: always() 
         with:
           name: test-results-${{ github.sha }}
-          path: test-results # Assuming test-results directory is generated at root
+          path: test-results 
 
   publish:
-    needs: build-and-test # Corrected job name
+    needs: build-and-test 
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Needed for creating releases and uploading assets
-      packages: write # Needed for pushing Docker images to GHCR and potentially NuGet
-      actions: read # Needed for workflow_run context and other actions
+      contents: write 
+      packages: write 
+      actions: read 
 
     if: |
       success() &&
@@ -138,13 +138,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }} # Checkout current commit for release notes
+          ref: ${{ github.sha }} 
           fetch-depth: 0
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x # Only 9.0.x needed for push operations
+          dotnet-version: 9.0.x 
 
       - name: Install GitVersion CLI (for preReleaseTag check)
         uses: GitTools/actions/gitversion/setup@v1
@@ -152,14 +152,14 @@ jobs:
           versionSpec: '5.x'
 
       - name: Determine Semantic Version (for publish job)
-        id: gitversion_publish # Unique ID for this step
+        id: gitversion_publish 
         uses: GitTools/actions/gitversion/execute@v1
         with:
           # Use outputs from previous job to ensure consistency and avoid re-running GitVersion logic
           # unless absolutely necessary for specific GitVersion calculations within this job.
           # For most cases, needs.build-and-test.outputs.sem_ver is sufficient.
           # We run it here primarily for preReleaseTag check for NuGet publish and precise tag info.
-          current-branch: ${{ github.ref }} # Pass branch for accurate GitVersion calculation
+          current-branch: ${{ github.ref }} 
 
       - name: Set REPO_OWNER_LOWER env var
         id: set_repo_owner_lower
@@ -174,7 +174,7 @@ jobs:
       - name: Push NuGet & Symbols for Zentient.Endpoints
         if: |
           startsWith(github.ref, 'refs/heads/release/') ||
-          (github.ref_type == 'tag' && steps.gitversion_publish.outputs.preReleaseTag == '') # Use gitversion_publish here
+          (github.ref_type == 'tag' && steps.gitversion_publish.outputs.preReleaseTag == '')
         run: |
           for file in artifacts/packages/Zentient.Endpoints.*.{nupkg,snupkg}; do
             echo "Pushing $file to NuGet.org..."
@@ -191,13 +191,13 @@ jobs:
           github.ref_type == 'tag'
         with:
           context: .
-          file: ./Dockerfile.runtime # Use the new runtime Dockerfile
+          file: ./Dockerfile.runtime 
           push: true
           tags: |
-            ghcr.io/${{ env.REPO_OWNER_LOWER }}/zentient-endpoints:${{ steps.gitversion_publish.outputs.semVer }} # Use gitversion_publish here
+            ghcr.io/${{ env.REPO_OWNER_LOWER }}/zentient-endpoints:${{ steps.gitversion_publish.outputs.semVer }} 
             ${{ github.ref_type == 'tag' && format('ghcr.io/{0}/zentient-endpoints:latest', env.REPO_OWNER_LOWER) || '' }}
           build-args: |
-            TARGET_FRAMEWORK=net9.0 # Explicitly build for net9.0 for the final image
+            TARGET_FRAMEWORK=net9.0 
 
       - name: Extract Release Notes
         if: github.ref_type == 'tag'
@@ -212,7 +212,7 @@ jobs:
       - name: Create GitHub Release
         if: github.ref_type == 'tag'
         uses: actions/create-release@v1
-        id: create_release # Added ID to reference its output
+        id: create_release 
         with:
           tag_name: ${{ github.ref_name }}
           release_name: "Zentient.Endpoints ${{ steps.gitversion_publish.outputs.semVer }}"
