@@ -1,0 +1,168 @@
+name: CI/CD - Build, Test & Publish (Zentient.Endpoints)
+
+on:
+  push:
+    branches:
+      - main
+      - release/**
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      head_sha: ${{ github.sha }}
+      head_branch: ${{ github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0
+
+      - name: Install GitVersion
+        uses: GitTools/actions/gitversion/setup@v1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Semantic Version
+        id: gitversion
+        uses: GitTools/actions/gitversion/execute@v1
+
+      - name: Restore
+        run: dotnet restore Zentient.Endpoints.sln
+
+      - name: Build
+        run: dotnet build Zentient.Endpoints.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Zentient.Endpoints.sln --configuration Release --no-build --logger trx
+
+      - name: Pack
+        run: |
+          mkdir -p artifacts/packages
+          dotnet pack src/**/*.csproj \
+            --configuration Release \
+            --output artifacts/packages \
+            /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+
+      - name: Upload NuGet Packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages-${{ github.sha }}
+          path: artifacts/packages
+
+  detect-changes:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    outputs:
+      modified_projects: ${{ steps.get_modified.outputs.modified_projects_for_release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build-and-test.outputs.head_sha }}
+          fetch-depth: 0
+
+      - name: Get Modified Packable Projects
+        id: get_modified
+        run: |
+          BRANCH="${{ needs.build-and-test.outputs.head_branch }}"
+          BASE_REF="origin/main"
+          git fetch origin main
+
+          MODIFIED_PACKABLE_PROJECTS=""
+
+          if [[ "$BRANCH" == release/v* ]]; then
+            echo "Stable release: checking diff against main"
+            ALL_PROJECTS=$(find src/ -name "*.csproj" ! -path "src/Zentient.Endpoints.Tests.Shared/*" -exec grep -l '<IsPackable>true</IsPackable>' {} + || true)
+            for PROJECT in $ALL_PROJECTS; do
+              if git diff --name-only "$BASE_REF" HEAD -- "$PROJECT" "${PROJECT%/*}/" | grep -q .; then
+                MODIFIED_PACKABLE_PROJECTS+="${PROJECT}"$'\n'
+              fi
+            done
+          elif [[ "$BRANCH" == release/* ]]; then
+            PACKAGE=$(echo "$BRANCH" | sed 's|release/||')
+            if [[ "$PACKAGE" == "Endpoints" ]]; then
+              TARGET="src/Zentient.Endpoints/Zentient.Endpoints.csproj"
+            else
+              TARGET="src/Zentient.Endpoints.${PACKAGE}/Zentient.Endpoints.${PACKAGE}.csproj"
+            fi
+            if git diff --name-only "$BASE_REF" HEAD -- "$TARGET" "${TARGET%/*}/" | grep -q .; then
+              MODIFIED_PACKABLE_PROJECTS="${TARGET}"
+            fi
+          else
+            echo "Unexpected release branch format: $BRANCH"
+            exit 1
+          fi
+
+          echo "modified_projects_for_release<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$MODIFIED_PACKABLE_PROJECTS" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+  publish-packages:
+    runs-on: ubuntu-latest
+    needs: [build-and-test, detect-changes]
+    if: |
+      startsWith(needs.build-and-test.outputs.head_branch, 'release/') &&
+      needs.detect-changes.outputs.modified_projects != ''
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build-and-test.outputs.head_sha }}
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0
+
+      - name: Install GitVersion
+        uses: GitTools/actions/gitversion/setup@v1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Semantic Version
+        id: gitversion
+        uses: GitTools/actions/gitversion/execute@v1
+
+      - name: Download NuGet Packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages-${{ needs.build-and-test.outputs.head_sha }}
+          path: artifacts/packages
+
+      - name: Push Modified NuGet Packages to NuGet.org
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          echo "${{ needs.detect-changes.outputs.modified_projects }}" | while read -r PROJECT_PATH; do
+            PACKAGE_NAME=$(basename "$PROJECT_PATH" .csproj)
+            PACKAGE_FILE=$(find artifacts/packages -name "${PACKAGE_NAME}.*.nupkg" ! -name "*.symbols.nupkg" | head -n1)
+            if [[ -f "$PACKAGE_FILE" ]]; then
+              echo "Publishing $PACKAGE_FILE..."
+              dotnet nuget push "$PACKAGE_FILE" \
+                --source https://api.nuget.org/v3/index.json \
+                --api-key "$NUGET_API_KEY" \
+                --skip-duplicate
+            else
+              echo "No package found for $PACKAGE_NAME - skipping."
+            fi
+          done
+
+      - name: Summarize Published Packages
+        run: |
+          echo "### Published NuGet Packages" >> $GITHUB_STEP_SUMMARY
+          echo "${{ needs.detect-changes.outputs.modified_projects }}" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
