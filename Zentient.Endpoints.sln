@@ -10,14 +10,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Tests", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{64C801C5-9E29-46C6-A0EE-7F4B36C96565}"
-	ProjectSection(SolutionItems) = preProject
-		build-and-release.yml = build-and-release.yml
-		build-docker-image.yml = build-docker-image.yml
-	EndProjectSection
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Tests.Common", "src\Zentient.Endpoints.Tests.Common\Zentient.Endpoints.Tests.Common.csproj", "{1C62EC8C-D331-60BE-D135-76A5FC593009}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Http", "src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj", "{E6D73B3E-6460-C43A-90E5-4B1DFEBDCB19}"
@@ -87,8 +79,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{0C510030-6FEA-4358-B9AE-6EE48CF648EF} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{514E5D81-E9A2-4921-BC22-1E76E70F903F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
-		{02EA681E-C7D8-13C7-8484-4AC65E1B71E8} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{64C801C5-9E29-46C6-A0EE-7F4B36C96565} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F04A1460-F873-490E-B208-F2BCC51C0A8C}
