@@ -1,6 +1,6 @@
 # Release Workflow for ulfbou/Zentient.Endpoints
 # Path: .github/workflows/build-and-test.yml
-name: CI - Zentient.Endpoints (Full Solution Build & Test)
+name: CI - Full Solution Build & Test (Zentient.Endpoints)
 
 on:
   push:
