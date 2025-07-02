@@ -191,6 +191,10 @@ jobs:
         id: gitversion
         uses: GitTools/actions/gitversion/execute@v1
 
+      - name: Set REPO_OWNER_LOWER env var
+        id: set_repo_owner_lower
+        run: echo "REPO_OWNER_LOWER=$(echo '${GITHUB_REPOSITORY_OWNER}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Push NuGet & Symbols for Zentient.Endpoints
         run: |
           for file in artifacts/packages/Zentient.Endpoints.*.{nupkg,snupkg}; do
@@ -213,8 +217,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ toLower(github.repository_owner) }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
-            ${{ github.ref_type == 'tag' && format('ghcr.io/{0}/zentient-endpoints:latest', toLower(github.repository_owner)) || '' }}
+            ghcr.io/${{ env.REPO_OWNER_LOWER }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
+            ${{ github.ref_type == 'tag' && format('ghcr.io/{0}/zentient-endpoints:latest', env.REPO_OWNER_LOWER) || '' }}
 
       - name: Create GitHub Release
         if: github.ref_type == 'tag'
