@@ -24,6 +24,10 @@ jobs:
       contents: read
       packages: write
 
+    # Define the lowercase repository name as an environment variable for the job
+    env:
+      REPO_LOWER: ${{ github.repository | lower }}
+
     concurrency:
       group: ${{ github.ref }}-build
       cancel-in-progress: true
@@ -59,9 +63,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            # Convert github.repository to lowercase here
-            ghcr.io/${{ github.repository | lower }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
-            ghcr.io/${{ github.repository | lower }}/zentient-endpoints:latest
+            ghcr.io/${{ env.REPO_LOWER }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
+            ghcr.io/${{ env.REPO_LOWER }}/zentient-endpoints:latest
           build-args: |
             ZENTIENT_VERSION_FINAL_OVERRIDE=${{ steps.gitversion.outputs.semVer }}
           cache-from: type=gha
@@ -74,16 +77,16 @@ jobs:
 
       - name: Extract NuGet packages from container
         run: |
-          # Use the lowercase repository name here as well
-          CONTAINER_ID=$(docker create ghcr.io/${{ github.repository | lower }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
+          # Use the environment variable here
+          CONTAINER_ID=$(docker create ghcr.io/${{ env.REPO_LOWER }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
           docker cp "$CONTAINER_ID:/app/nuget-packages/." ./artifacts/packages/
           docker rm "$CONTAINER_ID"
         shell: bash
 
       - name: Extract Test Results from container
         run: |
-          # Use the lowercase repository name here as well
-          CONTAINER_ID=$(docker create ghcr.io/${{ github.repository | lower }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
+          # Use the environment variable here
+          CONTAINER_ID=$(docker create ghcr.io/${{ env.REPO_LOWER }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
           docker cp "$CONTAINER_ID:/app/test-results/." ./test-results/
           docker rm "$CONTAINER_ID"
         shell: bash
