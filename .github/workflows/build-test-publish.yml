@@ -1,3 +1,5 @@
+# Build, Test & Publish Workflow for Zentient.Endpoints
+# Path: .github/workflows/build-test-publish.yml
 name: CI/CD - Build, Test & Publish (Zentient.Endpoints)
 
 on:
@@ -17,16 +19,108 @@ jobs:
     outputs:
       head_sha: ${{ github.sha }}
       head_branch: ${{ github.ref_name }}
+      sem_ver: ${{ steps.gitversion.outputs.semVer }} 
+      nuget_version_v2: ${{ steps.gitversion.outputs.nuGetVersionV2 }} 
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup .NET SDK
+      - name: Setup .NET SDKs
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0
+          dotnet-version: |
+            8.0.x 
+            9.0.x 
+
+      - name: Install GitVersion
+        uses: GitTools/actions/gitversion/setup@v1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Semantic Version
+        id: gitversion
+        uses: GitTools/actions/gitversion/execute@v1
+
+      - name: Restore
+        run: dotnet restore Zentient.Endpoints.sln
+
+      - name: Build
+        run: dotnet build Zentient.Endpoints.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Zentient.Endpoints.sln --configuration Release --no-build --logger trx
+
+      - name: Pack NuGet Packages
+        run: |
+          mkdir -p artifacts/packages
+          dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj \
+            --configuration Release \
+            --output artifacts/packages \
+            /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
+            --no-build
+
+          # For future:
+          # find src -name "*.csproj" -print0 | while IFS= read -r -d $'\0' project_file; do
+          #   if grep -q '<IsPackable>true</IsPackable>' "$project_file"; then
+          #     dotnet pack "$project_file" --configuration Release --output artifacts/packages --no-build \
+          #       /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }};
+          #   fi
+          # done
+
+      - name: Publish for .NET 8.0 Deployment
+        run: |
+          mkdir -p artifacts/app/net8.0
+          dotnet publish src/Zentient.Endpoints/Zentient.Endpoints.csproj \
+            --configuration Release \
+            --output artifacts/app/net8.0 \
+            --framework net8.0 \
+            /p:UseAppHost=false \
+            --no-build 
+
+      - name: Publish for .NET 9.0 Deployment
+        run: |
+          mkdir -p artifacts/app/net9.0
+          dotnet publish src/Zentient.Endpoints/Zentient.Endpoints.csproj \
+            --configuration Release \
+            --output artifacts/app/net9.0 \
+            --framework net9.0 \
+            /p:UseAppHost=false \
+            --no-build
+
+      - name: Upload NuGet Packages Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages-${{ github.sha }}
+          path: artifacts/packages
+
+      - name: Upload .NET 8.0 App Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zentient-endpoints-net8.0-${{ github.sha }}
+          path: artifacts/app/net8.0
+
+      - name: Upload .NET 9.0 App Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zentient-endpoints-net9.0-${{ github.sha }}
+          path: artifacts/app/net9.0
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDKs
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+          include-architecture: false§
+          include-prerelease: false
 
       - name: Install GitVersion
         uses: GitTools/actions/gitversion/setup@v1
@@ -49,7 +143,10 @@ jobs:
       - name: Pack
         run: |
           mkdir -p artifacts/packages
-          dotnet pack src/**/*.csproj \
+          # Use 'find' to locate only the Zentient.Endpoints.csproj for now,
+          # as per your requirement to push only this package initially.
+          # Future: modify this to dotnet pack src/**/*.csproj as needed.
+          find src -name "Zentient.Endpoints.csproj" -print0 | xargs -0 -I {} dotnet pack "{}" \
             --configuration Release \
             --output artifacts/packages \
             /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
