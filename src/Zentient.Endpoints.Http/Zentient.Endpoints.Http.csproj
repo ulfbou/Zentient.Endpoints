@@ -7,6 +7,7 @@
 		<IsPackable>true</IsPackable>
 		<NoWarn>$(NoWarn);CS1591</NoWarn>
 		<PackageId>Zentient.Endpoints.Http</PackageId>
+		<PackageTags>Zentient;Endpoints;HTTP;ASP.NET;ASP.NET Core;Results;Outcomes;Abstractions;Utilities</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -24,7 +25,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Zentient.Endpoints\Zentient.Endpoints.csproj" />
+		<ProjectReference  Condition="'$(IsReleaseVersion)' != 'true'" Include="..\Zentient.Endpoints\Zentient.Endpoints.csproj" />
+		<ProjectReference Condition="'$(IsReleaseVersion)' == 'true'" Include="Zentient.Endpoints" Version="" />
 	</ItemGroup>
 
 </Project>
