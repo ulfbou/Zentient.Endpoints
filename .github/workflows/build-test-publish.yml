@@ -6,24 +6,38 @@ on:
   push:
     branches:
       - main
-      - release/**
+      - 'feature/*'
+      - 'bugfix/*'
+      - 'release/**'
   pull_request:
     branches:
       - main
 
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
 jobs:
-  build-and-test:
+  build-and-test: # Renamed for consistency
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: write # Necessary for pushing Docker images to GitHub Packages (GHCR)
+
     outputs:
       head_sha: ${{ github.sha }}
       head_branch: ${{ github.ref_name }}
-      sem_ver: ${{ steps.gitversion.outputs.semVer }} 
-      nuget_version_v2: ${{ steps.gitversion.outputs.nuGetVersionV2 }} 
+      sem_ver: ${{ steps.gitversion.outputs.semVer }}
+      nuget_version_v2: ${{ steps.gitversion.outputs.nuGetVersionV2 }}
+      # Export other GitVersion outputs if needed by downstream jobs, e.g., majorMinorPatch
+
+    concurrency:
+      group: ${{ github.ref }}-build
+      cancel-in-progress: true
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -32,8 +46,8 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
-            8.0.x 
-            9.0.x 
+            8.0.x
+            9.0.x
 
       - name: Install GitVersion
         uses: GitTools/actions/gitversion/setup@v1
@@ -41,34 +55,27 @@ jobs:
           versionSpec: '5.x'
 
       - name: Determine Semantic Version
-        id: gitversion
+        id: gitversion # This ID is unique within this job scope
         uses: GitTools/actions/gitversion/execute@v1
 
-      - name: Restore
+      - name: Restore dependencies
         run: dotnet restore Zentient.Endpoints.sln
 
-      - name: Build
+      - name: Build solution
         run: dotnet build Zentient.Endpoints.sln --configuration Release --no-restore
 
-      - name: Test
+      - name: Run tests
         run: dotnet test Zentient.Endpoints.sln --configuration Release --no-build --logger trx
 
       - name: Pack NuGet Packages
         run: |
           mkdir -p artifacts/packages
-          dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj \
+          # Pack only Zentient.Endpoints.csproj for now. Adjust `find` for more projects if needed.
+          find src -name "Zentient.Endpoints.csproj" -print0 | xargs -0 -I {} dotnet pack "{}" \
             --configuration Release \
             --output artifacts/packages \
             /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
             --no-build
-
-          # For future:
-          # find src -name "*.csproj" -print0 | while IFS= read -r -d $'\0' project_file; do
-          #   if grep -q '<IsPackable>true</IsPackable>' "$project_file"; then
-          #     dotnet pack "$project_file" --configuration Release --output artifacts/packages --no-build \
-          #       /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }};
-          #   fi
-          # done
 
       - name: Publish for .NET 8.0 Deployment
         run: |
@@ -78,7 +85,7 @@ jobs:
             --output artifacts/app/net8.0 \
             --framework net8.0 \
             /p:UseAppHost=false \
-            --no-build 
+            --no-build
 
       - name: Publish for .NET 9.0 Deployment
         run: |
@@ -108,199 +115,74 @@ jobs:
           name: zentient-endpoints-net9.0-${{ github.sha }}
           path: artifacts/app/net9.0
 
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup .NET SDKs
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: |
-            8.0.x
-            9.0.x
-          include-architecture: false§
-          include-prerelease: false
-
-      - name: Install GitVersion
-        uses: GitTools/actions/gitversion/setup@v1
-        with:
-          versionSpec: '5.x'
-
-      - name: Determine Semantic Version
-        id: gitversion
-        uses: GitTools/actions/gitversion/execute@v1
-
-      - name: Restore
-        run: dotnet restore Zentient.Endpoints.sln
-
-      - name: Build
-        run: dotnet build Zentient.Endpoints.sln --configuration Release --no-restore
-
-      - name: Test
-        run: dotnet test Zentient.Endpoints.sln --configuration Release --no-build --logger trx
-
-      - name: Pack
-        run: |
-          mkdir -p artifacts/packages
-          # Use 'find' to locate only the Zentient.Endpoints.csproj for now,
-          # as per your requirement to push only this package initially.
-          # Future: modify this to dotnet pack src/**/*.csproj as needed.
-          find src -name "Zentient.Endpoints.csproj" -print0 | xargs -0 -I {} dotnet pack "{}" \
-            --configuration Release \
-            --output artifacts/packages \
-            /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
-
-      - name: Upload NuGet Packages
+      - name: Upload Test Results Artifact
         uses: actions/upload-artifact@v4
+        if: always() # Always upload test results, even if tests fail
         with:
-          name: nuget-packages-${{ github.sha }}
-          path: artifacts/packages
+          name: test-results-${{ github.sha }}
+          path: test-results # Assuming test-results directory is generated at root
 
-  detect-changes:
+  publish:
+    needs: build-and-test # Corrected job name
     runs-on: ubuntu-latest
-    needs: build-and-test
-    outputs:
-      modified_projects: ${{ steps.get_modified.outputs.modified_projects_for_release }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.build-and-test.outputs.head_sha }}
-          fetch-depth: 0
-
-      - name: Get Modified Packable Projects
-        id: get_modified
-        run: |
-          BRANCH="${{ needs.build-and-test.outputs.head_branch }}"
-          BASE_REF="origin/main"
-          git fetch origin main
-
-          MODIFIED_PACKABLE_PROJECTS=""
-
-          if [[ "$BRANCH" == release/v* ]]; then
-            echo "Stable release: checking diff against main"
-            ALL_PROJECTS=$(find src/ -name "*.csproj" ! -path "src/Zentient.Endpoints.Tests.Shared/*" -exec grep -l '<IsPackable>true</IsPackable>' {} + || true)
-            for PROJECT in $ALL_PROJECTS; do
-              if git diff --name-only "$BASE_REF" HEAD -- "$PROJECT" "${PROJECT%/*}/" | grep -q .; then
-                MODIFIED_PACKABLE_PROJECTS+="${PROJECT}"$'\n'
-              fi
-            done
-          elif [[ "$BRANCH" == release/* ]]; then
-            PACKAGE=$(echo "$BRANCH" | sed 's|release/||')
-            if [[ "$PACKAGE" == "Endpoints" ]]; then
-              TARGET="src/Zentient.Endpoints/Zentient.Endpoints.csproj"
-            else
-              TARGET="src/Zentient.Endpoints.${PACKAGE}/Zentient.Endpoints.${PACKAGE}.csproj"
-            fi
-            if git diff --name-only "$BASE_REF" HEAD -- "$TARGET" "${TARGET%/*}/" | grep -q .; then
-              MODIFIED_PACKABLE_PROJECTS="${TARGET}"
-            fi
-          else
-            echo "Unexpected release branch format: $BRANCH"
-            exit 1
-          fi
-
-          echo "modified_projects_for_release<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$MODIFIED_PACKABLE_PROJECTS" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-
-  publish-packages:
-    runs-on: ubuntu-latest
-    needs: [build-and-test, detect-changes]
-    if: |
-      startsWith(needs.build-and-test.outputs.head_branch, 'release/') &&
-      needs.detect-changes.outputs.modified_projects != ''
     permissions:
-      contents: read
-      packages: write
+      contents: write # Needed for creating releases and uploading assets
+      packages: write # Needed for pushing Docker images to GHCR and potentially NuGet
+      actions: read # Needed for workflow_run context and other actions
+
+    if: |
+      success() &&
+      (startsWith(github.ref, 'refs/heads/release/') || github.ref_type == 'tag')
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.build-and-test.outputs.head_sha }}
+          ref: ${{ github.sha }} # Checkout current commit for release notes
           fetch-depth: 0
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0
+          dotnet-version: 9.0.x # Only 9.0.x needed for push operations
 
-      - name: Install GitVersion
+      - name: Install GitVersion CLI (for preReleaseTag check)
         uses: GitTools/actions/gitversion/setup@v1
         with:
           versionSpec: '5.x'
 
-      - name: Determine Semantic Version
-        id: gitversion
+      - name: Determine Semantic Version (for publish job)
+        id: gitversion_publish # Unique ID for this step
         uses: GitTools/actions/gitversion/execute@v1
-
-      - name: Download NuGet Packages
-        uses: actions/download-artifact@v4
         with:
-          name: nuget-packages-${{ needs.build-and-test.outputs.head_sha }}
-          path: artifacts/packages
+          # Use outputs from previous job to ensure consistency and avoid re-running GitVersion logic
+          # unless absolutely necessary for specific GitVersion calculations within this job.
+          # For most cases, needs.build-and-test.outputs.sem_ver is sufficient.
+          # We run it here primarily for preReleaseTag check for NuGet publish and precise tag info.
+          current-branch: ${{ github.ref }} # Pass branch for accurate GitVersion calculation
 
-      - name: Push Modified NuGet Packages to NuGet.org
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: |
-          echo "${{ needs.detect-changes.outputs.modified_projects }}" | while read -r PROJECT_PATH; do
-            PACKAGE_NAME=$(basename "$PROJECT_PATH" .csproj)
-            PACKAGE_FILE=$(find artifacts/packages -name "${PACKAGE_NAME}.*.nupkg" ! -name "*.symbols.nupkg" | head -n1)
-            if [[ -f "$PACKAGE_FILE" ]]; then
-              echo "Publishing $PACKAGE_FILE..."
-              dotnet nuget push "$PACKAGE_FILE" \
-                --source https://api.nuget.org/v3/index.json \
-                --api-key "$NUGET_API_KEY" \
-                --skip-duplicate
-            else
-              echo "No package found for $PACKAGE_NAME - skipping."
-            fi
-          done
+      - name: Set REPO_OWNER_LOWER env var
+        id: set_repo_owner_lower
+        run: echo "REPO_OWNER_LOWER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      - name: Summarize Published Packages
-        run: |
-          echo "### Published NuGet Packages" >> $GITHUB_STEP_SUMMARY
-          echo "${{ needs.detect-changes.outputs.modified_projects }}" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
-
-  publish:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: |
-      success() &&
-      (startsWith(github.ref, 'refs/heads/release/') || github.ref_type == 'tag')
-    steps:
       - name: Download NuGet Artifacts
         uses: actions/download-artifact@v4
         with:
           name: nuget-packages-${{ github.sha }}
           path: ./artifacts/packages
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Read version from GitVersion
-        id: gitversion
-        uses: GitTools/actions/gitversion/execute@v1
-
-      - name: Set REPO_OWNER_LOWER env var
-        id: set_repo_owner_lower
-        run: echo "REPO_OWNER_LOWER=$(echo '${GITHUB_REPOSITORY_OWNER}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-
       - name: Push NuGet & Symbols for Zentient.Endpoints
+        if: |
+          startsWith(github.ref, 'refs/heads/release/') ||
+          (github.ref_type == 'tag' && steps.gitversion_publish.outputs.preReleaseTag == '') # Use gitversion_publish here
         run: |
           for file in artifacts/packages/Zentient.Endpoints.*.{nupkg,snupkg}; do
+            echo "Pushing $file to NuGet.org..."
             dotnet nuget push "$file" \
               --api-key ${{ secrets.NUGET_API_KEY }} \
               --source https://api.nuget.org/v3/index.json \
               --skip-duplicate;
           done
-        if: |
-          startsWith(github.ref, 'refs/heads/release/') ||
-          (github.ref_type == 'tag' && steps.gitversion.outputs.preReleaseTag == '')
 
       - name: Build & Push Docker Image
         uses: docker/build-push-action@v5
@@ -309,23 +191,31 @@ jobs:
           github.ref_type == 'tag'
         with:
           context: .
-          file: ./Dockerfile
+          file: ./Dockerfile.runtime # Use the new runtime Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ env.REPO_OWNER_LOWER }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
+            ghcr.io/${{ env.REPO_OWNER_LOWER }}/zentient-endpoints:${{ steps.gitversion_publish.outputs.semVer }} # Use gitversion_publish here
             ${{ github.ref_type == 'tag' && format('ghcr.io/{0}/zentient-endpoints:latest', env.REPO_OWNER_LOWER) || '' }}
+          build-args: |
+            TARGET_FRAMEWORK=net9.0 # Explicitly build for net9.0 for the final image
 
       - name: Extract Release Notes
         if: github.ref_type == 'tag'
         run: |
-          awk "/## \[${{ steps.gitversion.outputs.majorMinorPatch }}\]/,/^## /" src/Zentient.Endpoints/CHANGELOG.md > release-notes.md
+          # Ensure majorMinorPatch is accurate from gitversion_publish
+          awk "/## \\[${{ steps.gitversion_publish.outputs.majorMinorPatch }}\\]/,/^## / {print}" src/Zentient.Endpoints/CHANGELOG.md > release-notes.md
+          if ! [ -s release-notes.md ]; then
+            echo "::warning::Could not find release notes for version ${{ steps.gitversion_publish.outputs.majorMinorPatch }} in CHANGELOG.md. Release body will be empty."
+            echo "No release notes found." > release-notes.md
+          fi
 
       - name: Create GitHub Release
         if: github.ref_type == 'tag'
         uses: actions/create-release@v1
+        id: create_release # Added ID to reference its output
         with:
           tag_name: ${{ github.ref_name }}
-          release_name: "Zentient.Endpoints ${{ steps.gitversion.outputs.semVer }}"
+          release_name: "Zentient.Endpoints ${{ steps.gitversion_publish.outputs.semVer }}"
           body_path: ./release-notes.md
           draft: false
           prerelease: false
@@ -339,6 +229,6 @@ jobs:
             artifacts/packages/Zentient.Endpoints.*.nupkg
             artifacts/packages/Zentient.Endpoints.*.snupkg
           asset_name: |
-            ${{ steps.gitversion.outputs.majorMinorPatch }}.nupkg
-            ${{ steps.gitversion.outputs.majorMinorPatch }}.snupkg
+            Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.nupkg
+            Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.snupkg
           asset_content_type: application/octet-stream
