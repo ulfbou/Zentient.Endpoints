@@ -4,39 +4,44 @@ name: CD - Publish Packages (Zentient.Endpoints)
 
 on:
   workflow_run:
-    # Specify the name of the workflow that, when completed, should trigger this one.
-    # This must match the 'name:' field in build-and-test.yml.
-    workflows: ["CI - Zentient.Endpoints (Full Solution Build & Test)"]
+    workflows: ["CI - Full Solution Build & Test (Zentient.Endpoints)"]
     types:
       - completed
+    branches:
+      - 'release/Endpoints' 
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     if: |
       github.event.workflow_run.conclusion == 'success' &&
-      startsWith(github.event.workflow_run.head_branch, 'release/') && 
+      startsWith(github.event.workflow_run.head_branch, 'release/') &&
       github.repository_owner == 'ulfbou'
+
+    # Explicitly set permissions for the job
+    permissions:
+      contents: read 
+      packages: write
+      actions: read
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          # Checkout the commit from the *triggering* workflow run
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
-      - name: Setup .NET SDK (minimal)
+      - name: Setup .NET SDK (minimal) 
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0
+          dotnet-version: 9.0 
 
       - name: Install GitVersion (minimal)
         uses: GitTools/actions/gitversion/setup@v1
         with:
           versionSpec: '5.x'
 
-      - name: Determine Semantic Version for Release
+      - name: Determine Semantic Version for Release 
         id: gitversion_release
         uses: GitTools/actions/gitversion/execute@v1
 
@@ -44,7 +49,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           # The commit SHA from the triggering workflow run
-          name: nuget-packages-${{ github.event.workflow_run.head_sha }} 
+          name: nuget-packages-${{ github.event.workflow_run.head_sha }}
           path: artifacts/packages
 
       - name: Get Modified Packable Projects for Release
@@ -62,7 +67,7 @@ jobs:
             git fetch origin main
             BASE_REF="origin/main"
             echo "Stable release: comparing against main branch for diff."
-            
+
             # Find ALL packable projects that have changed since the BASE_REF
             ALL_PACKABLE_PROJECTS=$(find src/ -name "*.csproj" ! -path "src/Zentient.Endpoints.Tests.Shared/*" -exec grep -l -E '<IsPackable>true</IsPackable>' {} + || true)
             MODIFIED_PACKABLE_PROJECTS=""
@@ -74,12 +79,12 @@ jobs:
             done
 
           elif [[ "$BRANCH_PATH" == release/* ]]; then
-            # For package-specific pre-release branches (e.g., release/Http)
+            # For package-specific pre-release branches (e.g., release/Endpoints)
             # Compare against main to see if the *specific* package changed
             git fetch origin main
             BASE_REF="origin/main"
             echo "Pre-release: comparing specific package against main branch for diff."
-            
+
             # Determine the target project path based on the branch name
             PACKAGE_NAME_FROM_BRANCH=$(echo "$BRANCH_PATH" | sed 's|release/||')
             TARGET_PROJECT_PATH=""
@@ -88,7 +93,7 @@ jobs:
             else
               TARGET_PROJECT_PATH="src/Zentient.Endpoints.${PACKAGE_NAME_FROM_BRANCH}/Zentient.Endpoints.${PACKAGE_NAME_FROM_BRANCH}.csproj"
             fi
-            
+
             echo "Targeting specific project for this branch: $TARGET_PROJECT_PATH"
 
             if git diff --name-only "$BASE_REF" "$CURRENT_REF" -- "$TARGET_PROJECT_PATH" "${TARGET_PROJECT_PATH%/*}/" | grep -q .; then
@@ -115,15 +120,16 @@ jobs:
           for PROJECT_PATH in $MODIFIED_PROJECTS; do
             PROJECT_NAME=$(basename "$PROJECT_PATH" .csproj)
             PACKAGE_NAME=$(echo "$PROJECT_NAME" | sed 's/\.csproj$//')
-            
-            NUPKG_FILE=$(find artifacts/packages -name "${PACKAGE_NAME}.${RELEASE_VERSION}*.nupkg" -print -quit | head -n 1) 
-            
+
+            # Find the exact nupkg file using the determined version and name
+            NUPKG_FILE=$(find artifacts/packages -name "${PACKAGE_NAME}.${RELEASE_VERSION}*.nupkg" -print -quit | head -n 1)
+
             if [ -n "$NUPKG_FILE" ]; then
               echo "Pushing $NUPKG_FILE to NuGet.org..."
               dotnet nuget push "$NUPKG_FILE" --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY" --skip-duplicate
             else
               echo "Error: Could not find NuGet package for $PROJECT_NAME with version $RELEASE_VERSION in artifacts/packages. Skipping."
-              exit 1
+              exit 1 
             fi
           done
         shell: bash
