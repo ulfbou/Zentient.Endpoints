@@ -43,6 +43,9 @@ jobs:
         id: gitversion
         uses: GitTools/actions/gitversion/execute@v1
 
+      - name: Set lowercase repository name
+        run: echo "REPO_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -60,9 +63,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            # Apply lower filter directly within the expression for tags
-            ghcr.io/${{ github.repository | lower }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
-            ghcr.io/${{ github.repository | lower }}/zentient-endpoints:latest
+            ghcr.io/${{ env.REPO_LOWER }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}
+            ghcr.io/${{ env.REPO_LOWER }}/zentient-endpoints:latest
           build-args: |
             ZENTIENT_VERSION_FINAL_OVERRIDE=${{ steps.gitversion.outputs.semVer }}
           cache-from: type=gha
@@ -75,16 +77,14 @@ jobs:
 
       - name: Extract NuGet packages from container
         run: |
-          IMAGE_TAG="ghcr.io/${{ github.repository | lower }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}"
-          CONTAINER_ID=$(docker create "$IMAGE_TAG")
+          CONTAINER_ID=$(docker create ghcr.io/${{ env.REPO_LOWER }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
           docker cp "$CONTAINER_ID:/app/nuget-packages/." ./artifacts/packages/
           docker rm "$CONTAINER_ID"
         shell: bash
 
       - name: Extract Test Results from container
         run: |
-          IMAGE_TAG="ghcr.io/${{ github.repository | lower }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }}"
-          CONTAINER_ID=$(docker create "$IMAGE_TAG")
+          CONTAINER_ID=$(docker create ghcr.io/${{ env.REPO_LOWER }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
           docker cp "$CONTAINER_ID:/app/test-results/." ./test-results/
           docker rm "$CONTAINER_ID"
         shell: bash
