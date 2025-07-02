@@ -38,13 +38,16 @@ RUN apt-get update && \
 ENV PATH="${PATH}:/root/.dotnet/tools"
 RUN dotnet tool install --global GitVersion.Tool
 
-WORKDIR /src
+WORKDIR /app
 
 # Necessary for GitVersion when WORKDIR changes relative to the git root.
-RUN git config --global --add safe.directory /src
+RUN git config --global --add safe.directory /app
 
 # Copy the entire repository to ensure .git directory and Directory.Build.props are present
 COPY . .
+
+# Ensure the solution file has the correct path separators
+RUN sed -i 's|\\|/|g' Zentient.Endpoints.sln
 
 # Restore dependencies
 RUN dotnet restore "Zentient.Endpoints.sln"
