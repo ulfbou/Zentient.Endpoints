@@ -2,20 +2,23 @@
 <Project>
 	<PropertyGroup>
 
+		<!-- Versioning Release and Pre-Release -->
 		<Version Condition="'$(ZENTIENT_VERSION_FINAL)' != ''">$(ZENTIENT_VERSION_FINAL)</Version>
-		<AssemblyVersion Condition="'$(ZENTIENT_VERSION_FINAL_ASSEMBLY)' != ''">$(ZENTIENT_VERSION_FINAL_ASSEMBLY)</AssemblyVersion>
-		<FileVersion Condition="'$(ZENTIENT_VERSION_FINAL_ASSEMBLY)' != ''">$(ZENTIENT_VERSION_FINAL_ASSEMBLY)</FileVersion>
 		<InformationalVersion Condition="'$(ZENTIENT_VERSION_FINAL)' != ''">$(ZENTIENT_VERSION_FINAL)</InformationalVersion>
 		<PackageVersion Condition="'$(ZENTIENT_VERSION_FINAL)' != ''">$(ZENTIENT_VERSION_FINAL)</PackageVersion>
 		<NuGetVersion Condition="'$(ZENTIENT_VERSION_FINAL)' != ''">$(ZENTIENT_VERSION_FINAL)</NuGetVersion>
 
+		<AssemblyVersion Condition="'$(ZENTIENT_VERSION_MAJOR)' != ''">$(ZENTIENT_VERSION_MAJOR).$(ZENTIENT_VERSION_MINOR).$(ZENTIENT_VERSION_PATCH).0</AssemblyVersion>
+		<FileVersion Condition="'$(ZENTIENT_VERSION_MAJOR)' != ''">$(ZENTIENT_VERSION_MAJOR).$(ZENTIENT_VERSION_MINOR).$(ZENTIENT_VERSION_PATCH).0</FileVersion>
+
 		<Version Condition="'$(ZENTIENT_VERSION_FINAL)' == ''">0.1.0-local</Version>
-		<AssemblyVersion Condition="'$(ZENTIENT_VERSION_FINAL_ASSEMBLY)' == ''">0.1.0.0</AssemblyVersion>
-		<FileVersion Condition="'$(ZENTIENT_VERSION_FINAL)' == ''">0.1.0.0</FileVersion>
+		<AssemblyVersion Condition="'$(ZENTIENT_VERSION_MAJOR)' == ''">0.1.0.0</AssemblyVersion>
+		<FileVersion Condition="'$(ZENTIENT_VERSION_MAJOR)' == ''">0.1.0.0</FileVersion>
 		<InformationalVersion Condition="'$(ZENTIENT_VERSION_FINAL)' == ''">0.1.0-local (GitVersion not run)</InformationalVersion>
 		<PackageVersion Condition="'$(ZENTIENT_VERSION_FINAL)' == ''">0.1.0-local</PackageVersion>
 		<NuGetVersion Condition="'$(ZENTIENT_VERSION_FINAL)' == ''">0.1.0-local</NuGetVersion>
 
+		<!-- General metadata for the package -->
 		<Authors>Ulf Bourelius</Authors>
 		<Company>Zentient Framework Team</Company>
 		<Copyright>Copyright © 2025 Zentient Framework Team. All rights reserved.</Copyright>
