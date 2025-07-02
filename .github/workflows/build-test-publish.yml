@@ -33,8 +33,11 @@ jobs:
       head_branch: ${{ github.ref_name }}
       sem_ver: ${{ steps.gitversion.outputs.semVer }}
       nuget_version_v2: ${{ steps.gitversion.outputs.nuGetVersionV2 }}
-      # Expose major.minor.patch for release notes, if used by your awk command
       major_minor_patch: ${{ steps.gitversion.outputs.majorMinorPatch }}
+      # Add individual GitVersion outputs
+      gitversion_major: ${{ steps.gitversion.outputs.Major }}
+      gitversion_minor: ${{ steps.gitversion.outputs.Minor }}
+      gitversion_patch: ${{ steps.gitversion.outputs.Patch }}
 
     steps:
       - name: Checkout Repository
@@ -68,7 +71,9 @@ jobs:
             --configuration Release \
             --no-restore \
             /p:ZENTIENT_VERSION_FINAL=${{ steps.gitversion.outputs.semVer }} \
-            /p:ZENTIENT_VERSION_FINAL_ASSEMBLY=${{ steps.gitversion.outputs.majorMinorPatch }}.0
+            /p:ZENTIENT_VERSION_MAJOR=${{ steps.gitversion.outputs.Major }} \
+            /p:ZENTIENT_VERSION_MINOR=${{ steps.gitversion.outputs.Minor }} \
+            /p:ZENTIENT_VERSION_PATCH=${{ steps.gitversion.outputs.Patch }}
 
       - name: Run Tests
         run: dotnet test Zentient.Endpoints.sln --configuration Release --no-build --logger trx
