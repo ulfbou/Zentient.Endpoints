@@ -3,24 +3,27 @@
 name: CD - Zentient.Endpoints (Publish Packages)
 
 on:
-  push:
-    branches:
-      - 'release/v*.*.*'
-      - 'release/*'
+  workflow_run:
+    # Specify the name of the workflow that, when completed, should trigger this one.
+    # This must match the 'name:' field in build-and-test.yml.
+    workflows: ["CI - Zentient.Endpoints (Full Solution Build & Test)"]
+    types:
+      - completed
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    needs: build_and_test
     if: |
-      github.event_name == 'push' && 
-      startsWith(github.ref, 'refs/heads/release/') && 
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'release/') && 
       github.repository_owner == 'ulfbou'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          # Checkout the commit from the *triggering* workflow run
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
       - name: Setup .NET SDK (minimal)
@@ -40,7 +43,8 @@ jobs:
       - name: Download NuGet Package Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: nuget-packages-${{ needs.build_and_test.outputs.commit_sha }} 
+          # The commit SHA from the triggering workflow run
+          name: nuget-packages-${{ github.event.workflow_run.head_sha }} 
           path: artifacts/packages
 
       - name: Get Modified Packable Projects for Release
@@ -48,8 +52,10 @@ jobs:
         run: |
           # Determine the base ref for comparison
           BASE_REF=""
-          CURRENT_REF="${{ github.sha }}"
-          BRANCH_PATH=$(echo "${{ github.ref }}" | sed 's|refs/heads/||')
+          # Use the commit SHA from the triggering workflow run
+          CURRENT_REF="${{ github.event.workflow_run.head_sha }}"
+          # Use the head branch from the triggering workflow run
+          BRANCH_PATH=$(echo "${{ github.event.workflow_run.head_branch }}" | sed 's|refs/heads/||')
 
           if [[ "$BRANCH_PATH" == release/v* ]]; then
             # For stable release branches (e.g., release/v1.0.0), compare against main
@@ -61,7 +67,6 @@ jobs:
             ALL_PACKABLE_PROJECTS=$(find src/ -name "*.csproj" ! -path "src/Zentient.Endpoints.Tests.Shared/*" -exec grep -l -E '<IsPackable>true</IsPackable>' {} + || true)
             MODIFIED_PACKABLE_PROJECTS=""
             for PROJECT_PATH in $ALL_PACKABLE_PROJECTS; do
-              # IMPORTANT: Changed trailing backslash to forward slash for path consistency
               if git diff --name-only "$BASE_REF" "$CURRENT_REF" -- "$PROJECT_PATH" "${PROJECT_PATH%/*}/" | grep -q .; then
                 MODIFIED_PACKABLE_PROJECTS="$MODIFIED_PACKABLE_PROJECTS $PROJECT_PATH"
                 echo "Detected changes in $PROJECT_PATH for stable release."
@@ -111,8 +116,6 @@ jobs:
             PROJECT_NAME=$(basename "$PROJECT_PATH" .csproj)
             PACKAGE_NAME=$(echo "$PROJECT_NAME" | sed 's/\.csproj$//')
             
-            # Find the actual .nupkg file in the downloaded artifacts
-            # Use 'head -n 1' in case multiple files match, though it should be unique
             NUPKG_FILE=$(find artifacts/packages -name "${PACKAGE_NAME}.${RELEASE_VERSION}*.nupkg" -print -quit | head -n 1) 
             
             if [ -n "$NUPKG_FILE" ]; then
