@@ -3,14 +3,14 @@
 	<PropertyGroup>
 
 		<Version Condition="'$(ZENTIENT_VERSION_FINAL)' != ''">$(ZENTIENT_VERSION_FINAL)</Version>
-		<AssemblyVersion Condition="'$(ZENTIENT_VERSION_FINAL)' != ''">$(ZENTIENT_VERSION_FINAL)</AssemblyVersion>
-		<FileVersion Condition="'$(ZENTIENT_VERSION_FINAL)' != ''">$(ZENTIENT_VERSION_FINAL)</FileVersion>
+		<AssemblyVersion Condition="'$(ZENTIENT_VERSION_FINAL_ASSEMBLY)' != ''">$(ZENTIENT_VERSION_FINAL_ASSEMBLY)</AssemblyVersion>
+		<FileVersion Condition="'$(ZENTIENT_VERSION_FINAL_ASSEMBLY)' != ''">$(ZENTIENT_VERSION_FINAL_ASSEMBLY)</FileVersion>
 		<InformationalVersion Condition="'$(ZENTIENT_VERSION_FINAL)' != ''">$(ZENTIENT_VERSION_FINAL)</InformationalVersion>
 		<PackageVersion Condition="'$(ZENTIENT_VERSION_FINAL)' != ''">$(ZENTIENT_VERSION_FINAL)</PackageVersion>
 		<NuGetVersion Condition="'$(ZENTIENT_VERSION_FINAL)' != ''">$(ZENTIENT_VERSION_FINAL)</NuGetVersion>
 
 		<Version Condition="'$(ZENTIENT_VERSION_FINAL)' == ''">0.1.0-local</Version>
-		<AssemblyVersion Condition="'$(ZENTIENT_VERSION_FINAL)' == ''">0.1.0.0</AssemblyVersion>
+		<AssemblyVersion Condition="'$(ZENTIENT_VERSION_FINAL_ASSEMBLY)' == ''">0.1.0.0</AssemblyVersion>
 		<FileVersion Condition="'$(ZENTIENT_VERSION_FINAL)' == ''">0.1.0.0</FileVersion>
 		<InformationalVersion Condition="'$(ZENTIENT_VERSION_FINAL)' == ''">0.1.0-local (GitVersion not run)</InformationalVersion>
 		<PackageVersion Condition="'$(ZENTIENT_VERSION_FINAL)' == ''">0.1.0-local</PackageVersion>

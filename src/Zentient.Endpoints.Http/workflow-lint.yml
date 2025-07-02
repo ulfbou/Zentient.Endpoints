@@ -1,0 +1,18 @@
+# Validate GitHub workflows for Zentient.Endpoints
+# Path: .github/workflows/workflow-lint.yml
+name: Validate GitHub Workflows
+
+on:
+  push:
+    paths:
+      - '.github/workflows/*.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate workflow syntax
+        run: yamllint .github/workflows

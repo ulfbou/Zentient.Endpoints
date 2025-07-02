@@ -67,7 +67,8 @@ jobs:
           dotnet build Zentient.Endpoints.sln \
             --configuration Release \
             --no-restore \
-            /p:ZENTIENT_VERSION_FINAL=${{ steps.gitversion.outputs.semVer }}
+            /p:ZENTIENT_VERSION_FINAL=${{ steps.gitversion.outputs.semVer }} \
+            /p:ZENTIENT_VERSION_FINAL_ASSEMBLY=${{ steps.gitversion.outputs.majorMinorPatch }}.0
 
       - name: Run Tests
         run: dotnet test Zentient.Endpoints.sln --configuration Release --no-build --logger trx
