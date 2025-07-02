@@ -23,9 +23,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      
-    env:
-      REPO_LOWER: ${{ toLower(github.repository) }}
 
     concurrency:
       group: ${{ github.ref }}-build
@@ -45,6 +42,10 @@ jobs:
       - name: Determine Semantic Version (host)
         id: gitversion
         uses: GitTools/actions/gitversion/execute@v1
+
+      - name: Set REPO_LOWER env var
+        id: set_repo_lower
+        run: echo "REPO_LOWER=$(echo '${GITHUB_REPOSITORY}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -77,14 +78,14 @@ jobs:
 
       - name: Extract NuGet packages from container
         run: |
-          CONTAINER_ID=$(docker create ghcr.io/${{ env.REPO_LOWER }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
+          CONTAINER_ID=$(docker create ghcr.io/${REPO_LOWER}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
           docker cp "$CONTAINER_ID:/app/nuget-packages/." ./artifacts/packages/
           docker rm "$CONTAINER_ID"
         shell: bash
 
       - name: Extract Test Results from container
         run: |
-          CONTAINER_ID=$(docker create ghcr.io/${{ env.REPO_LOWER }}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
+          CONTAINER_ID=$(docker create ghcr.io/${REPO_LOWER}/zentient-endpoints:${{ steps.gitversion.outputs.semVer }})
           docker cp "$CONTAINER_ID:/app/test-results/." ./test-results/
           docker rm "$CONTAINER_ID"
         shell: bash
