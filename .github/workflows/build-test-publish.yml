@@ -48,7 +48,6 @@ jobs:
       - name: Setup .NET SDKs
         uses: actions/setup-dotnet@v4
         with:
-          # Install both .NET 8.0 and .NET 9.0 SDKs
           dotnet-version: |
             8.0.x
             9.0.x
@@ -86,7 +85,7 @@ jobs:
           dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj \
             --configuration Release \
             --output artifacts/packages \
-            /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
+            /p:Version=${{ steps.gitversion.outputs.nuget_version_v2 }} \
             --no-build
 
           # For future revisions, to pack all non-test packages:
@@ -96,7 +95,7 @@ jobs:
           #   if ! grep -q '<IsTestProject>true</IsTestProject>' "$project_file" && grep -q '<IsPackable>true</IsPackable>' "$project_file"; then
           #     echo "Packing $project_file..."
           #     dotnet pack "$project_file" --configuration Release --output artifacts/packages --no-build \
-          #       /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }};
+          #       /p:Version=${{ steps.gitversion.outputs.nuget_version_v2 }};
           #   fi
           # done
 
@@ -188,14 +187,29 @@ jobs:
           name: nuget-packages-${{ needs.build-and-test.outputs.head_sha }}
           path: artifacts/packages
 
+      - name: Debug NuGet Package Info
+        run: |
+          echo "Debug Info for NuGet Push:"
+          echo "github.ref: ${{ github.ref }}"
+          echo "github.ref_type: ${{ github.ref_type }}"
+          echo "GitVersion nuget_version_v2: ${{ needs.build-and-test.outputs.nuget_version_v2 }}"
+          echo "Contents of artifacts/packages:"
+          ls -R artifacts/packages || true
+          echo "Attempting to find package using direct path and wildcard:"
+          find artifacts/packages -name "Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.nupkg" -print || true
+          find artifacts/packages -name "Zentient.Endpoints.*.nupkg" -print || true
+
       - name: Push Zentient.Endpoints NuGet Package to NuGet.org
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        if: |
+          success() && (
+            startsWith(github.ref, 'refs/heads/release/') ||
+            github.ref_type == 'tag'
+          )
         run: |
-          # Find the specific package that was packed (excluding symbols package for initial push)
-          # We're looking for the GitVersioned package, not the -local one.
-          PACKAGE_FILE=$(find artifacts/packages -name "Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.nupkg" | head -n1)
-          SYMBOL_PACKAGE_FILE=$(find artifacts/packages -name "Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.snupkg" | head -n1)
+          PACKAGE_FILE=$(find artifacts/packages -name "Zentient.Endpoints.*.nupkg" ! -name "*.symbols.nupkg" | head -n1)
+          SYMBOL_PACKAGE_FILE=$(find artifacts/packages -name "Zentient.Endpoints.*.snupkg" | head -n1)
 
           if [[ -f "$PACKAGE_FILE" ]]; then
             echo "Publishing primary package: $PACKAGE_FILE..."
@@ -204,7 +218,8 @@ jobs:
               --api-key "$NUGET_API_KEY" \
               --skip-duplicate
           else
-            echo "Primary NuGet package 'Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.nupkg' not found. Skipping push."
+            echo "Primary NuGet package not found. Expected: Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.nupkg. Skipping push."
+            exit 1
           fi
 
           if [[ -f "$SYMBOL_PACKAGE_FILE" ]]; then
@@ -214,14 +229,8 @@ jobs:
               --api-key "$NUGET_API_KEY" \
               --skip-duplicate
           else
-            echo "Symbols NuGet package 'Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.snupkg' not found. Skipping push."
+            echo "Symbols NuGet package not found. Expected: Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.snupkg. Skipping push."
           fi
-        # Only push pre-releases to NuGet.org if it's a 'release/' branch OR if it's a tag that is NOT a pre-release tag (i.e., stable)
-        if: |
-          success() && (
-            startsWith(github.ref, 'refs/heads/release/') ||
-            (github.ref_type == 'tag' && needs.build-and-test.outputs.sem_ver == needs.build-and-test.outputs.major_minor_patch)
-          )
 
       - name: Download .NET 8.0 App Artifact
         uses: actions/download-artifact@v4
@@ -245,8 +254,8 @@ jobs:
       - name: Download .NET 9.0 App Artifact
         uses: actions/download-artifact@v4
         with:
-          name: zentient-endpoints-net9.0-${{ needs.build-and-test.outputs.head_sha }}
-          path: /tmp/app_net90
+            name: zentient-endpoints-net9.0-${{ needs.build-and-test.outputs.head_sha }}
+            path: /tmp/app_net90
 
       - name: Build & Push Docker Image (net9.0)
         uses: docker/build-push-action@v5
@@ -261,16 +270,23 @@ jobs:
         env:
           DOCKER_BUILDKIT: 1
 
-      # GitHub Release steps (your existing logic, now using GitVersion outputs)
+      # GitHub Release steps:
+      # Now, these steps will run for both 'release/*' branches AND tags.
+      # Be aware: creating a GitHub Release from a branch means the release
+      # is tied to the current state of that branch at the time of the push.
+      # Subsequent pushes to the same branch will create NEW releases or require manual management.
       - name: Extract Release Notes
-        if: github.ref_type == 'tag'
+        if: |
+          startsWith(github.ref, 'refs/heads/release/') ||
+          github.ref_type == 'tag'
         run: |
-          # Make sure your CHANGELOG.md structure matches this extraction
           awk "/^## \\[${{ needs.build-and-test.outputs.major_minor_patch }}\\]/,/^## /" src/Zentient.Endpoints/CHANGELOG.md > release-notes.md
 
       - name: Create GitHub Release
         id: create_release
-        if: github.ref_type == 'tag'
+        if: |
+          startsWith(github.ref, 'refs/heads/release/') ||
+          github.ref_type == 'tag'
         uses: actions/create-release@v1
         with:
           tag_name: ${{ github.ref_name }}
@@ -280,15 +296,20 @@ jobs:
           prerelease: ${{ needs.build-and-test.outputs.sem_ver != needs.build-and-test.outputs.major_minor_patch }}
 
       - name: Upload Release Assets (NuGet Packages to GitHub Release)
-        if: github.ref_type == 'tag'
+        if: |
+          startsWith(github.ref, 'refs/heads/release/') ||
+          github.ref_type == 'tag'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: artifacts/packages/Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.nupkg
           asset_name: Zentient.Endpoints-${{ needs.build-and-test.outputs.nuget_version_v2 }}.nupkg
           asset_content_type: application/octet-stream
+
       - name: Upload Release Symbols Asset
-        if: github.ref_type == 'tag'
+        if: |
+          startsWith(github.ref, 'refs/heads/release/') ||
+          github.ref_type == 'tag'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
