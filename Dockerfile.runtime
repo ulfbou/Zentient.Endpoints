@@ -5,18 +5,12 @@
 # ARG for the target framework version, passed from GitHub Actions
 ARG TARGET_FRAMEWORK
 
-# Multi-stage build for different .NET runtime bases
-# Use specific tags (e.g., '8.0' or '9.0') for Microsoft's images.
-# '9.0' will point to the latest preview/RC for .NET 9 until GA.
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base8
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base9
-
-# Select the appropriate base image based on the TARGET_FRAMEWORK ARG
-FROM ${TARGET_FRAMEWORK == '8.0' ? 'base8' : 'base9'}
+# Use the appropriate base image based on the TARGET_FRAMEWORK ARG
+FROM mcr.microsoft.com/dotnet/aspnet:${TARGET_FRAMEWORK}
 
 WORKDIR /app
 
-# Copy the pre-published application from the build context (which is /tmp/app_net80 or /tmp/app_net90)
+# Copy the pre-published application from the build context (which is /tmp/app_net80 or /tmp/app/net90)
 # This directory already contains the DLLs, dependencies, etc., ready to run.
 COPY . .
 
