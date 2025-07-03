@@ -1,6 +1,10 @@
 <!-- Directory Build Properties for Zentient.Endpoints solution -->
 <Project>
 	<PropertyGroup>
+		<!-- Define SolutionDir if it's not already defined (e.g., when building a single project).
+         $(MSBuildThisFileDirectory) here refers to the directory of Directory.Build.props itself,
+         which is the solution root. This ensures SolutionDir is always set. -->
+		<SolutionDir Condition="'$(SolutionDir)' == ''">$(MSBuildThisFileDirectory)</SolutionDir>
 
 		<!-- Versioning Release and Pre-Release -->
 		<Version Condition="'$(ZENTIENT_VERSION_FINAL)' != ''">$(ZENTIENT_VERSION_FINAL)</Version>
@@ -57,6 +61,10 @@
 		<DebugSymbols Condition="'$(Configuration)' == 'Release'">true</DebugSymbols>
 		<DefineConstants Condition="'$(Configuration)' == 'Debug'">$(DefineConstants);DEBUG;TRACE</DefineConstants>
 		<DefineConstants Condition="'$(Configuration)' == 'Release'">$(DefineConstants);TRACE</DefineConstants>
+
+		<!-- Code Analysis Rule Set and Enforcement for all projects -->
+		<CodeAnalysisRuleSet>$(SolutionDir)analyzers\Zentient.ruleset</CodeAnalysisRuleSet>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 
 	</PropertyGroup>
 

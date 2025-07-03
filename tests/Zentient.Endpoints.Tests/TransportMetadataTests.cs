@@ -17,9 +17,10 @@ using Moq;
 using Xunit;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+#pragma warning disable CA1707 // Identifiers should not contain underscores
 namespace Zentient.Endpoints.Tests
 {
-    internal class TransportMetadataTests
+    public class TransportMetadataTests
     {
         [Fact]
         public void Empty_ShouldBeSingletonWithEmptyTags()

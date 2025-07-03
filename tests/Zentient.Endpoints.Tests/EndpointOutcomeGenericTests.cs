@@ -22,7 +22,7 @@ using Zentient.Endpoints;
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 namespace Zentient.Endpoints.Tests
 {
-    internal class EndpointOutcomeGenericTests : EndpointTestBase
+    public class EndpointOutcomeGenericTests : EndpointTestBase
     {
         private static readonly ErrorInfo _testError = CreateErrorInfo(code: "ERR", message: "Test error");
         private static readonly string[] _successMessages = new[] { "Success!" };
