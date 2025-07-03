@@ -27,9 +27,9 @@ namespace Zentient.Endpoints.Tests
         {
             Unit value1 = Unit.Value;
             Unit value2 = Unit.Value;
-            Assert.Equal(value1, value2);
-            Assert.True(value1 == value2);
-            Assert.False(value1 != value2);
+            value1.Should().Be(value2);
+            (value1 == value2).Should().BeTrue();
+            (value1 != value2).Should().BeFalse();
         }
 
         [Fact]
@@ -37,46 +37,47 @@ namespace Zentient.Endpoints.Tests
         {
             Unit a = Unit.Value;
             Unit b = Unit.Value;
-            Assert.True(a == b);
-            Assert.False(a != b);
-            Assert.True(a.Equals(b));
-            Assert.True(a.Equals((object)b));
-            Assert.False(a.Equals(null));
+            (a == b).Should().BeTrue();
+            (a != b).Should().BeFalse();
+            a.Equals(b).Should().BeTrue();
+            a.Equals((object)b).Should().BeTrue();
+            a.Equals(null).Should().BeFalse();
         }
 
         [Fact]
         public void Unit_CompareTo_Object()
         {
             Unit a = Unit.Value;
-            Assert.Equal(0, a.CompareTo(Unit.Value));
-            Assert.Equal(1, a.CompareTo(null));
-            Assert.Throws<ArgumentException>(() => a.CompareTo("not a unit"));
+            a.CompareTo(Unit.Value).Should().Be(0);
+            a.CompareTo(null).Should().Be(1);
+            Action act = () => a.CompareTo("not a unit");
+            act.Should().Throw<ArgumentException>();
         }
 
         [Fact]
         public void Unit_GetHashCode_AlwaysZero()
         {
-            Assert.Equal(0, Unit.Value.GetHashCode());
+            Unit.Value.GetHashCode().Should().Be(0);
         }
 
         [Fact]
         public void Unit_ToString_ReturnsUnit()
         {
-            Assert.Equal("Unit", Unit.Value.ToString());
+            Unit.Value.ToString().Should().Be("Unit");
         }
 
         [Fact]
         public void Unit_Implements_IEquatable()
         {
             Unit a = Unit.Value;
-            a.Equals(Unit.Value).ShouldBeTrue();
+            a.Equals(Unit.Value).Should().BeTrue();
         }
 
         [Fact]
         public void Unit_Struct_IsDefaultable()
         {
             Unit def = default;
-            Assert.Equal(Unit.Value, def);
+            def.Should().Be(Unit.Value);
         }
 
         [Fact]
@@ -84,7 +85,7 @@ namespace Zentient.Endpoints.Tests
         {
             _options.Converters.Add(new UnitJsonConverter());
             string json = JsonSerializer.Serialize(Unit.Value, _options);
-            Assert.Equal("{}", json);
+            json.Should().Be("{}");
         }
 
         [Fact]
@@ -92,7 +93,7 @@ namespace Zentient.Endpoints.Tests
         {
             _options.Converters.Add(new UnitJsonConverter());
             Unit unit = JsonSerializer.Deserialize<Unit>("{}", _options);
-            Assert.Equal(Unit.Value, unit);
+            unit.Should().Be(Unit.Value);
         }
 
         [Fact]
@@ -100,15 +101,17 @@ namespace Zentient.Endpoints.Tests
         {
             _options.Converters.Add(new UnitJsonConverter());
             Unit unit = JsonSerializer.Deserialize<Unit>("null", _options);
-            Assert.Equal(Unit.Value, unit);
+            unit.Should().Be(Unit.Value);
         }
 
         [Fact]
         public void UnitJsonConverter_ThrowsOnInvalidJson()
         {
             _options.Converters.Add(new UnitJsonConverter());
-            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Unit>("42", _options));
-            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Unit>("{\"unexpected\":1}", _options));
+            Action act1 = () => JsonSerializer.Deserialize<Unit>("42", _options);
+            Action act2 = () => JsonSerializer.Deserialize<Unit>("{\"unexpected\":1}", _options);
+            act1.Should().Throw<JsonException>();
+            act2.Should().Throw<JsonException>();
         }
 
         [Fact]
@@ -117,7 +120,6 @@ namespace Zentient.Endpoints.Tests
             var converter = new UnitJsonConverter();
             using (var writer = new Utf8JsonWriter(new System.Buffers.ArrayBufferWriter<byte>()))
             {
-                // FluentAssertions for exception checks
                 Action writeNullWriter = () => converter.Write(null!, Unit.Value, new JsonSerializerOptions());
                 writeNullWriter.Should().Throw<ArgumentNullException>().WithParameterName("writer");
 
@@ -132,20 +134,12 @@ namespace Zentient.Endpoints.Tests
             try
             {
                 converter.Read(ref reader, typeof(Unit), null!);
-                Assert.Fail("Expected ArgumentNullException was not thrown.");
+                false.Should().BeTrue("Expected ArgumentNullException to be thrown for null options");
             }
             catch (ArgumentNullException ex)
             {
                 ex.ParamName.Should().Be("options");
             }
-        }
-    }
-
-    internal static class UnitTestExtensions
-    {
-        public static void ShouldBeTrue(this bool value)
-        {
-            Assert.True(value);
         }
     }
 }

@@ -125,22 +125,22 @@ namespace Zentient.Endpoints
             => "Unit";
 
         /// <inheritdoc />
-        public int CompareTo(object? obj)
+        public int CompareTo(object? other)
         {
-            if (obj is null)
+            if (other == null)
             {
                 return 1;
             }
 
-            if (obj is Unit)
+            if (other is Unit unit)
             {
-                return 0;
+                return CompareTo(unit);
             }
 
-            throw new ArgumentException($"Object must be of type {nameof(Unit)}.", nameof(obj));
+            throw new ArgumentException($"Object must be of type {nameof(Unit)}.", nameof(other));
         }
 
         /// <inheritdoc />
-        public int CompareTo(Unit other) => Value.CompareTo(other);
+        public int CompareTo(Unit other) => 0;
     }
 }
