@@ -79,13 +79,14 @@ jobs:
 
       - name: Pack NuGet Packages
         env:
-          PACKAGE_VERSION: ${{ steps.gitversion.outputs.nuget_version_v2 }}
+          GITVERSION_NUGGET_VERSION_V2: ${{ steps.gitversion.outputs.nuget_version_v2 }}
         run: |
           mkdir -p artifacts/packages
+          echo "DEBUG: Attempting to pack with version: $GITVERSION_NUGGET_VERSION_V2"
           dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj \
             --configuration Release \
             --output artifacts/packages \
-            /p:Version=$(PACKAGE_VERSION) \
+            /p:Version="$GITVERSION_NUGGET_VERSION_V2" \
             --no-build
 
       - name: (Debug) List Packages After Packing
@@ -93,13 +94,17 @@ jobs:
           echo "Contents of artifacts/packages AFTER dotnet pack:"
           ls -lR artifacts/packages
           EXPECTED_NUPKG="artifacts/packages/Zentient.Endpoints.${{ steps.gitversion.outputs.nuget_version_v2 }}.nupkg"
+          echo "DEBUG: Looking for expected package: $EXPECTED_NUPKG"
           if [ -f "$EXPECTED_NUPKG" ]; then
             echo "SUCCESS: Expected package '$EXPECTED_NUPKG' found."
           else
             echo "ERROR: Expected package '$EXPECTED_NUPKG' NOT found."
+            if [ -f "artifacts/packages/Zentient.Endpoints.0.1.0-local.nupkg" ]; then
+                echo "WARNING: Found Zentient.Endpoints.0.1.0-local.nupkg instead."
+            fi
             exit 1
           fi
-          
+
           # For future revisions, to pack all non-test packages:
           # find src -name "*.csproj" -print0 | while IFS= read -r -d $'\0' project_file; do
           #   # Check if the project is packable (e.g., by looking for <IsPackable>true</IsPackable>)
