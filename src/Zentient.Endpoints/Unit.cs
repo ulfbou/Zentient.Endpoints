@@ -30,7 +30,7 @@ namespace Zentient.Endpoints
         /// <param name="left">The first <see cref="Unit"/> to compare.</param>
         /// <param name="right">The second <see cref="Unit"/> to compare.</param>
         /// <returns>
-        /// <see langword="true" /> if <paramref name="left"/> is less than <paramref name="right"/>; 
+        /// <see langword="true" /> if <paramref name="left"/> is less than <paramref name="right"/>;
         /// otherwise, <see langword="false" />.
         /// </returns>
         public static bool operator <(Unit left, Unit right)
@@ -46,7 +46,7 @@ namespace Zentient.Endpoints
         /// <param name="left">The first <see cref="Unit"/> to compare.</param>
         /// <param name="right">The second <see cref="Unit"/> to compare.</param>
         /// <returns>
-        /// <see langword="true" /> if <paramref name="left"/> is greater than <paramref name="right"/>; 
+        /// <see langword="true" /> if <paramref name="left"/> is greater than <paramref name="right"/>;
         /// otherwise, <see langword="false" />.
         /// </returns>
         public static bool operator >(Unit left, Unit right)
@@ -62,7 +62,7 @@ namespace Zentient.Endpoints
         /// <param name="left">The first <see cref="Unit"/> to compare.</param>
         /// <param name="right">The second <see cref="Unit"/> to compare.</param>
         /// <returns>
-        /// <see langword="true" /> if <paramref name="left"/> is less than or equal to <paramref name="right"/>; 
+        /// <see langword="true" /> if <paramref name="left"/> is less than or equal to <paramref name="right"/>;
         /// otherwise, <see langword="false" />.
         /// </returns>
         public static bool operator <=(Unit left, Unit right)
@@ -78,7 +78,7 @@ namespace Zentient.Endpoints
         /// <param name="left">The first <see cref="Unit"/> to compare.</param>
         /// <param name="right">The second <see cref="Unit"/> to compare.</param>
         /// <returns>
-        /// <see langword="true" /> if <paramref name="left"/> is greater than or equal to <paramref name="right"/>; 
+        /// <see langword="true" /> if <paramref name="left"/> is greater than or equal to <paramref name="right"/>;
         /// otherwise, <see langword="false" />.
         /// </returns>
         public static bool operator >=(Unit left, Unit right)
