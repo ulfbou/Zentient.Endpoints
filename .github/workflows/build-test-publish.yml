@@ -66,8 +66,12 @@ jobs:
           BRANCH_NAME="${{ github.ref_name }}"
           COMPONENT_NAME=""
 
-          if [[ "$BRANCH_NAME" == "Endpoints" || "$BRANCH_NAME" == "main" || "$BRANCH_NAME" == develop/* ]]; then
+          if [[ "$BRANCH_NAME" == "main" || "$BRANCH_NAME" == develop/* ]]; then
             COMPONENT_NAME="Endpoints"
+            echo "Defaulting component to Endpoints for branch: $BRANCH_NAME"
+          elif [[ "$BRANCH_NAME" == "release/Endpoints" ]]; then
+            COMPONENT_NAME="Endpoints"
+            echo "Detected release branch for main component: $COMPONENT_NAME"
           elif [[ "$BRANCH_NAME" == release/* ]]; then
             COMPONENT_NAME=$(echo "$BRANCH_NAME" | sed 's/^release\///')
             echo "Detected release branch for component: $COMPONENT_NAME"
@@ -130,9 +134,14 @@ jobs:
         run: |
           echo "Contents of artifacts/packages AFTER dotnet pack:"
           ls -lR artifacts/packages
-          
-          EXPECTED_PACKAGE_PREFIX="Zentient.Endpoints.$COMPONENT_TO_CHECK"
-          EXPECTED_NUPKG_NAME="${EXPECTED_PACKAGE_PREFIX}.${{ steps.gitversion.outputs.NuGetVersionV2 }}.nupkg"
+           
+          if [[ "$COMPONENT_TO_CHECK" == "Endpoints" ]]; then
+            PACKAGE_BASE_NAME="Zentient.Endpoints"
+          else
+            PACKAGE_BASE_NAME="Zentient.Endpoints.${COMPONENT_TO_CHECK}"
+          fi
+           
+          EXPECTED_NUPKG_NAME="${PACKAGE_BASE_NAME}.${{ steps.gitversion.outputs.NuGetVersionV2 }}.nupkg"
           EXPECTED_NUPKG_PATH="artifacts/packages/$EXPECTED_NUPKG_NAME"
           
           echo "DEBUG: Looking for expected package: $EXPECTED_NUPKG_PATH"
@@ -259,10 +268,13 @@ jobs:
           COMPONENT_TO_PUSH: ${{ needs.build-and-test.outputs.component_to_release }}
           PACKAGE_VERSION: ${{ needs.build-and-test.outputs.nuget_version_v2 }}
         run: |
-          PACKAGE_PREFIX="Zentient.Endpoints.$COMPONENT_TO_PUSH"
+          PACKAGE_BASE_NAME="Zentient.Endpoints"
+          if [[ "$COMPONENT_TO_PUSH" != "Endpoints" ]]; then
+            PACKAGE_BASE_NAME="${PACKAGE_BASE_NAME}.${COMPONENT_TO_PUSH}"
+          fi
           
-          PRIMARY_PACKAGE_GLOB="artifacts/packages/${PACKAGE_PREFIX}.${PACKAGE_VERSION}.nupkg"
-          SYMBOL_PACKAGE_GLOB="artifacts/packages/${PACKAGE_PREFIX}.${PACKAGE_VERSION}.snupkg"
+          PRIMARY_PACKAGE_GLOB="artifacts/packages/${PACKAGE_BASE_NAME}.${PACKAGE_VERSION}.nupkg"
+          SYMBOL_PACKAGE_GLOB="artifacts/packages/${PACKAGE_BASE_NAME}.${PACKAGE_VERSION}.snupkg"
 
           if find "$PRIMARY_PACKAGE_GLOB" -print -quit | grep -q .; then
             echo "Publishing primary package: $PRIMARY_PACKAGE_GLOB..."
@@ -359,8 +371,8 @@ jobs:
           body_path: release-notes.md 
           
           files: |
-            artifacts/packages/Zentient.Endpoints.${{ needs.build-and-test.outputs.component_to_release }}.*.nupkg
-            artifacts/packages/Zentient.Endpoints.${{ needs.build-and-test.outputs.component_to_release }}.*.snupkg
+            ${{ needs.build-and-test.outputs.component_to_release == 'Endpoints' && format('artifacts/packages/Zentient.Endpoints.{0}.nupkg', needs.build-and-test.outputs.nuget_version_v2) || format('artifacts/packages/Zentient.Endpoints.{0}.{1}.nupkg', needs.build-and-test.outputs.component_to_release, needs.build-and-test.outputs.nuget_version_v2) }}
+            ${{ needs.build-and-test.outputs.component_to_release == 'Endpoints' && format('artifacts/packages/Zentient.Endpoints.{0}.snupkg', needs.build-and-test.outputs.nuget_version_v2) || format('artifacts/packages/Zentient.Endpoints.{0}.{1}.snupkg', needs.build-and-test.outputs.component_to_release, needs.build-and-test.outputs.nuget_version_v2) }}
             
             ${{ needs.build-and-test.outputs.component_to_release == 'Endpoints' && 'artifacts/Zentient.Endpoints.net8.0.zip' || '' }}
             ${{ needs.build-and-test.outputs.component_to_release == 'Endpoints' && 'artifacts/Zentient.Endpoints.net9.0.zip' || '' }}

@@ -8,7 +8,6 @@ using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Reflection.PortableExecutable;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

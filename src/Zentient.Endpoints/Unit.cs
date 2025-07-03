@@ -16,11 +16,9 @@ namespace Zentient.Endpoints
     /// Useful for representing results of operations that do not return any specific data,
     /// similar to the 'void' keyword but allows for generic type parameters.
     /// </summary>
-    /// <remarks>
-    /// This is a singleton struct to avoid unnecessary allocations.
-    /// </remarks>
+    /// <remarks>This is a singleton struct to avoid unnecessary allocations.</remarks>
     [DataContract]
-    public readonly struct Unit : IEquatable<Unit>
+    public readonly struct Unit : IEquatable<Unit>, IComparable, IComparable<Unit>
     {
         /// <summary>Gets the singleton instance of <see cref="Unit"/>.</summary>
         /// <value>A singleton instance of <see cref="Unit"/>.</value>
@@ -31,7 +29,10 @@ namespace Zentient.Endpoints
         /// </summary>
         /// <param name="left">The first <see cref="Unit"/> to compare.</param>
         /// <param name="right">The second <see cref="Unit"/> to compare.</param>
-        /// <returns><c>true</c> if <paramref name="left"/> is less than <paramref name="right"/>; otherwise, <c>false</c>.</returns>
+        /// <returns>
+        /// <see langword="true" /> if <paramref name="left"/> is less than <paramref name="right"/>; 
+        /// otherwise, <see langword="false" />.
+        /// </returns>
         public static bool operator <(Unit left, Unit right)
         {
             _ = left;
@@ -44,7 +45,10 @@ namespace Zentient.Endpoints
         /// </summary>
         /// <param name="left">The first <see cref="Unit"/> to compare.</param>
         /// <param name="right">The second <see cref="Unit"/> to compare.</param>
-        /// <returns><c>true</c> if <paramref name="left"/> is greater than <paramref name="right"/>; otherwise, <c>false</c>.</returns>
+        /// <returns>
+        /// <see langword="true" /> if <paramref name="left"/> is greater than <paramref name="right"/>; 
+        /// otherwise, <see langword="false" />.
+        /// </returns>
         public static bool operator >(Unit left, Unit right)
         {
             _ = left;
@@ -57,7 +61,10 @@ namespace Zentient.Endpoints
         /// </summary>
         /// <param name="left">The first <see cref="Unit"/> to compare.</param>
         /// <param name="right">The second <see cref="Unit"/> to compare.</param>
-        /// <returns><c>true</c> if <paramref name="left"/> is less than or equal to <paramref name="right"/>; otherwise, <c>false</c>.</returns>
+        /// <returns>
+        /// <see langword="true" /> if <paramref name="left"/> is less than or equal to <paramref name="right"/>; 
+        /// otherwise, <see langword="false" />.
+        /// </returns>
         public static bool operator <=(Unit left, Unit right)
         {
             _ = left;
@@ -70,7 +77,10 @@ namespace Zentient.Endpoints
         /// </summary>
         /// <param name="left">The first <see cref="Unit"/> to compare.</param>
         /// <param name="right">The second <see cref="Unit"/> to compare.</param>
-        /// <returns><c>true</c> if <paramref name="left"/> is greater than or equal to <paramref name="right"/>; otherwise, <c>false</c>.</returns>
+        /// <returns>
+        /// <see langword="true" /> if <paramref name="left"/> is greater than or equal to <paramref name="right"/>; 
+        /// otherwise, <see langword="false" />.
+        /// </returns>
         public static bool operator >=(Unit left, Unit right)
         {
             _ = left;
@@ -81,14 +91,20 @@ namespace Zentient.Endpoints
         /// <summary>Compares two <see cref="Unit"/> instances for equality.</summary>
         /// <param name="left">The first <see cref="Unit"/> to compare.</param>
         /// <param name="right">The second <see cref="Unit"/> to compare.</param>
-        /// <returns><see langword="true" /> if <paramref name="left"/> is equal to <paramref name="right"/>; otherwise, <see langword="false" />.</returns>
+        /// <returns>
+        /// <see langword="true" /> if <paramref name="left"/> is equal to <paramref name="right"/>;
+        /// otherwise, <see langword="false" />.
+        /// </returns>
         public static bool operator ==(Unit left, Unit right)
             => left.Equals(right);
 
         /// <summary>Compares two <see cref="Unit"/> instances for inequality.</summary>
         /// <param name="left">The first <see cref="Unit"/> to compare.</param>
         /// <param name="right">The second <see cref="Unit"/> to compare.</param>
-        /// <returns><see langword="true" /> if <paramref name="left"/> is not equal to <paramref name="right"/>; otherwise, <see langword="false" />.</returns>
+        /// <returns>
+        /// <see langword="true" /> if <paramref name="left"/> is not equal to <paramref name="right"/>;
+        /// otherwise, <see langword="false" />.
+        /// </returns>
         public static bool operator !=(Unit left, Unit right)
             => !(left == right);
 
@@ -108,11 +124,7 @@ namespace Zentient.Endpoints
         public override string ToString()
             => "Unit";
 
-        /// <summary>Compares this instance with another object of the same type.</summary>
-        /// <param name="obj">The object to compare with this instance.</param>
-        /// <returns>1 if this instance is greater than the specified object; 0 if they are equal; -1 if this instance is less than the specified object.</returns>
-        /// <exception cref="ArgumentException">Thrown when the specified object is not of type <see cref="Unit"/>.</exception>
-        /// <remarks>This method is primarily used for compatibility with interfaces that require comparison, such as <see cref="IComparable"/>.</remarks>
+        /// <inheritdoc />
         public int CompareTo(object? obj)
         {
             if (obj is null)
@@ -127,5 +139,8 @@ namespace Zentient.Endpoints
 
             throw new ArgumentException($"Object must be of type {nameof(Unit)}.", nameof(obj));
         }
+
+        /// <inheritdoc />
+        public int CompareTo(Unit other) => Value.CompareTo(other);
     }
 }
