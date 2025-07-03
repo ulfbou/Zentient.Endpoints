@@ -82,12 +82,11 @@ jobs:
           mkdir -p artifacts/packages
           echo "DEBUG: Attempting to pack with version (from GITVERSION_NUGGET_VERSION_V2 env var): $GITVERSION_NUGGET_VERSION_V2"
 
-          PACK_COMMAND="dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj --configuration Release --output artifacts/packages /p:Version=\"$GITVERSION_NUGGET_VERSION_V2\" --no-build"
+          PACK_COMMAND="dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj --configuration Release --output artifacts/packages /p:Version=$GITVERSION_NUGGET_VERSION_V2 --no-build"
           
           echo "DEBUG: Inspecting PACK_COMMAND string before execution:"
           echo "----------------------------------------------------"
           echo "Command string: '$PACK_COMMAND'"
-          # Use hexdump to reveal any invisible characters (like trailing spaces)
           echo -n "$PACK_COMMAND" | hexdump -C
           echo -n "$PACK_COMMAND" | wc -c | xargs echo "Total character count:"
           echo "----------------------------------------------------"
