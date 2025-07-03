@@ -39,7 +39,7 @@ using System.Net.Http;
 #pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
 {
-    internal sealed partial class ServiceCollectionExtensionsTests
+    public sealed partial class ServiceCollectionExtensionsTests
     {
         [Fact]
         public void AddZentientEndpointsHttp_RegistersIProblemDetailsMapperAsScoped()

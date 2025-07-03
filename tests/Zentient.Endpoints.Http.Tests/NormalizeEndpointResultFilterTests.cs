@@ -23,7 +23,7 @@ using Zentient.Results;
 #pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
 {
-    internal sealed class NormalizeEndpointOutcomeFilterTests
+    public sealed class NormalizeEndpointOutcomeFilterTests
     {
         private readonly Mock<IEndpointOutcomeToHttpMapper> _mockMapper;
         private readonly NormalizeEndpointOutcomeFilter _filter;
