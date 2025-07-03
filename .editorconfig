@@ -10,7 +10,9 @@ dotnet_diagnostic.SA1600.severity = warning      # Elements must be documented
 dotnet_diagnostic.SA1210.severity = warning      # Using directives should be ordered alphabetically
 dotnet_diagnostic.SA1200.severity = warning      # Using directives should be placed correctly (related to SA1210)
 
-# Other code style rules (copy relevant ones from your tests/.editorconfig if they apply globally)
+# StyleCop rules
+dotnet_diagnostic.SA1101.severity = error        # Prefix local calls with this
+
 csharp_indent_labels = one_less_than_current
 csharp_using_directive_placement = outside_namespace:suggestion
 csharp_prefer_simple_using_statement = true:suggestion

@@ -134,7 +134,7 @@ namespace Zentient.Endpoints
 
             if (other is Unit unit)
             {
-                return CompareTo(unit);
+                return this.CompareTo(unit);
             }
 
             throw new ArgumentException($"Object must be of type {nameof(Unit)}.", nameof(other));
