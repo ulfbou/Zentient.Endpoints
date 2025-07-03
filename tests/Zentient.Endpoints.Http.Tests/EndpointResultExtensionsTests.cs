@@ -25,7 +25,7 @@ using Zentient.Results;
 #pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
 {
-    public sealed class EndpointOutcomeExtensionsTests
+    internal sealed class EndpointOutcomeExtensionsTests
     {
         [Fact]
         public async Task ToHttpResult_IEndpointOutcome_Successful_DelegatesToMapperAsync()

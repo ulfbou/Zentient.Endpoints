@@ -36,7 +36,7 @@ using Zentient.Results.Constants;
 #pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
 {
-    public class EndpointOutcomeHttpMapperTests : IDisposable
+    internal class EndpointOutcomeHttpMapperTests : IDisposable
     {
         private readonly Mock<IProblemDetailsMapper> _problemDetailsMapperMock;
         private readonly Mock<IProblemTypeUriGenerator> _problemTypeUriGeneratorMock;

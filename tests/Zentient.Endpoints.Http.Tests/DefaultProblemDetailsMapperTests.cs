@@ -28,7 +28,7 @@ using Zentient.Results.Constants;
 #pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
 {
-    public sealed class DefaultProblemDetailsMapperTests
+    internal sealed class DefaultProblemDetailsMapperTests
     {
         private static readonly Uri DefaultTestProblemTypeBaseUri = new Uri("https://testdomain.com/errors/");
         private readonly Mock<HttpContext> _mockHttpContext;

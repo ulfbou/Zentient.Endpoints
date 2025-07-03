@@ -16,7 +16,7 @@ using Zentient.Results.Constants;
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 namespace Zentient.Endpoints.Tests
 {
-    public class EndpointOutcomeTests : EndpointTestBase
+    internal class EndpointOutcomeTests : EndpointTestBase
     {
         private static readonly ErrorInfo _testError = CreateErrorInfo(code: "ERR", message: "Test error");
         // CA1861: Use static readonly for constant array argument

@@ -13,7 +13,7 @@ using Zentient.Results;
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 namespace Zentient.Endpoints.Tests
 {
-    public class EndpointOutcomeMetadataExtensionsTests : EndpointTestBase
+    internal class EndpointOutcomeMetadataExtensionsTests : EndpointTestBase
     {
         [Fact]
         public void WithMetadata_Generic_ThrowsOnNullOutcome()
