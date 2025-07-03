@@ -82,32 +82,49 @@ jobs:
           mkdir -p artifacts/packages
           echo "DEBUG: Attempting to pack with version (from GITVERSION_NUGGET_VERSION_V2 env var): $GITVERSION_NUGGET_VERSION_V2"
 
-          PACK_COMMAND="dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj --configuration Release --output artifacts/packages /p:Version=\"$GITVERSION_NUGGET_VERSION_V2\" --no-build"
+          BRANCH_NAME="${{ github.ref_name }}"
+          PACKAGE_VERSION="$GITVERSION_NUGGET_VERSION_V2"
           
-          echo "DEBUG: Inspecting PACK_COMMAND string before execution:"
-          echo "----------------------------------------------------"
-          echo "Command string: '$PACK_COMMAND'"
-          echo -n "$PACK_COMMAND" | hexdump -C
-          echo -n "$PACK_COMMAND" | wc -c | xargs echo "Total character count:"
-          echo "----------------------------------------------------"
+          if [[ "$BRANCH_NAME" == "release/Endpoints" ]]; then
+            echo "Branch is release/Endpoints. Packing Zentient.Endpoints only."
+            dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj --configuration Release --output artifacts/packages /p:Version=\"$PACKAGE_VERSION\" --no-build
+          elif [[ "$BRANCH_NAME" == release/* ]]; then
+            echo "Branch is release/*. Packing all non-test Zentient.Endpoints.* projects (excluding main Zentient.Endpoints)."
+            find src -type f -name "*.csproj" | while read -r project_file; do
+              if [[ "$project_file" == "src/Zentient.Endpoints/Zentient.Endpoints.csproj" ]]; then
+                echo "Skipping main Zentient.Endpoints project for this specific release branch."
+                continue
+              fi
 
-          eval "$PACK_COMMAND"
+              if grep -q '<IsTestProject>true</IsTestProject>' "$project_file"; then
+                echo "Skipping test project: $project_file"
+                continue
+              fi
+
+              echo "Packing $project_file..."
+              dotnet pack "$project_file" --configuration Release --output artifacts/packages /p:Version=\"$PACKAGE_VERSION\" --no-build
+            done
+          else
+            echo "Not a 'release/*' branch. Packing Zentient.Endpoints only (default behavior for other branches)."
+            dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj --configuration Release --output artifacts/packages /p:Version=\"$PACKAGE_VERSION\" --no-build
+          fi
 
       - name: Verify Packed NuGet Package Version
         run: |
           echo "Contents of artifacts/packages AFTER dotnet pack:"
           ls -lR artifacts/packages
           
-          EXPECTED_NUPKG_NAME="Zentient.Endpoints.${{ steps.gitversion.outputs.NuGetVersionV2 }}.nupkg"
-          EXPECTED_NUPKG_PATH="artifacts/packages/$EXPECTED_NUPKG_NAME"
+          # Define the expected package name using the GitVersion output
+          # This check will verify if *at least one* package with the expected version was created.
+          EXPECTED_NUPKG_NAME_GLOB="*.${{ steps.gitversion.outputs.NuGetVersionV2 }}.nupkg"
           
-          echo "DEBUG: Looking for expected package: $EXPECTED_NUPKG_PATH"
+          echo "DEBUG: Looking for expected package(s) matching: artifacts/packages/$EXPECTED_NUPKG_NAME_GLOB"
 
-          if [ -f "$EXPECTED_NUPKG_PATH" ]; then
-            echo "SUCCESS: Expected package '$EXPECTED_NUPKG_PATH' found."
+          if find artifacts/packages -name "$EXPECTED_NUPKG_NAME_GLOB" -print -quit | grep -q .; then
+            echo "SUCCESS: At least one expected package matching '$EXPECTED_NUPKG_NAME_GLOB' found."
           else
-            echo "ERROR: Expected package '$EXPECTED_NUPKG_PATH' NOT found."
-            echo "Failing job because the NuGet package was not created with the correct version."
+            echo "ERROR: No expected package matching '$EXPECTED_NUPKG_NAME_GLOB' NOT found."
+            echo "Failing job because no NuGet package was created with the correct version for this branch type."
             exit 1
           fi
 
@@ -157,6 +174,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+    
     if: |
       success() && (
         startsWith(github.ref, 'refs/heads/release/') ||
@@ -210,36 +228,28 @@ jobs:
           echo "Contents of artifacts/packages:"
           ls -R artifacts/packages || true
           echo "Attempting to find package using direct path and wildcard:"
-          find artifacts/packages -name "Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.nupkg" -print || true
-          find artifacts/packages -name "Zentient.Endpoints.*.nupkg" -print || true
+          find artifacts/packages -name "*.${{ needs.build-and-test.outputs.nuget_version_v2 }}.nupkg" -print || true
+          find artifacts/packages -name "*.nupkg" -print || true
 
-      - name: Push Zentient.Endpoints NuGet Package to NuGet.org
+      - name: Push Zentient.Endpoints NuGet Packages to NuGet.org
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
-          PACKAGE_FILE=$(find artifacts/packages -name "Zentient.Endpoints.*.nupkg" ! -name "*.symbols.nupkg" | head -n1)
-          SYMBOL_PACKAGE_FILE=$(find artifacts/packages -name "Zentient.Endpoints.*.snupkg" | head -n1)
-
-          if [[ -f "$PACKAGE_FILE" ]]; then
+          find artifacts/packages -name "*.nupkg" ! -name "*.symbols.nupkg" | while read -r PACKAGE_FILE; do
             echo "Publishing primary package: $PACKAGE_FILE..."
             dotnet nuget push "$PACKAGE_FILE" \
               --source https://api.nuget.org/v3/index.json \
               --api-key "$NUGET_API_KEY" \
               --skip-duplicate
-          else
-            echo "Primary NuGet package not found. Expected: Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.nupkg. Skipping push."
-            exit 1
-          fi
+          done
 
-          if [[ -f "$SYMBOL_PACKAGE_FILE" ]]; then
+          find artifacts/packages -name "*.snupkg" | while read -r SYMBOL_PACKAGE_FILE; do
             echo "Publishing symbols package: $SYMBOL_PACKAGE_FILE..."
             dotnet nuget push "$SYMBOL_PACKAGE_FILE" \
               --source https://api.nuget.org/v3/index.json/symbolpackage \
               --api-key "$NUGET_API_KEY" \
               --skip-duplicate
-          else
-            echo "Symbols NuGet package not found. Expected: Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.snupkg. Skipping push."
-          fi
+          done
 
       - name: Download .NET 8.0 App Artifact (for Docker build)
         uses: actions/download-artifact@v4
@@ -275,25 +285,22 @@ jobs:
           build-args: TARGET_FRAMEWORK=9.0
           tags: |
             ghcr.io/${{ env.REPO_OWNER_LOWER }}/zentient-endpoints:net9.0-${{ needs.build-and-test.outputs.sem_ver }}
-            ${{ github.ref_type == 'tag' && format('ghcr.io/{0}/}/zentient-endpoints:net9.0-latest', env.REPO_OWNER_LOWER) || '' }}
+            ${{ github.ref_type == 'tag' && format('ghcr.io/{0}/zentient-endpoints:net9.0-latest', env.REPO_OWNER_LOWER) || '' }}
         env:
           DOCKER_BUILDKIT: 1
 
-      # Zipping the .NET 8.0 application directory for GitHub Release upload
       - name: Zip .NET 8.0 App Artifact for Release
         run: |
           cd /tmp/app_net80
           zip -r ${{ github.workspace }}/artifacts/Zentient.Endpoints.net8.0.zip .
           echo "Zipped .NET 8.0 app to ${{ github.workspace }}/artifacts/Zentient.Endpoints.net8.0.zip"
 
-      # Zipping the .NET 9.0 application directory for GitHub Release upload
       - name: Zip .NET 9.0 App Artifact for Release
         run: |
           cd /tmp/app_net90
           zip -r ${{ github.workspace }}/artifacts/Zentient.Endpoints.net9.0.zip .
           echo "Zipped .NET 9.0 app to ${{ github.workspace }}/artifacts/Zentient.Endpoints.net9.0.zip"
 
-      # Extract Release Notes from CHANGELOG.md
       - name: Extract Release Notes
         id: extract_release_notes
         run: |
@@ -310,11 +317,8 @@ jobs:
           draft: false 
           prerelease: ${{ needs.build-and-test.outputs.sem_ver != needs.build-and-test.outputs.major_minor_patch }}
           body_path: release-notes.md 
-
-          # Newline-delimited list of glob expressions for assets to upload.
-          # These paths are relative to the job's working directory.
           files: |
-            artifacts/packages/Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.nupkg
-            artifacts/packages/Zentient.Endpoints.${{ needs.build-and-test.outputs.nuget_version_v2 }}.snupkg
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
             artifacts/Zentient.Endpoints.net8.0.zip
             artifacts/Zentient.Endpoints.net9.0.zip
