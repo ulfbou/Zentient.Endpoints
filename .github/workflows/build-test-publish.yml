@@ -86,7 +86,7 @@ jobs:
           dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj \
             --configuration Release \
             --output artifacts/packages \
-            /p:Version="$GITVERSION_NUGGET_VERSION_V2" \ 
+            /p:Version="$GITVERSION_NUGGET_VERSION_V2" \
             --no-build
 
       - name: (Debug) List Packages After Packing
