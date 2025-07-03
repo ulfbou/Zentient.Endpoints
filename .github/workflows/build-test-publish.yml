@@ -78,18 +78,28 @@ jobs:
         run: dotnet test Zentient.Endpoints.sln --configuration Release --no-build --logger trx
 
       - name: Pack NuGet Packages
-        env: # Add this 'env' block to the step
+        env:
           PACKAGE_VERSION: ${{ steps.gitversion.outputs.nuget_version_v2 }}
         run: |
           mkdir -p artifacts/packages
-          # Pack only Zentient.Endpoints.csproj as requested for initial release
-          # /p:Version sets the NuGet package version, overriding Directory.Build.props's fallback
           dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj \
             --configuration Release \
             --output artifacts/packages \
-            /p:Version=$(PACKAGE_VERSION) \ # Use the environment variable here
+            /p:Version=$(PACKAGE_VERSION) \
             --no-build
 
+      - name: (Debug) List Packages After Packing
+        run: |
+          echo "Contents of artifacts/packages AFTER dotnet pack:"
+          ls -lR artifacts/packages
+          EXPECTED_NUPKG="artifacts/packages/Zentient.Endpoints.${{ steps.gitversion.outputs.nuget_version_v2 }}.nupkg"
+          if [ -f "$EXPECTED_NUPKG" ]; then
+            echo "SUCCESS: Expected package '$EXPECTED_NUPKG' found."
+          else
+            echo "ERROR: Expected package '$EXPECTED_NUPKG' NOT found."
+            exit 1
+          fi
+          
           # For future revisions, to pack all non-test packages:
           # find src -name "*.csproj" -print0 | while IFS= read -r -d $'\0' project_file; do
           #   # Check if the project is packable (e.g., by looking for <IsPackable>true</IsPackable>)
@@ -290,7 +300,7 @@ jobs:
           startsWith(github.ref, 'refs/heads/release/') ||
           github.ref_type == 'tag'
         uses: actions/create-release@v1
-        env: # <--- CORRECT: TOKEN AS ENVIRONMENT VARIABLE
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
         with:
           tag_name: ${{ github.ref_name }}
