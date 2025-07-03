@@ -1,3 +1,4 @@
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -13,6 +14,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Tests.Common", "src\Zentient.Endpoints.Tests.Common\Zentient.Endpoints.Tests.Common.csproj", "{1C62EC8C-D331-60BE-D135-76A5FC593009}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Http", "src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj", "{E6D73B3E-6460-C43A-90E5-4B1DFEBDCB19}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zentient.Endpoints.Http.Tests", "tests\Zentient.Endpoints.Http.Tests\Zentient.Endpoints.Http.Tests.csproj", "{96336082-CD47-4896-B06E-8183A510AD44}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -72,6 +75,18 @@ Global
 		{E6D73B3E-6460-C43A-90E5-4B1DFEBDCB19}.Release|x64.Build.0 = Release|Any CPU
 		{E6D73B3E-6460-C43A-90E5-4B1DFEBDCB19}.Release|x86.ActiveCfg = Release|Any CPU
 		{E6D73B3E-6460-C43A-90E5-4B1DFEBDCB19}.Release|x86.Build.0 = Release|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Debug|x64.Build.0 = Debug|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Debug|x86.Build.0 = Debug|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Release|Any CPU.Build.0 = Release|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Release|x64.ActiveCfg = Release|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Release|x64.Build.0 = Release|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Release|x86.ActiveCfg = Release|Any CPU
+		{96336082-CD47-4896-B06E-8183A510AD44}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -81,6 +96,7 @@ Global
 		{514E5D81-E9A2-4921-BC22-1E76E70F903F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{1C62EC8C-D331-60BE-D135-76A5FC593009} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{E6D73B3E-6460-C43A-90E5-4B1DFEBDCB19} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{96336082-CD47-4896-B06E-8183A510AD44} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F04A1460-F873-490E-B208-F2BCC51C0A8C}
