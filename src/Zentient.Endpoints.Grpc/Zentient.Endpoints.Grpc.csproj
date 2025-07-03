@@ -2,13 +2,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
+		<!-- Analyzer test projects should usually target the same netstandard as the analyzer -->
+		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+
 		<RootNamespace>Zentient.Endpoints.Grpc</RootNamespace>
 		<Description>gRPC integration for Zentient.Endpoints.</Description>
 		<NoWarn>NU1605</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!--<ProjectReference Include="..\Zentient.Results\Src\Results\Zentient.Results.csproj" />-->
+		<!--<ProjectReference Include="../Zentient.Results/src/Results/Zentient.Results.csproj" />-->
 		<PackageReference Include="System.Collections.Immutable" Version="9.0.0" PrivateAssets="all" />
 		<PackageReference Include="Zentient.Results" Version="[0.4.4, 5.0.0)" />
 		<PackageReference Include="Grpc.AspNetCore" Version="2.71.0" />
@@ -17,7 +20,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Zentient.Endpoints\Zentient.Endpoints.csproj" />
+		<ProjectReference Include="../Zentient.Endpoints/Zentient.Endpoints.csproj" />
 	</ItemGroup>
 
 </Project>

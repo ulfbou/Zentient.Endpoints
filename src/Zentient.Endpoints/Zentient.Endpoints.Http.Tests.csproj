@@ -1,4 +1,4 @@
-﻿<!-- Zentient Endpoints HTTP Tests Project File -->
+<!-- Zentient Endpoints HTTP Tests Project File -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
@@ -10,12 +10,12 @@
 
 	<ItemGroup>
 		<PackageReference Include="Moq" Version="4.20.72" />
-		<PackageReference Include="System.Collections.Immutable" Version="9.0.0" PrivateAssets="all" />
+		<PackageReference Include="System.Collections.Immutable" Version="9.0.6" PrivateAssets="all" />
 		<PackageReference Include="Zentient.Results" Version="[0.4.4, 5.0.0)" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="FluentAssertions" Version="8.3.0" />
+		<PackageReference Include="FluentAssertions" Version="8.4.0" />
 
 		<PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.0" Condition="'$(TargetFramework)' == 'net8.0'" />
 		<PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" Condition="'$(TargetFramework)' == 'net9.0'" />
