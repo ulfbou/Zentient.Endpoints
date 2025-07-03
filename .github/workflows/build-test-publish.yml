@@ -79,21 +79,21 @@ jobs:
 
       - name: Pack NuGet Packages
         env:
-          GITVERSION_NUGGET_VERSION_V2: ${{ steps.gitversion.outputs.nuget_version_v2 }}
+          GITVERSION_NUGGET_VERSION_V2: ${{ steps.gitversion.outputs.NuGetVersionV2 }} 
         run: |
           mkdir -p artifacts/packages
-          echo "DEBUG: Attempting to pack with version: $GITVERSION_NUGGET_VERSION_V2"
+          echo "DEBUG: Attempting to pack with version (from GITVERSION_NUGGET_VERSION_V2 env var): $GITVERSION_NUGGET_VERSION_V2"
           dotnet pack src/Zentient.Endpoints/Zentient.Endpoints.csproj \
             --configuration Release \
             --output artifacts/packages \
-            /p:Version="$GITVERSION_NUGGET_VERSION_V2" \
+            /p:Version="$GITVERSION_NUGGET_VERSION_V2" \ 
             --no-build
 
       - name: (Debug) List Packages After Packing
         run: |
           echo "Contents of artifacts/packages AFTER dotnet pack:"
           ls -lR artifacts/packages
-          EXPECTED_NUPKG="artifacts/packages/Zentient.Endpoints.${{ steps.gitversion.outputs.nuget_version_v2 }}.nupkg"
+          EXPECTED_NUPKG="artifacts/packages/Zentient.Endpoints.${{ steps.gitversion.outputs.NuGetVersionV2 }}.nupkg"
           echo "DEBUG: Looking for expected package: $EXPECTED_NUPKG"
           if [ -f "$EXPECTED_NUPKG" ]; then
             echo "SUCCESS: Expected package '$EXPECTED_NUPKG' found."
