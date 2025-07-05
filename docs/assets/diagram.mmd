@@ -1,0 +1,11 @@
+graph TD
+    subgraph "Core Application"
+        A[Domain Layer] --> B[Application Layer]
+    end
+    B -->|IResult| C[Zentient.Endpoints]
+    C -->|IEndpointOutcome| D[HTTP Adapter Dev] --> G[HTTP Client]
+    C -->|IEndpointOutcome| E[gRPC Adapter Planned] --> H[gRPC Client]
+    C -->|IEndpointOutcome| F[Messaging Adapter Soon] --> I[Message Consumer]
+
+    style C fill:#f9f,stroke:#333,stroke-width:2px
+    style D fill:#ff9
