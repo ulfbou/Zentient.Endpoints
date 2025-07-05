@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RuleSet Name="Zentient Core Rules" Description="Core Roslyn ruleset for Zentient code quality." ToolsVersion="17.0">
+<RuleSet Name="Zentient Test Rules" Description="Relaxed Roslyn ruleset for Zentient test projects." ToolsVersion="15.0">
 	<Rules AnalyzerId="Microsoft.CodeAnalysis.CSharp" RuleNamespace="Microsoft.CodeAnalysis.CSharp">
 		<Rule Id="CA1014" Action="None" />
 		<Rule Id="CA1062" Action="Error" />
 		<Rule Id="CA1502" Action="Error" />
 		<Rule Id="CA1506" Action="Error" />
+		<Rule Id="CA1515" Action="None" />
 		<Rule Id="CA1707" Action="None" />
 		<Rule Id="CA1708" Action="Error" />
 		<Rule Id="CA1710" Action="Warning" />
@@ -28,13 +29,11 @@
 		<Rule Id="CA2007" Action="Warning" />
 		<Rule Id="CA2012" Action="Error" />
 		<Rule Id="CA2016" Action="Error" />
-		<Rule Id="CA2017" Action="Warning" />
 		<Rule Id="CA2208" Action="Warning" />
-		<Rule Id="CS1591" Action="Error" />
+		<Rule Id="CA2017" Action="Warning" />
+		<Rule Id="CS1591" Action="None" />
 	</Rules>
-	<Rules AnalyzerId="Microsoft.CodeAnalysis.NetAnalyzers" RuleNamespace="Microsoft.CodeAnalysis.NetAnalyzers">
-		<Rule Id="CA1848" Action="Info" />
-	</Rules>
+
 	<Rules AnalyzerId="StyleCop.Analyzers" RuleNamespace="StyleCop.Analyzers">
 		<Rule Id="SA1000" Action="Error" />
 		<Rule Id="SA1005" Action="Error" />
@@ -45,12 +44,12 @@
 		<Rule Id="SA1309" Action="None" />
 		<Rule Id="SA1407" Action="Warning" />
 		<Rule Id="SA1516" Action="Warning" />
-		<Rule Id="SA1600" Action="Error" />
-		<Rule Id="SA1601" Action="Error" />
-		<Rule Id="SA1602" Action="Error" />
-		<Rule Id="SA1609" Action="Warning" />
-		<Rule Id="SA1618" Action="Error" />
-		<Rule Id="SA1623" Action="Warning" />
-		<Rule Id="SA1636" Action="Warning" />
+		<Rule Id="SA1600" Action="None" />
+		<Rule Id="SA1601" Action="None" />
+		<Rule Id="SA1602" Action="None" />
+		<Rule Id="SA1609" Action="None" />
+		<Rule Id="SA1618" Action="None" />
+		<Rule Id="SA1623" Action="None" />
+		<Rule Id="SA1636" Action="None" />
 	</Rules>
 </RuleSet>

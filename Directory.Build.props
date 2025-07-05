@@ -61,11 +61,18 @@
 		<DebugSymbols Condition="'$(Configuration)' == 'Release'">true</DebugSymbols>
 		<DefineConstants Condition="'$(Configuration)' == 'Debug'">$(DefineConstants);DEBUG;TRACE</DefineConstants>
 		<DefineConstants Condition="'$(Configuration)' == 'Release'">$(DefineConstants);TRACE</DefineConstants>
+	</PropertyGroup>
 
-		<!-- Code Analysis Rule Set and Enforcement for all projects -->
+	<!-- Use Zentient.ruleset for all library projects -->
+	<PropertyGroup Condition="'$(IsTestProject)' != 'true'">
 		<CodeAnalysisRuleSet>$(SolutionDir)analyzers\Zentient.ruleset</CodeAnalysisRuleSet>
 		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+	</PropertyGroup>
 
+	<!-- Use Zentient.Tests.ruleset for all test projects -->
+	<PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+		<CodeAnalysisRuleSet>$(SolutionDir)analyzers\Zentient.Tests.ruleset</CodeAnalysisRuleSet>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 	</PropertyGroup>
 
 	<ItemGroup Condition=" '$(MSBuildProjectDirectory)' == '$(SolutionDir)src' Or $(MSBuildProjectDirectory.StartsWith('$(SolutionDir)src/')) ">
