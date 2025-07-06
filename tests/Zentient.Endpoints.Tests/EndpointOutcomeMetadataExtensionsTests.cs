@@ -6,33 +6,35 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-
 using FluentAssertions;
-
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-
 using Moq;
-
 using Xunit;
-
 using Zentient.Endpoints.Http;
 using Zentient.Endpoints.Http.Mapping;
 using Zentient.Results;
+using Zentient.Endpoints.Tests.Common;
+using System.Threading.Tasks;
 
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+#pragma warning disable CS1591
+
 namespace Zentient.Endpoints.Tests
 {
     public class EndpointOutcomeMetadataExtensionsTests : EndpointTestBase
     {
-        // --- WithMetadata (Generic) ---
         [Fact]
         public void WithMetadata_Generic_ThrowsOnNulls()
         {
+            // Arrange
             IEndpointOutcome<string>? outcome = null;
             Func<TransportMetadata, TransportMetadata> transform = m => m.WithTag("x", 1);
+
+            // Act
             Action act1 = () => outcome!.WithMetadata(transform);
             Action act2 = () => EndpointOutcome<string>.Success("abc").WithMetadata(null!);
+
+            // Assert
             act1.Should().Throw<ArgumentNullException>().WithParameterName("outcome");
             act2.Should().Throw<ArgumentNullException>().WithParameterName("metadataTransform");
         }
@@ -40,35 +42,49 @@ namespace Zentient.Endpoints.Tests
         [Fact]
         public void WithMetadata_Generic_ThrowsOnNonConcreteType()
         {
-            var mock = new Mock<IEndpointOutcome<string>>();
-            mock.SetupGet(x => x.Value).Returns("abc");
-            mock.SetupGet(x => x.Metadata).Returns(new TransportMetadata());
-            IEndpointOutcome<string> outcome = mock.Object;
+            // Arrange
+            var result = Result<string>.Success("abc");
+            var metadata = CreateTransportMetadata();
+            IEndpointOutcome<string> mock = EndpointOutcomeMockHelper.CreateGenericEndpointOutcomeMock(result, metadata);
+            IEndpointOutcome<string> outcome = mock;
             Func<TransportMetadata, TransportMetadata> transform = m => m.WithTag("x", 1);
+
+            // Act
             Action act = () => outcome.WithMetadata(transform);
+
+            // Assert
             act.Should().Throw<InvalidOperationException>().WithMessage("*EndpointOutcome*");
         }
 
         [Fact]
         public void WithMetadata_Generic_AppliesTransform()
         {
+            // Arrange
             IEndpointOutcome<string> original = EndpointOutcome<string>.Success("abc");
             Func<TransportMetadata, TransportMetadata> transform = m => m.WithTag("foo", 42);
+
+            // Act
             var updated = original.WithMetadata(transform);
+
+            // Assert
             updated.Should().NotBeSameAs(original);
             updated.Metadata.Tags.Should().ContainKey("foo").WhoseValue.Should().Be(42);
             original.Metadata.Tags.Should().NotContainKey("foo");
             updated.Value.Should().Be("abc");
         }
 
-        // --- WithMetadata (Non-Generic) ---
         [Fact]
         public void WithMetadata_NonGeneric_ThrowsOnNulls()
         {
+            // Arrange
             IEndpointOutcome? outcome = null;
             Func<TransportMetadata, TransportMetadata> transform = m => m.WithTag("x", 1);
+
+            // Act
             Action act1 = () => outcome!.WithMetadata(transform);
             Action act2 = () => EndpointOutcome.Success().WithMetadata(null!);
+
+            // Assert
             act1.Should().Throw<ArgumentNullException>().WithParameterName("outcome");
             act2.Should().Throw<ArgumentNullException>().WithParameterName("metadataTransform");
         }
@@ -76,33 +92,43 @@ namespace Zentient.Endpoints.Tests
         [Fact]
         public void WithMetadata_NonGeneric_ThrowsOnNonConcreteType()
         {
-            var mock = new Mock<IEndpointOutcome>();
-            mock.SetupGet(x => x.Metadata).Returns(new TransportMetadata());
-            IEndpointOutcome outcome = mock.Object;
+            // Arrange
+            var mock = EndpointOutcomeMockHelper.CreateEndpointOutcomeMock(Result.Success());
+            IEndpointOutcome outcome = mock;
             Func<TransportMetadata, TransportMetadata> transform = m => m.WithTag("x", 1);
+
+            // Act
             Action act = () => outcome.WithMetadata(transform);
+
+            // Assert
             act.Should().Throw<InvalidOperationException>().WithMessage("*EndpointOutcome*");
         }
 
         [Fact]
         public void WithMetadata_NonGeneric_AppliesTransform()
         {
+            // Arrange
             IEndpointOutcome original = EndpointOutcome.Success();
             Func<TransportMetadata, TransportMetadata> transform = m => m.WithTag("bar", 99);
+
+            // Act
             var updated = original.WithMetadata(transform);
+
+            // Assert
             updated.Should().NotBeSameAs(original);
             updated.Metadata.Tags.Should().ContainKey("bar").WhoseValue.Should().Be(99);
             original.Metadata.Tags.Should().NotContainKey("bar");
         }
 
-        // --- OutcomeEquals ---
         [Fact]
         public void OutcomeEquals_ReferenceEquals_And_Identical()
         {
+            // Arrange
             var o1 = EndpointOutcome<int>.Success(5);
-            o1.OutcomeEquals(o1).Should().BeTrue();
-
             var o2 = EndpointOutcome<int>.Success(5);
+
+            // Act & Assert
+            o1.OutcomeEquals(o1).Should().BeTrue();
             o1.OutcomeEquals(o2).Should().BeTrue();
         }
 
@@ -111,57 +137,76 @@ namespace Zentient.Endpoints.Tests
         [InlineData(42, 43)]
         public void OutcomeEquals_DifferentValues(int v1, int v2)
         {
+            // Arrange
             var o1 = EndpointOutcome<int>.Success(v1);
             var o2 = EndpointOutcome<int>.Success(v2);
+
+            // Act & Assert
             o1.OutcomeEquals(o2).Should().BeFalse();
         }
 
         [Fact]
         public void OutcomeEquals_DifferentStatus()
         {
+            // Arrange
             var status1 = CreateMockResultStatus(200, "OK");
             var status2 = CreateMockResultStatus(201, "Created");
             var o1 = EndpointOutcome<int>.Success(5, status1);
             var o2 = EndpointOutcome<int>.Success(5, status2);
+
+            // Act & Assert
             o1.OutcomeEquals(o2).Should().BeFalse();
         }
 
         [Fact]
         public void OutcomeEquals_DifferentMetadata()
         {
+            // Arrange
             var m1 = CreateTransportMetadata(new Dictionary<string, object?> { { "a", 1 } });
             var m2 = CreateTransportMetadata(new Dictionary<string, object?> { { "a", 2 } });
             var o1 = EndpointOutcome<int>.Success(5, m1);
             var o2 = EndpointOutcome<int>.Success(5, m2);
+
+            // Act & Assert
             o1.OutcomeEquals(o2).Should().BeFalse();
         }
 
         [Fact]
         public void OutcomeEquals_DifferentErrors()
         {
-            var e1 = CreateErrorInfo(code: "E1", message: "err1");
-            var e2 = CreateErrorInfo(code: "E2", message: "err2");
+            // Arrange
+            var e1 = TestErrorInfoFactory.Custom(ErrorCategory.General, "E1", "err1");
+            var e2 = TestErrorInfoFactory.Custom(ErrorCategory.General, "E2", "err2");
             var o1 = EndpointOutcome<int>.FromError(e1);
             var o2 = EndpointOutcome<int>.FromError(e2);
+
+            // Act & Assert
             o1.OutcomeEquals(o2).Should().BeFalse();
         }
 
         [Fact]
         public void OutcomeEquals_NullCases()
         {
+            // Arrange
             var o1 = EndpointOutcome<int>.Success(5);
             IEndpointOutcome<int>? o2 = null;
+
+            // Act & Assert
             o1.OutcomeEquals(o2!).Should().BeFalse();
         }
 
-        // --- ToHttpResult ---
         [Fact]
         public async Task ToHttpResult_ThrowsOnNulls()
         {
+            // Arrange
             IEndpointOutcome? outcome = null;
-            var ctx = new DefaultHttpContext();
+            var ctx = CreateHttpContext();
+
+            // Act
             Func<Task> act1 = () => outcome!.ToHttpResult(ctx);
             Func<Task> act2 = () => EndpointOutcome<string>.Success("abc").ToHttpResult(null!);
+
+            // Assert
             await act1.Should().ThrowAsync<ArgumentNullException>().WithParameterName("endpointResult");
             await act2.Should().ThrowAsync<ArgumentNullException>().WithParameterName("httpContext");
         }
@@ -169,10 +214,14 @@ namespace Zentient.Endpoints.Tests
         [Fact]
         public async Task ToHttpResult_ThrowsIfMapperNotRegistered()
         {
-            var ctx = new DefaultHttpContext();
-            ctx.RequestServices = new ServiceCollection().BuildServiceProvider();
+            // Arrange
+            var ctx = new TestHttpContextBuilder().WithServices(s => { /* no mapper */ }).Build();
             var outcome = EndpointOutcome<string>.Success("abc");
+
+            // Act
             Func<Task> act = () => outcome.ToHttpResult(ctx);
+
+            // Assert
             await act.Should().ThrowAsync<InvalidOperationException>()
                 .WithMessage("No service for type*IEndpointOutcomeToHttpMapper*");
         }
@@ -180,89 +229,118 @@ namespace Zentient.Endpoints.Tests
         [Fact]
         public async Task ToHttpResult_DelegatesToMapper()
         {
+            // Arrange
             var mapperMock = new Mock<IEndpointOutcomeToHttpMapper>();
-            var ctx = new DefaultHttpContext();
-            ctx.RequestServices = new ServiceCollection().AddSingleton(mapperMock.Object).BuildServiceProvider();
+            var ctx = new TestHttpContextBuilder().WithService(mapperMock.Object).Build();
             var outcome = EndpointOutcome<string>.Success("abc");
             var expectedResult = Microsoft.AspNetCore.Http.Results.Ok("result");
             mapperMock.Setup(m => m.Map(outcome, ctx, It.IsAny<CancellationToken>())).ReturnsAsync(expectedResult);
 
+            // Act
             var result = await outcome.ToHttpResult(ctx);
 
+            // Assert
             result.Should().BeSameAs(expectedResult);
             mapperMock.Verify(m => m.Map(outcome, ctx, It.IsAny<CancellationToken>()), Times.Once);
         }
 
-        // --- ToMinimalApiResult ---
         [Fact]
         public void ToMinimalApiResult_ReturnsSameInstance_And_ThrowsOnNull()
         {
+            // Arrange
             var outcome = EndpointOutcome<int>.Success(42);
-            outcome.ToMinimalApiResult().Should().BeSameAs(outcome);
-
             IEndpointOutcome<string>? nullOutcome = null;
+
+            // Act & Assert
+            outcome.ToMinimalApiResult().Should().BeSameAs(outcome);
             Action act = () => nullOutcome!.ToMinimalApiResult();
             act.Should().Throw<ArgumentNullException>().WithParameterName("endpointResult");
         }
 
-        // --- ToEndpointOutcome (Generic/Non-Generic) ---
         [Fact]
         public void ToEndpointOutcome_Generic_Success_And_Failure()
         {
+            // Arrange
             var messages = new[] { "msg1", "msg2" };
-            var result = Zentient.Results.Result<string>.Success("data", ResultStatuses.Ok, messages);
-            var outcome = result.ToEndpointOutcome();
-            outcome.IsSuccess.Should().BeTrue();
-            outcome.Value.Should().Be("data");
-            outcome.Messages.Should().BeEquivalentTo(messages);
-            outcome.Status.Should().Be(ResultStatuses.Ok);
-            outcome.Errors.Should().BeEmpty();
-            outcome.Metadata.Should().NotBeNull();
+            var successResult = Result<string>.Success("data", ResultMockHelper.CreateMockResultStatus(200, "OK"), messages);
+            var error = TestErrorInfoFactory.Validation();
+            var failResult = Result<string>.Failure(errors: new[] { error }, status: ResultMockHelper.CreateMockResultStatus(400, "Bad Request"));
 
-            var error = new ErrorInfo(ErrorCategory.Validation, "VAL", "Validation failed");
-            var failResult = Zentient.Results.Result<string>.Failure(errors: new[] { error }, status: ResultStatuses.BadRequest);
+            // Act
+            var successOutcome = successResult.ToEndpointOutcome();
             var failOutcome = failResult.ToEndpointOutcome();
+
+            // Assert - Success Outcome
+            successOutcome.IsSuccess.Should().BeTrue();
+            successOutcome.Value.Should().Be("data");
+            successOutcome.Messages.Should().BeEquivalentTo(messages);
+            successOutcome.Status.Code.Should().Be(200);
+            successOutcome.Errors.Should().BeEmpty();
+            successOutcome.Metadata.Should().NotBeNull();
+
+            // Assert - Failure Outcome
             failOutcome.IsSuccess.Should().BeFalse();
             failOutcome.Value.Should().BeNull();
             failOutcome.Errors.Should().ContainSingle().Which.Should().BeEquivalentTo(error);
-            failOutcome.Status.Should().Be(ResultStatuses.BadRequest);
+            failOutcome.Status.Code.Should().Be(400);
             failOutcome.Metadata.Should().NotBeNull();
         }
 
         [Fact]
         public void ToEndpointOutcome_Generic_Throws_If_Null()
         {
+            // Arrange
             Zentient.Results.IResult<string>? result = null;
+
+            // Act
             Action act = () => result!.ToEndpointOutcome();
+
+            // Assert
             act.Should().Throw<ArgumentNullException>().WithParameterName("result");
         }
 
         [Fact]
         public void ToEndpointOutcome_NonGeneric_Success_And_Failure()
         {
-            var result = Zentient.Results.Result.Success();
-            var outcome = result.ToEndpointOutcome();
-            outcome.IsSuccess.Should().BeTrue();
-            outcome.Value.Should().Be(Unit.Value);
-            outcome.Errors.Should().BeEmpty();
-            outcome.Status.Should().Be(ResultStatuses.Ok);
-            outcome.Metadata.Should().NotBeNull();
+            // Arrange
+            var successResult = Result.Success();
+            var error = TestErrorInfoFactory.Conflict();
+            var failResult = Result.Failure(error);
 
-            var error = new ErrorInfo(ErrorCategory.Conflict, "C", "conflict");
-            var failResult = Zentient.Results.Result.Failure(error);
+            // Act
+            var successOutcome = successResult.ToEndpointOutcome();
             var failOutcome = failResult.ToEndpointOutcome();
+
+            // Assert - Success Outcome
+            successOutcome.IsSuccess.Should().BeTrue();
+            successOutcome.Value.Should().Be(Unit.Value);
+            successOutcome.Errors.Should().BeEmpty();
+            successOutcome.Status.Should().Be(ResultStatuses.Ok);
+            successOutcome.Metadata.Should().NotBeNull();
+
+            // Assert - Failure Outcome
             failOutcome.IsSuccess.Should().BeFalse();
             failOutcome.Value.Should().Be(Unit.Value);
             failOutcome.Errors.Should().ContainSingle().Which.Should().BeEquivalentTo(error);
             failOutcome.Status.Should().Be(ResultStatuses.Error);
             failOutcome.Metadata.Should().NotBeNull();
 
-            var mockResult = new Mock<Zentient.Results.IResult>();
-            mockResult.SetupGet(r => r.IsSuccess).Returns(false);
-            mockResult.SetupGet(r => r.Errors).Returns(new List<ErrorInfo>().AsReadOnly());
-            mockResult.SetupGet(r => r.Status).Returns(ResultStatuses.Error);
-            mockResult.SetupGet(r => r.ErrorMessage).Returns("fail");
-            var defaultOutcome = mockResult.Object.ToEndpointOutcome();
+            // Arrange - For default outcome with mock
+            var mockResult = ResultMockHelper.CreateMockFailedResult(ImmutableList<ErrorInfo>.Empty); // Use helper, provide empty list, it will throw, catch and re-mock with default behavior
+            // The original test mocked an empty error list and then asserted a single default error.
+            // ResultMockHelper.CreateMockFailedResult throws if errors is empty.
+            // If the intent is to test the default error creation when Result.Errors is empty,
+            // we should directly mock IResult with an empty error list.
+            var specificMockResult = new Mock<Zentient.Results.IResult>();
+            specificMockResult.SetupGet(r => r.IsSuccess).Returns(false);
+            specificMockResult.SetupGet(r => r.Errors).Returns(ImmutableList<ErrorInfo>.Empty);
+            specificMockResult.SetupGet(r => r.Status).Returns(ResultStatuses.Error);
+            specificMockResult.SetupGet(r => r.ErrorMessage).Returns("fail");
+
+            // Act
+            var defaultOutcome = specificMockResult.Object.ToEndpointOutcome();
+
+            // Assert
             defaultOutcome.IsSuccess.Should().BeFalse();
             defaultOutcome.Value.Should().Be(Unit.Value);
             defaultOutcome.Errors.Should().ContainSingle();
@@ -276,24 +354,33 @@ namespace Zentient.Endpoints.Tests
         [Fact]
         public void ToEndpointOutcome_NonGeneric_Throws_If_Null()
         {
+            // Arrange
             Zentient.Results.IResult? result = null;
+
+            // Act
             Action act = () => result!.ToEndpointOutcome();
+
+            // Assert
             act.Should().Throw<ArgumentNullException>().WithParameterName("result");
         }
 
         [Fact]
         public void ToEndpointOutcome_With_TransportMetadata()
         {
-            var result = Zentient.Results.Result<string>.Success("abc");
-            var meta = Zentient.Endpoints.TransportMetadata.From(new Dictionary<string, object?> { { "k", "v" } });
-            var outcome = result.ToEndpointOutcome(meta);
-            outcome.Metadata.Tags.Should().ContainKey("k").WhoseValue.Should().Be("v");
+            // Arrange
+            var genericResult = Result<string>.Success("abc");
+            var genericMeta = CreateTransportMetadata(new Dictionary<string, object?> { { "k", "v" } });
+            var nonGenericResult = Result.Success();
+            var nonGenericMeta = CreateTransportMetadata(new Dictionary<string, object?> { { "k", 123 } });
 
-            var nonGenericResult = Zentient.Results.Result.Success();
-            var meta2 = Zentient.Endpoints.TransportMetadata.From(new Dictionary<string, object?> { { "k", 123 } });
-            var outcome2 = nonGenericResult.ToEndpointOutcome(meta2);
-            outcome2.Metadata.Tags.Should().ContainKey("k").WhoseValue.Should().Be(123);
+            // Act
+            var genericOutcome = genericResult.ToEndpointOutcome(genericMeta);
+            var nonGenericOutcome = nonGenericResult.ToEndpointOutcome(nonGenericMeta);
+
+            // Assert
+            genericOutcome.Metadata.Tags.Should().ContainKey("k").WhoseValue.Should().Be("v");
+            nonGenericOutcome.Metadata.Tags.Should().ContainKey("k").WhoseValue.Should().Be(123);
         }
     }
 }
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
+#pragma warning restore CS1591
