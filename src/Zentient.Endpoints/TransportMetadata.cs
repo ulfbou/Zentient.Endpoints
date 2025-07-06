@@ -76,7 +76,7 @@ namespace Zentient.Endpoints
 
             if (logger is not null)
             {
-                builder[Constants.MetadataKeys.Logger] = logger;
+                builder[MetadataKeys.Logger] = logger;
             }
 
             return new TransportMetadata(builder.ToImmutable());
