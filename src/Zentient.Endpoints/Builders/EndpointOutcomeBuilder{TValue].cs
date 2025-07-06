@@ -7,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 
 using Zentient.Results;
 
-namespace Zentient.Endpoints.Tests.Common
+namespace Zentient.Endpoints.Builders
 {
     /// <summary>
     /// A fluent builder for creating <see cref="IEndpointOutcome{TValue}"/> instances
@@ -15,7 +15,7 @@ namespace Zentient.Endpoints.Tests.Common
     /// </summary>
     /// <typeparam name="TValue">The type of the outcome's value.</typeparam>
     [SuppressMessage("Design", "CA1515:Member names should begin with a capital letter", Justification = "Consistent with ASP.NET Core conventions for fluent builders.")]
-    public sealed class TestEndpointOutcomeBuilder<TValue>
+    public sealed class EndpointOutcomeBuilder<TValue>
     {
         private TValue? _value;
         private bool _isSuccess = true; // Default to success
@@ -25,9 +25,9 @@ namespace Zentient.Endpoints.Tests.Common
         private IResultStatus? _status; // Use nullable for internal tracking
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="TestEndpointOutcomeBuilder{TValue}"/> class.
+        /// Initializes a new instance of the <see cref="EndpointOutcomeBuilder{TValue}"/> class.
         /// </summary>
-        public TestEndpointOutcomeBuilder()
+        public EndpointOutcomeBuilder()
         {
             _status = ResultStatuses.Ok; // Default success status
         }
@@ -37,7 +37,7 @@ namespace Zentient.Endpoints.Tests.Common
         /// </summary>
         /// <param name="value">The value for the successful outcome.</param>
         /// <returns>The current builder instance for chaining.</returns>
-        public TestEndpointOutcomeBuilder<TValue> IsSuccess(TValue value)
+        public EndpointOutcomeBuilder<TValue> IsSuccess(TValue value)
         {
             if (value is null) throw new ArgumentNullException(nameof(value));
             _isSuccess = true;
@@ -52,7 +52,7 @@ namespace Zentient.Endpoints.Tests.Common
         /// Sets the outcome to a failure state.
         /// </summary>
         /// <returns>The current builder instance for chaining.</returns>
-        public TestEndpointOutcomeBuilder<TValue> IsFailure()
+        public EndpointOutcomeBuilder<TValue> IsFailure()
         {
             ResetForFailure();
             return this;
@@ -63,7 +63,7 @@ namespace Zentient.Endpoints.Tests.Common
         /// </summary>
         /// <param name="message">The message string.</param>
         /// <returns>The current builder instance for chaining.</returns>
-        public TestEndpointOutcomeBuilder<TValue> WithMessage(string message)
+        public EndpointOutcomeBuilder<TValue> WithMessage(string message)
         {
             _messages.Add(message);
             return this;
@@ -74,7 +74,7 @@ namespace Zentient.Endpoints.Tests.Common
         /// </summary>
         /// <param name="messages">A collection of message strings.</param>
         /// <returns>The current builder instance for chaining.</returns>
-        public TestEndpointOutcomeBuilder<TValue> WithMessages(IEnumerable<string> messages)
+        public EndpointOutcomeBuilder<TValue> WithMessages(IEnumerable<string> messages)
         {
             _messages.AddRange(messages);
             return this;
@@ -85,12 +85,12 @@ namespace Zentient.Endpoints.Tests.Common
         /// </summary>
         /// <param name="error">The error information.</param>
         /// <returns>The current builder instance for chaining.</returns>
-        public TestEndpointOutcomeBuilder<TValue> WithError(ErrorInfo error)
+        public EndpointOutcomeBuilder<TValue> WithError(ErrorInfo error)
         {
             ArgumentNullException.ThrowIfNull(error, nameof(error));
             ResetForFailure();
             _errors.Add(error);
-            _status = TestEndpointOutcomeBuilder.MapCategoryToStatus(error.Category);
+            _status = EndpointOutcomeBuilder.MapCategoryToStatus(error.Category);
             return this;
         }
 
@@ -99,7 +99,7 @@ namespace Zentient.Endpoints.Tests.Common
         /// </summary>
         /// <param name="errors">A collection of error information.</param>
         /// <returns>The current builder instance for chaining.</returns>
-        public TestEndpointOutcomeBuilder<TValue> WithErrors(IEnumerable<ErrorInfo> errors)
+        public EndpointOutcomeBuilder<TValue> WithErrors(IEnumerable<ErrorInfo> errors)
         {
             ArgumentNullException.ThrowIfNull(errors, nameof(errors));
             var errorsList = errors.ToList();
@@ -112,7 +112,7 @@ namespace Zentient.Endpoints.Tests.Common
                 e.Category != ErrorCategory.General && e.Category != ErrorCategory.None && e.Category != ErrorCategory.ProblemDetails);
 
             _status = firstSpecificError is not null
-                ? TestEndpointOutcomeBuilder.MapCategoryToStatus(firstSpecificError.Category)
+                ? EndpointOutcomeBuilder.MapCategoryToStatus(firstSpecificError.Category)
                 : ResultStatuses.InternalServerError;
             return this;
         }
@@ -122,7 +122,7 @@ namespace Zentient.Endpoints.Tests.Common
         /// </summary>
         /// <param name="status">The <see cref="IResultStatus"/> object.</param>
         /// <returns>The current builder instance for chaining.</returns>
-        public TestEndpointOutcomeBuilder<TValue> WithStatus(IResultStatus status)
+        public EndpointOutcomeBuilder<TValue> WithStatus(IResultStatus status)
         {
             ArgumentNullException.ThrowIfNull(status, nameof(status));
             _status = status;
@@ -135,10 +135,22 @@ namespace Zentient.Endpoints.Tests.Common
         /// <param name="key">The key for the metadata tag.</param>
         /// <param name="value">The value for the metadata tag.</param>
         /// <returns>The current builder instance for chaining.</returns>
-        public TestEndpointOutcomeBuilder<TValue> WithMetadataTag(string key, object? value)
+        public EndpointOutcomeBuilder<TValue> WithMetadata(string key, object? value)
         {
             ArgumentNullException.ThrowIfNull(key, nameof(key));
             _metadataTags = _metadataTags.SetItem(key, value);
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a custom metadata tag to the outcome's transport metadata.
+        /// </summary>
+        /// <param name="metadata">The <see cref="TransportMetadata"/> instance whose tags will be used.</param>
+        /// <returns>The current builder instance for chaining.</returns>
+        public EndpointOutcomeBuilder<TValue> WithMetadata(TransportMetadata metadata)
+        {
+            ArgumentNullException.ThrowIfNull(metadata, nameof(metadata));
+            _metadataTags = metadata.Tags;
             return this;
         }
 
@@ -148,30 +160,21 @@ namespace Zentient.Endpoints.Tests.Common
         /// <returns>A new <see cref="IEndpointOutcome{TValue}"/> instance.</returns>
         public IEndpointOutcome<TValue> Build()
         {
+            IResult<TValue> result = null!;
+
             if (_isSuccess)
             {
-                // Ensure _status is not null for Success path, default to Ok if somehow not set.
-                // Cast _value to TValue directly. If TValue is a non-nullable value type, and _value is null,
-                // this will result in a runtime default value (e.g., 0 for int, false for bool).
-                // If TValue is Unit, it's always Unit.Value.
                 var successStatus = _status ?? ResultStatuses.Ok;
-                var result = Results.Result<TValue>.Success(_value!, successStatus, _messages.AsReadOnly());
+                result = Result<TValue>.Success(_value!, successStatus, _messages.AsReadOnly());
                 return EndpointOutcome<TValue>.From(result, new TransportMetadata(_metadataTags));
             }
-            else
-            {
-                // Ensure _status is not null for Failure path, default to InternalServerError if somehow not set.
-                var failureStatus = _status ?? ResultStatuses.InternalServerError;
 
-                // Use the correct overload for Failure
-                // Assuming Results.Result<TValue>.Failure has an overload like:
-                // Failure(IEnumerable<ErrorInfo> errors, IResultStatus? status = null, IEnumerable<string>? messages = null)
-                var result = Results.Result<TValue>.Failure(
-                    errors: _errors.AsReadOnly(),
-                    status: failureStatus);
+            var failureStatus = _status ?? ResultStatuses.InternalServerError;
+            result = Result<TValue>.Failure(
+                errors: _errors.AsReadOnly(),
+                status: failureStatus);
 
-                return EndpointOutcome<TValue>.From(result, new TransportMetadata(_metadataTags));
-            }
+            return EndpointOutcome<TValue>.From(result, new TransportMetadata(_metadataTags));
         }
 
         private void ResetForFailure()
