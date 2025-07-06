@@ -21,6 +21,8 @@ using Zentient.Results.Constants;
 using Zentient.Endpoints.Constants;
 using Zentient.Endpoints.Tests.Common;
 using Zentient.Endpoints.Http.Mapping;
+using Zentient.Endpoints.Builders;
+using Zentient.Endpoints.Http.Constants;
 
 namespace Zentient.Endpoints.Tests
 {
@@ -55,15 +57,18 @@ namespace Zentient.Endpoints.Tests
             IImmutableList<ErrorInfo>? innerErrors = null)
             => ResultMockHelper.CreateErrorInfo(category, code, message, detail, metadata, innerErrors);
 
-        // --- IResult / IResult<T> Mocking Helpers ---
-
         /// <summary>
-        /// Creates a mock IResult instance for a successful outcome.
+        /// Creates a mock <see cref="IResult"/> instance representing a successful outcome.
         /// </summary>
-        /// <param name="status">Optional status. 
-        /// s to OK (200).</param>
-        /// <param name="messages">Optional messages.</param>
-        /// <returns>A mocked IResult instance representing success.</returns>
+        /// <param name="status">
+        /// Optional <see cref="IResultStatus"/> to associate with the result. If <c>null</c>, a default status is used.
+        /// </param>
+        /// <param name="messages">
+        /// Optional collection of informational or warning messages to include in the result.
+        /// </param>
+        /// <returns>
+        /// A <see cref="Mock{IResult}"/> instance configured to represent a successful result.
+        /// </returns>
         protected static Mock<IResult> CreateMockSuccessfulResult(
             IResultStatus? status = null,
             IEnumerable<string>? messages = null)
@@ -76,7 +81,6 @@ namespace Zentient.Endpoints.Tests
         /// <param name="status">Optional status. Defaults to Bad Request (400).</param>
         /// <param name="messages">Optional messages.</param>
         /// <returns>A mocked IResult instance representing failure.</returns>
-        /// <exception cref="ArgumentException">Thrown if errors list is null or empty.</exception>
         protected static Mock<IResult> CreateMockFailedResult(
             IEnumerable<ErrorInfo> errors,
             IResultStatus? status = null,
@@ -106,7 +110,6 @@ namespace Zentient.Endpoints.Tests
         /// <param name="status">Optional status. Defaults to Bad Request (400).</param>
         /// <param name="messages">Optional messages.</param>
         /// <returns>A mocked IResult{T} instance representing failure.</returns>
-        /// <exception cref="ArgumentException">Thrown if errors list is null or empty.</exception>
         protected static Mock<IResult<T>> CreateMockFailedResult<T>(
             IEnumerable<ErrorInfo> errors,
             IResultStatus? status = null,
@@ -137,14 +140,39 @@ namespace Zentient.Endpoints.Tests
             ILogger? logger = null,
             ImmutableDictionary<string, string>? headers = null,
             Uri? locationUri = null)
-            => TransportMetadataHelper.CreateTransportMetadata(httpStatusCodeHint, problemDetailsOverride, logger, headers, locationUri);
+        {
+            var builder = new TransportMetadataBuilder()
+                .WithLogger(logger ?? CreateMockLogger());
+
+            if (httpStatusCodeHint.HasValue)
+            {
+                builder = builder.WithTag(HttpMetadataKeys.HttpStatusCodeHint, httpStatusCodeHint.Value);
+            }
+
+            if (problemDetailsOverride != null)
+            {
+                builder = builder.WithTag(HttpMetadataKeys.ProblemDetailsOverride, problemDetailsOverride);
+            }
+
+            if (headers != null)
+            {
+                builder = builder.WithTag(HttpMetadataKeys.Headers, headers);
+            }
+
+            if (locationUri != null)
+            {
+                builder = builder.WithTag(HttpMetadataKeys.LocationUri, locationUri);
+            }
+
+            return builder.Build();
+        }
 
         /// <summary>
         /// Creates a mock ILogger instance.
         /// </summary>
         /// <returns>A mocked ILogger instance.</returns>
         protected static ILogger CreateMockLogger()
-            => TransportMetadataHelper.CreateMockLogger();
+            => Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
 
         /// <summary>
         /// Gets default JsonSerializerOptions configured for Zentient.Results and Endpoints.
@@ -194,7 +222,6 @@ namespace Zentient.Endpoints.Tests
         protected static IEndpointOutcome<TValue> CreateGenericEndpointOutcomeMock<TValue>(
             IResult<TValue> baseResult,
             TransportMetadata? transportMetadata = null)
-            where TValue : notnull
             => EndpointOutcomeMockHelper.CreateGenericEndpointOutcomeMock(baseResult, transportMetadata);
 
         /// <summary>
@@ -204,10 +231,26 @@ namespace Zentient.Endpoints.Tests
         /// <param name="zentientResult">The Zentient result to convert into an endpoint outcome.</param>
         /// <param name="transport">Transport metadata to associate with the outcome.</param>
         protected static IEndpointOutcome<T> CreateGenericEndpointOutcome<T>(IResult<T> zentientResult, TransportMetadata transport)
-            where T : class
             => EndpointOutcomeMockHelper.CreateGenericEndpointOutcome(zentientResult, transport);
 
         // --- HttpContext Helpers ---
+
+        /// <summary>
+        /// Creates a default <see cref="Microsoft.AspNetCore.Http.DefaultHttpContext"/> instance for testing purposes.
+        /// </summary>
+        /// <returns>A new <see cref="Microsoft.AspNetCore.Http.DefaultHttpContext"/> instance.</returns>
+        protected static Microsoft.AspNetCore.Http.DefaultHttpContext CreateHttpContext()
+            => HttpContextHelper.CreateHttpContext().context;
+
+        /// <summary>
+        /// Creates a <see cref="Microsoft.AspNetCore.Http.DefaultHttpContext"/> instance with a mocked <see cref="IEndpointOutcomeToHttpMapper"/>
+        /// registered in its service provider.
+        /// </summary>
+        /// <param name="mapperMock">An optional pre-configured mock for <see cref="IEndpointOutcomeToHttpMapper"/>.</param>
+        /// <returns>A new <see cref="Microsoft.AspNetCore.Http.DefaultHttpContext"/> instance with a service provider.</returns>
+        protected static Microsoft.AspNetCore.Http.DefaultHttpContext CreateHttpContextWithMapper(
+            Moq.Mock<IEndpointOutcomeToHttpMapper>? mapperMock = null)
+            => HttpContextHelper.CreateHttpContextWithMapper(mapperMock).context;
 
         /// <summary>
         /// Executes a ContentHttpResult and deserializes the response body as ProblemDetails.
@@ -221,22 +264,5 @@ namespace Zentient.Endpoints.Tests
             Microsoft.AspNetCore.Http.HttpContext httpContext,
             JsonSerializerOptions serializerOptions)
             => HttpContextHelper.DeserializeProblemDetailsFromContentResultAsync(contentResult, httpContext, serializerOptions);
-
-        /// <summary>
-        /// Creates a default <see cref="Microsoft.AspNetCore.Http.DefaultHttpContext"/> instance for testing purposes.
-        /// </summary>
-        /// <returns>A new <see cref="Microsoft.AspNetCore.Http.DefaultHttpContext"/> instance.</returns>
-        protected static Microsoft.AspNetCore.Http.DefaultHttpContext CreateHttpContext()
-            => HttpContextHelper.CreateHttpContext();
-
-        /// <summary>
-        /// Creates a <see cref="Microsoft.AspNetCore.Http.DefaultHttpContext"/> instance with a mocked <see cref="IEndpointOutcomeToHttpMapper"/>
-        /// registered in its service provider.
-        /// </summary>
-        /// <param name="mapperMock">An optional pre-configured mock for <see cref="IEndpointOutcomeToHttpMapper"/>.</param>
-        /// <returns>A new <see cref="Microsoft.AspNetCore.Http.DefaultHttpContext"/> instance with a service provider.</returns>
-        protected static Microsoft.AspNetCore.Http.DefaultHttpContext CreateHttpContextWithMapper(
-            Mock<IEndpointOutcomeToHttpMapper>? mapperMock = null)
-            => HttpContextHelper.CreateHttpContextWithMapper(mapperMock);
     }
 }
