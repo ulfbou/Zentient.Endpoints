@@ -3,17 +3,8 @@
 // </copyright>
 
 using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
-using Zentient.Endpoints.Tests.Common;
-
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 namespace Zentient.Endpoints.Tests.Common
 {
     /// <summary>
@@ -22,23 +13,23 @@ namespace Zentient.Endpoints.Tests.Common
     internal static class SerializationHelper
     {
         /// <summary>
-        /// Serializes an object to a JSON string using configured options.
+        /// Serializes an object to a JSON string using the provided options.
         /// </summary>
         /// <typeparam name="T">The type of the object to serialize.</typeparam>
         /// <param name="obj">The object to serialize.</param>
-        /// <param name="jsonSerializerOptions">Optional <see cref="JsonSerializerOptions"/> to customize serialization. This parameter is currently ignored and <see cref="OptionsHelper.JsonSerializerOptions"/> is always used.</param>
+        /// <param name="jsonSerializerOptions">The <see cref="JsonSerializerOptions"/> to use for serialization.</param>
         /// <returns>A JSON string representation of the object.</returns>
         public static string SerializeToJson<T>(T obj, JsonSerializerOptions jsonSerializerOptions) =>
-            JsonSerializer.Serialize(obj, OptionsHelper.JsonSerializerOptions);
+            JsonSerializer.Serialize(obj, jsonSerializerOptions);
 
         /// <summary>
-        /// Deserializes a JSON string to an object of the specified type using configured options.
+        /// Deserializes a JSON string to an object of the specified type using the provided options.
         /// </summary>
         /// <typeparam name="T">The type to deserialize to.</typeparam>
         /// <param name="json">The JSON string to deserialize.</param>
-        /// <param name="jsonSerializerOptions">Optional <see cref="JsonSerializerOptions"/> to customize deserialization. This parameter is currently ignored and <see cref="OptionsHelper.JsonSerializerOptions"/> is always used.</param>
+        /// <param name="jsonSerializerOptions">The <see cref="JsonSerializerOptions"/> to use for deserialization.</param>
         /// <returns>The deserialized object, or <c>null</c> if the JSON is invalid or cannot be deserialized to the specified type.</returns>
         public static T? DeserializeFromJson<T>(string json, JsonSerializerOptions jsonSerializerOptions) =>
-            JsonSerializer.Deserialize<T>(json, OptionsHelper.JsonSerializerOptions);
+            JsonSerializer.Deserialize<T>(json, jsonSerializerOptions);
     }
 }
