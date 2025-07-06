@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -66,29 +67,7 @@ namespace Zentient.Endpoints.Http.Mapping
             this._problemDetailsOptions = options?.Value.ProblemDetails ?? throw new ArgumentNullException(nameof(options));
         }
 
-        /// <summary>
-        /// Maps an <see cref="ErrorInfo"/> object to a <see cref="ProblemDetails"/> instance
-        /// asynchronously.
-        /// </summary>
-        /// <param name="errorInfo">
-        /// The <see cref="ErrorInfo"/> to map. If <see langword="null"/>, a generic
-        /// internal server error ProblemDetails will be returned.
-        /// </param>
-        /// <param name="httpContext">
-        /// The current <see cref="HttpContext"/>, providing additional context.
-        /// </param>
-        /// <returns>
-        /// A <see cref="Task"/> representing the asynchronous operation, containing the
-        /// <see cref="ProblemDetails"/> instance.
-        /// </returns>
-        /// <exception cref="ArgumentNullException">
-        /// Thrown if <paramref name="httpContext"/> is <see langword="null"/>.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown if <paramref name="errorInfo"/> has <see cref="ErrorCategory.None"/>, indicating
-        /// an issue in upstream result handling.
-        /// </exception>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification = "LoggerMessage delegates not yet implemented")]
+        /// <inheritdoc/>
         public async Task<ProblemDetails> Map(ErrorInfo? errorInfo, HttpContext httpContext)
         {
             ArgumentNullException.ThrowIfNull(httpContext, nameof(httpContext));
@@ -118,10 +97,9 @@ namespace Zentient.Endpoints.Http.Mapping
             if (errorInfo.Category == ErrorCategory.None)
             {
                 throw new InvalidOperationException(
-                    $"Cannot map ErrorCategory.None to ProblemDetails. " +
-                    $"The '{nameof(DefaultProblemDetailsMapper)}' expects an actual error category. " +
-                    $"This indicates an issue in the upstream result handling where a non-error was passed for problem mapping. " +
-                    $"ErrorInfo Code: {errorInfo.Code ?? "N/A"}, Message: {errorInfo.Message ?? "N/A"}");
+                    $"Cannot map '{ErrorCategory.None}' to ProblemDetails. " +
+                    $"This indicates a bug in upstream result handling—non-error passed for error mapping. " +
+                    $"Code: {errorInfo.Code ?? "N/A"}, Message: {errorInfo.Message ?? "N/A"}");
             }
 
             int statusCode = this.GetHttpStatusCode(errorInfo.Category);
@@ -129,7 +107,33 @@ namespace Zentient.Endpoints.Http.Mapping
                 .ConfigureAwait(false);
 
             var extensions = new Dictionary<string, object?>();
+            this.PopulateExtensions(extensions, errorInfo, httpContext);
 
+            ProblemDetails problemDetails = new ProblemDetails
+            {
+                Status = statusCode,
+                Title = ResultStatuses.GetStatus(statusCode, "An Error Occurred").Description,
+                Detail = errorInfo.Message,
+                Type = problemTypeUriString,
+                Instance = httpContext.Request.Path,
+                Extensions = extensions,
+            };
+
+            return problemDetails;
+        }
+
+        /// <summary>
+        /// Populates the extensions dictionary of a <see cref="ProblemDetails"/> instance
+        /// based on the provided <see cref="ErrorInfo"/> and <see cref="HttpContext"/>.
+        /// </summary>
+        /// <param name="extensions">The dictionary to populate with extensions.</param>
+        /// <param name="errorInfo">The <see cref="ErrorInfo"/> containing error details.</param>
+        /// <param name="httpContext">The current <see cref="HttpContext"/>.</param>
+        private void PopulateExtensions(
+            Dictionary<string, object?> extensions,
+            ErrorInfo errorInfo,
+            HttpContext httpContext)
+        {
             if (!string.IsNullOrEmpty(httpContext.TraceIdentifier))
             {
                 extensions[ProblemDetailsConstants.Extensions.TraceId] = httpContext.TraceIdentifier;
@@ -140,14 +144,18 @@ namespace Zentient.Endpoints.Http.Mapping
                 extensions[ProblemDetailsConstants.Extensions.ErrorCode] = errorInfo.Code;
             }
 
-            if (!string.IsNullOrEmpty(errorInfo.Detail) && !extensions.ContainsKey(ProblemDetailsConstants.Extensions.Detail))
+            // This condition ensures errorInfo.Detail is added as an extension only if it's not empty
+            // and doesn't conflict with a pre-existing key (though unlikely for standard extensions).
+            if (!string.IsNullOrEmpty(errorInfo.Detail) && !extensions.ContainsKey(ProblemDetailsConstants.Detail))
             {
-                extensions[ProblemDetailsConstants.Extensions.Detail] = errorInfo.Detail;
+                extensions[ProblemDetailsConstants.Detail] = errorInfo.Detail;
             }
 
-            if (errorInfo.Metadata != null && errorInfo.Metadata.Any())
+            if (errorInfo.Metadata is { Count: > 0 })
             {
-                foreach (var kvp in errorInfo.Metadata)
+                var metadata = errorInfo.Metadata.AsEnumerable().Where(kvp => kvp.Key != MetadataKeys.ExceptionStackTrace);
+
+                foreach (var kvp in metadata)
                 {
                     if (!extensions.ContainsKey(kvp.Key))
                     {
@@ -155,16 +163,31 @@ namespace Zentient.Endpoints.Http.Mapping
                     }
                     else
                     {
-                        this._logger.LogWarning(
+                        _logger.LogWarning(
                             "ProblemDetails extension key '{Key}' from ErrorInfo metadata conflicts with an existing extension. Value will not be overwritten by ErrorInfo.Metadata.",
                             kvp.Key);
                     }
                 }
+
+                if (this._problemDetailsOptions.IncludeStackTrace && this._environment.IsDevelopment())
+                {
+                    if (errorInfo.Metadata != null
+                        && errorInfo.Metadata.TryGetValue(MetadataKeys.ExceptionStackTrace, out var stackTrace)
+                        && stackTrace is string st)
+                    {
+                        extensions[MetadataKeys.ExceptionStackTrace] = st;
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "ProblemDetails.IncludeStackTrace is true in development, but no '{StackTraceKey}' key found in ErrorInfo metadata for Problem Details.",
+                            MetadataKeys.ExceptionStackTrace);
+                    }
+                }
             }
 
-            if (errorInfo.InnerErrors.Any())
+            if (errorInfo.InnerErrors is { Count: > 0 })
             {
-                // No JsonConstants for inner errors' Metadata/InnerErrors, so not recursively mapping for now.
                 var mappedInnerErrors = errorInfo.InnerErrors
                     .Select(inner => new Dictionary<string, object?>
                     {
@@ -192,18 +215,6 @@ namespace Zentient.Endpoints.Http.Mapping
                         MetadataKeys.ExceptionStackTrace);
                 }
             }
-
-            ProblemDetails problemDetails = new ProblemDetails
-            {
-                Status = statusCode,
-                Title = ResultStatuses.GetStatus(statusCode, "An Error Occurred").Description,
-                Detail = errorInfo.Message,
-                Type = problemTypeUriString,
-                Instance = httpContext.Request.Path,
-                Extensions = extensions,
-            };
-
-            return problemDetails;
         }
 
         /// <summary>

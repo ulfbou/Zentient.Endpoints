@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
+using Zentient.Endpoints.Http.Constants;
+
 // TODO: Consider whether this class should provide an optional message in the HttpContext.Response.Body
 namespace Zentient.Endpoints.Http
 {
@@ -18,6 +20,9 @@ namespace Zentient.Endpoints.Http
     /// </summary>
     internal sealed class NoContentResponse : Microsoft.AspNetCore.Http.IResult
     {
+        public static NoContentResponse No204Content => new(StatusCodes.Status204NoContent);
+        public static NoContentResponse OkNoContent => new(StatusCodes.Status200OK);
+
         private readonly int _statusCode;
         private readonly string? _contentType;
 
@@ -46,15 +51,9 @@ namespace Zentient.Endpoints.Http
             ArgumentNullException.ThrowIfNull(httpContext, nameof(httpContext));
 
             httpContext.Response.StatusCode = this._statusCode;
-
-            if (!string.IsNullOrEmpty(this._contentType))
-            {
-                httpContext.Response.ContentType = this._contentType;
-            }
-            else
-            {
-                httpContext.Response.ContentType = MediaTypeNames.Application.Json;
-            }
+            httpContext.Response.ContentType = string.IsNullOrEmpty(this._contentType)
+                ? HttpContentTypeConstants.ApplicationJson
+                : this._contentType;
 
             return Task.CompletedTask;
         }
