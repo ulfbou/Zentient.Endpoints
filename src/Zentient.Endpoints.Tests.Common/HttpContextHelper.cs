@@ -1,6 +1,4 @@
-// <copyright file="HttpContextHelper.cs" company="Zentient Framework Team">
-// Copyright © 2025 Zentient Framework Team. All rights reserved.
-// </copyright>
+// File: src/Zentient.Endpoints.Tests.Common/HttpContextHelper.cs
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -23,9 +21,6 @@ namespace Zentient.Endpoints.Tests.Common
     /// Provides helper methods for working with <see cref="HttpContext"/> in tests,
     /// including deserializing <see cref="ProblemDetails"/> from <see cref="ContentHttpResult"/>
     /// and creating mock <see cref="HttpContext"/> instances.
-    /// This class is intended for use in unit tests and should not be used in production code.
-    /// It includes methods to create a <see cref="DefaultHttpContext"/> with a writable response body,
-    /// and to deserialize <see cref="ProblemDetails"/> from a <see cref="ContentHttpResult"/>.
     /// </summary>
     internal static class HttpContextHelper
     {
@@ -45,15 +40,8 @@ namespace Zentient.Endpoints.Tests.Common
             ArgumentNullException.ThrowIfNull(httpContext, nameof(httpContext));
             ArgumentNullException.ThrowIfNull(serializerOptions, nameof(serializerOptions));
 
-            if (httpContext.Response.Body is not MemoryStream)
-            {
-                throw new InvalidOperationException("HttpContext.Response.Body must be a MemoryStream for this operation.");
-            }
-
-            if (!httpContext.Response.Body.CanWrite)
-            {
-                throw new InvalidOperationException("HttpContext.Response.Body must be writable.");
-            }
+            EnsureResponseBodyIsMemoryStream(httpContext.Response.Body);
+            EnsureResponseBodyIsWritable(httpContext.Response.Body);
 
             httpContext.Response.Body.SetLength(0);
             await contentResult.ExecuteAsync(httpContext).ConfigureAwait(false);
@@ -66,33 +54,50 @@ namespace Zentient.Endpoints.Tests.Common
         /// <summary>
         /// Creates a default <see cref="DefaultHttpContext"/> instance for testing purposes.
         /// Configures a basic request path and an in-memory response body.
+        /// Returns both the context and the response stream for test inspection.
         /// </summary>
-        /// <returns>A new <see cref="DefaultHttpContext"/> instance.</returns>
-        public static DefaultHttpContext CreateHttpContext()
+        /// <returns>A tuple of the <see cref="DefaultHttpContext"/> and its <see cref="MemoryStream"/> response body.</returns>
+        public static (DefaultHttpContext context, MemoryStream responseStream) CreateHttpContext()
         {
             var context = new DefaultHttpContext();
             context.Request.Path = "/mocked-test-path";
-            context.Response.Body = new MemoryStream();
-            return context;
+            var responseStream = new MemoryStream();
+            context.Response.Body = responseStream;
+            return (context, responseStream);
         }
 
         /// <summary>
         /// Creates a <see cref="DefaultHttpContext"/> instance with a mocked <see cref="IEndpointOutcomeToHttpMapper"/>
-        /// registered in its service provider. This is useful for testing scenarios where the mapper is resolved from services.
+        /// registered in its service provider. Returns both the context and the response stream for test inspection.
         /// </summary>
         /// <param name="mapperMock">An optional pre-configured mock for <see cref="IEndpointOutcomeToHttpMapper"/>.</param>
-        /// <returns>A new <see cref="DefaultHttpContext"/> instance with a service provider.</returns>
-        public static DefaultHttpContext CreateHttpContextWithMapper(Mock<IEndpointOutcomeToHttpMapper>? mapperMock = null)
+        /// <returns>A tuple of the <see cref="DefaultHttpContext"/> and its <see cref="MemoryStream"/> response body.</returns>
+        public static (DefaultHttpContext context, MemoryStream responseStream) CreateHttpContextWithMapper(Mock<IEndpointOutcomeToHttpMapper>? mapperMock = null)
         {
-            DefaultHttpContext context = CreateHttpContext();
+            var (context, responseStream) = CreateHttpContext();
             var services = new ServiceCollection();
 
             mapperMock ??= new Mock<IEndpointOutcomeToHttpMapper>();
             services.AddSingleton(mapperMock.Object);
 
             context.RequestServices = services.BuildServiceProvider();
-            return context;
+            return (context, responseStream);
+        }
+
+        private static void EnsureResponseBodyIsMemoryStream(Stream stream)
+        {
+            if (stream is not MemoryStream)
+            {
+                throw new InvalidOperationException("HttpContext.Response.Body must be a MemoryStream for this operation.");
+            }
+        }
+
+        private static void EnsureResponseBodyIsWritable(Stream stream)
+        {
+            if (!stream.CanWrite)
+            {
+                throw new InvalidOperationException("HttpContext.Response.Body must be writable.");
+            }
         }
     }
 }
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
