@@ -84,23 +84,18 @@ namespace Zentient.Endpoints.Tests.Common
         /// <param name="messages">The messages to include (optional).</param>
         /// <returns>A mock <see cref="IResult"/> representing a failed result.</returns>
         public static Mock<IResult> CreateMockFailedResult(
-            IEnumerable<ErrorInfo> errors,
-            IResultStatus? status = null,
-            IEnumerable<string>? messages = null)
+        IEnumerable<ErrorInfo>? errors = null,
+        IResultStatus? status = null,
+        IEnumerable<string>? messages = null)
         {
-            ImmutableList<ErrorInfo> errorList = errors?.ToImmutableList() ?? throw new ArgumentException("Errors list must not be null or empty for a failed result.", nameof(errors));
-            if (errorList.IsEmpty)
-            {
-                throw new ArgumentException("Errors list must not be null or empty for a failed result.", nameof(errors));
-            }
-
+            ImmutableList<ErrorInfo> errorList = errors?.ToImmutableList() ?? ImmutableList<ErrorInfo>.Empty;
             var mockResult = new Mock<IResult>();
             mockResult.SetupGet(r => r.IsSuccess).Returns(false);
             mockResult.SetupGet(r => r.IsFailure).Returns(true);
             mockResult.SetupGet(r => r.Status).Returns(status ?? CreateMockResultStatus(400, "Bad Request"));
             mockResult.SetupGet(r => r.Errors).Returns(errorList);
             mockResult.SetupGet(r => r.Messages).Returns(messages?.ToImmutableList() ?? ImmutableList<string>.Empty);
-            mockResult.SetupGet(r => r.ErrorMessage).Returns(errorList.First().Message);
+            mockResult.SetupGet(r => r.ErrorMessage).Returns(errorList.FirstOrDefault()?.Message);
             return mockResult;
         }
 
@@ -118,29 +113,19 @@ namespace Zentient.Endpoints.Tests.Common
             IEnumerable<string>? messages = null)
         {
             var mockResult = new Mock<IResult<T>>();
-            mockResult.SetupGet(r => r.IsSuccess).Returns(true);
-            mockResult.SetupGet(r => r.IsFailure).Returns(false);
+            mockResult.ApplyResultProperties(CreateMockSuccessfulResult(status, messages).Object);
             mockResult.SetupGet(r => r.Value).Returns(value);
-            mockResult.SetupGet(r => r.Status).Returns(status ?? CreateMockResultStatus(200, "OK"));
-            mockResult.SetupGet(r => r.Errors).Returns(ImmutableList<ErrorInfo>.Empty);
-            mockResult.SetupGet(r => r.Messages).Returns(messages?.ToImmutableList() ?? ImmutableList<string>.Empty);
-            mockResult.SetupGet(r => r.ErrorMessage).Returns((string?)null);
-
             mockResult.Setup(r => r.GetValueOrThrow()).Returns(value!);
             mockResult.Setup(r => r.GetValueOrThrow(It.IsAny<string>())).Returns(value!);
             mockResult.Setup(r => r.GetValueOrThrow(It.IsAny<Func<Exception>>())).Returns(value!);
-
             mockResult.Setup(r => r.GetValueOrDefault(It.IsAny<T>())).Returns(value!);
-
             mockResult.Setup(r => r.Tap(It.IsAny<Action<T>>()))
                 .Callback((Action<T> action) => action(value!))
                 .Returns(mockResult.Object);
             mockResult.Setup(r => r.OnSuccess(It.IsAny<Action<T>>()))
                 .Callback((Action<T> action) => action(value!))
                 .Returns(mockResult.Object);
-
             mockResult.Setup(r => r.OnFailure(It.IsAny<Action<IReadOnlyList<ErrorInfo>>>())).Returns(mockResult.Object);
-
             return mockResult;
         }
 
@@ -153,39 +138,23 @@ namespace Zentient.Endpoints.Tests.Common
         /// <param name="messages">The messages to include (optional).</param>
         /// <returns>A mock <see cref="IResult{T}"/> representing a failed result.</returns>
         public static Mock<IResult<T>> CreateMockFailedResult<T>(
-            IEnumerable<ErrorInfo> errors,
+            IEnumerable<ErrorInfo>? errors = null,
             IResultStatus? status = null,
             IEnumerable<string>? messages = null)
         {
-            ImmutableList<ErrorInfo> errorsList = errors?.ToImmutableList()
-                ?? throw new ArgumentException("Errors list must not be null or empty for a failed result.", nameof(errors));
-            if (errorsList.IsEmpty)
-            {
-                throw new ArgumentException("Errors list must not be null or empty for a failed result.", nameof(errors));
-            }
-
+            ImmutableList<ErrorInfo> errorsList = errors?.ToImmutableList() ?? ImmutableList<ErrorInfo>.Empty;
             var mockResult = new Mock<IResult<T>>();
-            mockResult.SetupGet(r => r.IsSuccess).Returns(false);
-            mockResult.SetupGet(r => r.IsFailure).Returns(true);
+            mockResult.ApplyResultProperties(CreateMockFailedResult(errorsList, status, messages).Object);
             mockResult.SetupGet(r => r.Value).Returns(default(T));
-            mockResult.SetupGet(r => r.Status).Returns(status ?? CreateMockResultStatus(400, "Bad Request"));
-            mockResult.SetupGet(r => r.Errors).Returns(errorsList);
-            mockResult.SetupGet(r => r.Messages).Returns(messages?.ToImmutableList() ?? ImmutableList<string>.Empty);
-            mockResult.SetupGet(r => r.ErrorMessage).Returns(errorsList.First().Message);
-
             mockResult.Setup(r => r.GetValueOrThrow()).Throws(new InvalidOperationException());
             mockResult.Setup(r => r.GetValueOrThrow(It.IsAny<string>())).Throws((string msg) => new InvalidOperationException(msg));
             mockResult.Setup(r => r.GetValueOrThrow(It.IsAny<Func<Exception>>())).Throws((Func<Exception> factory) => factory());
-
             mockResult.Setup(r => r.GetValueOrDefault(It.IsAny<T>())).Returns((T fallback) => fallback);
-
             mockResult.Setup(r => r.Tap(It.IsAny<Action<T>>())).Returns(mockResult.Object);
             mockResult.Setup(r => r.OnSuccess(It.IsAny<Action<T>>())).Returns(mockResult.Object);
-
             mockResult.Setup(r => r.OnFailure(It.IsAny<Action<IReadOnlyList<ErrorInfo>>>()))
                 .Callback((Action<IReadOnlyList<ErrorInfo>> action) => action(errorsList))
                 .Returns(mockResult.Object);
-
             return mockResult;
         }
     }
