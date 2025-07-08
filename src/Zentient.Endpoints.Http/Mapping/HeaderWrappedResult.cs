@@ -43,6 +43,14 @@ namespace Zentient.Endpoints.Http.Mapping
         /// <value>The inner <see cref="IResult"/> that is wrapped by this result.</value>
         internal IResult Result => this._innerResult;
 
+        /// <summary>Gets the inner <see cref="IResult"/> that is wrapped by this result.</summary>
+        /// <value>The inner <see cref="IResult"/> that is wrapped by this result.</value>
+        internal ImmutableDictionary<string, string> Headers => this._headers;
+
+        /// <summary>Gets the inner <see cref="IResult"/> that is wrapped by this result.</summary>
+        /// <value>The inner <see cref="IResult"/> that is wrapped by this result.</value>
+        internal Uri? Location => this._location;
+
         /// <summary>
         /// Executes the result asynchronously, applying headers and then the inner result.
         /// </summary>
