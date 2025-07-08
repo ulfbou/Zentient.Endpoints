@@ -87,6 +87,9 @@ namespace Zentient.Endpoints.Http.Tests.Mapping
             var testOptions = TestOptionsFactory.CreateDefault().Value;
             testOptions.ProblemDetails.BaseTypeUri = new Uri("https://example.com/problems/");
             testOptions.ProblemDetails.IncludeErrorCodeInExtensions = true;
+            // FIX: Disable the option that appends error messages to the detail.
+            // This test focuses on mapping ErrorInfo.Detail directly.
+            testOptions.ProblemDetails.IncludeErrorInfoMessagesInDetail = false; // <--- ADD THIS LINE
             if (!testOptions.JsonSerializerOptions.Converters.OfType<JsonStringEnumConverter>().Any())
             {
                 testOptions.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
@@ -98,7 +101,13 @@ namespace Zentient.Endpoints.Http.Tests.Mapping
             var (httpContext, responseStream) = HttpContextHelper.CreateHttpContext();
 
             _mockProblemDetailsMapper.Setup(m => m.Map(errorInfo, httpContext))
-                .ReturnsAsync(TestProblemDetailsFactory.CreateBase(StatusCodes.Status400BadRequest, title: "Bad Request"));
+                .ReturnsAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Bad Request",
+                    Detail = null // Ensure Detail is null initially for SetProblemDetailsDetail to populate
+                });
+
             _mockProblemTypeUriGenerator.Setup(g => g.Generate(errorInfo.Code, httpContext))
                 .ReturnsAsync("https://example.com/problems/VLD-001");
 
@@ -116,7 +125,7 @@ namespace Zentient.Endpoints.Http.Tests.Mapping
             deserializedProblem.Should().NotBeNull();
             deserializedProblem!.Status.Should().Be(StatusCodes.Status400BadRequest);
             deserializedProblem.Title.Should().Be("Bad Request");
-            deserializedProblem.Detail.Should().Be("Specific fields were invalid.");
+            deserializedProblem.Detail.Should().Be("Specific fields were invalid."); // This assertion should now pass
             deserializedProblem.Type.Should().Be("https://example.com/problems/VLD-001");
             deserializedProblem.Instance.Should().Be("/mocked-test-path");
             deserializedProblem.Extensions.Should().ContainKey(ProblemDetailsConstants.Extensions.ErrorCode);
@@ -142,6 +151,9 @@ namespace Zentient.Endpoints.Http.Tests.Mapping
             var testOptions = TestOptionsFactory.CreateDefault().Value;
             testOptions.ProblemDetails.BaseTypeUri = new Uri("https://example.com/problems/");
             testOptions.ProblemDetails.IncludeErrorCodeInExtensions = true;
+            // FIX 1: Enable inclusion of error info messages in detail for this test.
+            // This allows the message from ErrorInfo.General() to populate the ProblemDetails.Detail.
+            testOptions.ProblemDetails.IncludeErrorInfoMessagesInDetail = true; // <--- ADD OR ENSURE THIS IS TRUE
             if (!testOptions.JsonSerializerOptions.Converters.OfType<JsonStringEnumConverter>().Any())
             {
                 testOptions.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
@@ -152,8 +164,15 @@ namespace Zentient.Endpoints.Http.Tests.Mapping
             var outcome = EndpointOutcome.FromError(errorInfoFromGeneral);
             var (httpContext, responseStream) = HttpContextHelper.CreateHttpContext();
 
+            // FIX 2: Ensure the mocked ProblemDetails has its Detail property initially null.
+            // This allows SetProblemDetailsDetail to correctly set the detail from outcome.Messages.
             _mockProblemDetailsMapper.Setup(m => m.Map(It.IsAny<ErrorInfo>(), httpContext))
-                .ReturnsAsync(TestProblemDetailsFactory.CreateBase(StatusCodes.Status500InternalServerError, title: ResultStatuses.InternalServerError.Description));
+                .ReturnsAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails // Create a new ProblemDetails object directly
+                {
+                    Status = StatusCodes.Status500InternalServerError,
+                    Title = ResultStatuses.InternalServerError.Description,
+                    Detail = null // Ensure Detail is null so it can be populated by messages
+                });
 
             _mockProblemTypeUriGenerator.Setup(g => g.Generate(It.IsAny<string>(), httpContext))
                 .ReturnsAsync("https://example.com/problems/INTERNAL_SERVER_ERROR");
@@ -172,7 +191,8 @@ namespace Zentient.Endpoints.Http.Tests.Mapping
             deserializedProblem.Should().NotBeNull();
             deserializedProblem!.Status.Should().Be(StatusCodes.Status500InternalServerError);
             deserializedProblem.Title.Should().Be(ResultStatuses.InternalServerError.Description);
-            deserializedProblem.Detail.Should().Be("An unspecified error occurred."); deserializedProblem.Type.Should().Be("https://example.com/problems/INTERNAL_SERVER_ERROR");
+            deserializedProblem.Detail.Should().Be("An unspecified error occurred."); // This should now pass
+            deserializedProblem.Type.Should().Be("https://example.com/problems/INTERNAL_SERVER_ERROR");
 
             deserializedProblem.Extensions.Should().ContainKey(ProblemDetailsConstants.Extensions.ErrorCode);
             var errorCodeElement = (JsonElement)deserializedProblem.Extensions[ProblemDetailsConstants.Extensions.ErrorCode]!;

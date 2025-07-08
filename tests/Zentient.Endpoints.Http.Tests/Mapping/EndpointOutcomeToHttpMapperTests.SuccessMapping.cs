@@ -313,10 +313,14 @@ namespace Zentient.Endpoints.Http.Tests.Mapping
         public async Task Map_Success_ReturnsNoContentStatusCodeResult_WhenStatusCodeIs204_RegardlessOfFactoryPayload()
         {
             // Arrange
-            var outcome = EndpointOutcome.Success();
+            // FIX: Explicitly add a HttpStatusCodeHint to the outcome's metadata
+            // to ensure the mapper correctly determines the 204 status.
+            var outcome = EndpointOutcome.Success(
+                transportMetadata: new TransportMetadata().WithHttpStatusCodeHint(StatusCodes.Status204NoContent));
 
             var httpContext = new DefaultHttpContext();
 
+            // The expected status code is derived from the hint now.
             var expectedStatusCode = StatusCodes.Status204NoContent;
 
             // Act
@@ -327,6 +331,8 @@ namespace Zentient.Endpoints.Http.Tests.Mapping
             var statusCodeResult = result as Microsoft.AspNetCore.Http.HttpResults.StatusCodeHttpResult;
             statusCodeResult.Should().NotBeNull();
             statusCodeResult!.StatusCode.Should().Be(expectedStatusCode);
+
+            // No factory verification needed, as 204 results bypass the factory according to your mapper's logic.
         }
     }
 }
