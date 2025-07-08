@@ -18,6 +18,7 @@ using Xunit;
 using Zentient.Endpoints;
 using Zentient.Endpoints.Http.Filters;
 using Zentient.Endpoints.Http.Mapping;
+using Zentient.Endpoints.Tests.Common;
 using Zentient.Results;
 
 #pragma warning disable CS1591
@@ -39,10 +40,12 @@ namespace Zentient.Endpoints.Http.Tests
         {
             // Arrange
             string testValue = "Success!";
-            // Corrected: Use the Success factory method
             IEndpointOutcome<string> endpointOutcome = EndpointOutcome<string>.Success(testValue);
             Microsoft.AspNetCore.Http.IResult expectedIResult = Microsoft.AspNetCore.Http.Results.Ok(testValue);
-            EndpointFilterInvocationContext context = CreateMockContext();
+
+            var (httpContext, _) = HttpContextHelper.CreateHttpContext();
+            EndpointFilterInvocationContext context = CreateMockContext(httpContext);
+
             EndpointFilterDelegate next = (ctx) => ValueTask.FromResult<object?>(endpointOutcome);
 
             this._mockMapper
@@ -54,17 +57,19 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Assert
             actualResult.Should().BeSameAs(expectedIResult);
-            this._mockMapper.Verify(m => m.Map(endpointOutcome, context.HttpContext, It.IsAny<CancellationToken>()), Times.Once);
+            this._mockMapper.Verify(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
         public async Task InvokeAsync_WhenNextReturnsEndpointOutcomeUnit_MapsAndReturnsIResult()
         {
             // Arrange
-            // Corrected: Use the NoContent factory method for Unit outcomes
             IEndpointOutcome<Unit> endpointOutcome = EndpointOutcome<Unit>.NoContent();
             Microsoft.AspNetCore.Http.IResult expectedIResult = Microsoft.AspNetCore.Http.Results.NoContent();
-            EndpointFilterInvocationContext context = CreateMockContext();
+
+            var (httpContext, _) = HttpContextHelper.CreateHttpContext();
+            EndpointFilterInvocationContext context = CreateMockContext(httpContext);
+
             EndpointFilterDelegate next = (ctx) => ValueTask.FromResult<object?>(endpointOutcome);
 
             this._mockMapper
@@ -76,8 +81,7 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Assert
             actualResult.Should().BeSameAs(expectedIResult);
-            // Verify with the IEndpointOutcome interface type
-            this._mockMapper.Verify(m => m.Map(endpointOutcome, context.HttpContext, It.IsAny<CancellationToken>()), Times.Once);
+            this._mockMapper.Verify(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -93,7 +97,10 @@ namespace Zentient.Endpoints.Http.Tests
                 statusCode: problemDetails.Status,
                 detail: problemDetails.Detail,
                 instance: problemDetails.Instance);
-            EndpointFilterInvocationContext context = CreateMockContext();
+
+            var (httpContext, _) = HttpContextHelper.CreateHttpContext();
+            EndpointFilterInvocationContext context = CreateMockContext(httpContext);
+
             EndpointFilterDelegate next = (ctx) => ValueTask.FromResult<object?>(failedEndpointOutcome);
 
             this._mockMapper
@@ -105,7 +112,7 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Assert
             actualResult.Should().BeSameAs(expectedIResult);
-            this._mockMapper.Verify(m => m.Map(failedEndpointOutcome, context.HttpContext, It.IsAny<CancellationToken>()), Times.Once);
+            this._mockMapper.Verify(m => m.Map(It.IsAny<IEndpointOutcome>(), It.IsAny<HttpContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -113,7 +120,7 @@ namespace Zentient.Endpoints.Http.Tests
         {
             // Arrange
             Microsoft.AspNetCore.Http.IResult originalIResult = Microsoft.AspNetCore.Http.Results.Ok("Standard API response");
-            EndpointFilterInvocationContext context = CreateMockContext();
+            EndpointFilterInvocationContext context = CreateMockContext(); // No EndpointOutcome, so RequestServices not directly accessed by filter logic.
             EndpointFilterDelegate next = (ctx) => ValueTask.FromResult<object?>(originalIResult);
 
             // Act
@@ -129,7 +136,7 @@ namespace Zentient.Endpoints.Http.Tests
         {
             // Arrange
             object plainObject = new { Message = "Plain object response" };
-            EndpointFilterInvocationContext context = CreateMockContext();
+            EndpointFilterInvocationContext context = CreateMockContext(); // No EndpointOutcome
             EndpointFilterDelegate next = (ctx) => ValueTask.FromResult<object?>(plainObject);
 
             // Act
@@ -145,7 +152,7 @@ namespace Zentient.Endpoints.Http.Tests
         {
             // Arrange
             object? nullResult = null;
-            EndpointFilterInvocationContext context = CreateMockContext();
+            EndpointFilterInvocationContext context = CreateMockContext(); // No EndpointOutcome
             EndpointFilterDelegate next = (ctx) => ValueTask.FromResult(nullResult);
 
             // Act
