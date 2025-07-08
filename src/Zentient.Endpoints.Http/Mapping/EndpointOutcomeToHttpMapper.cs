@@ -7,21 +7,28 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
+using System.Reflection.PortableExecutable;
+using System.Reflection;
+using System.Runtime.Intrinsics.X86;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Microsoft.VisualBasic;
 
 using Zentient.Endpoints.Http.Constants;
 using Zentient.Endpoints.Http.Extensions;
 using Zentient.Endpoints.Http.Options;
 using Zentient.Results;
 using Zentient.Results.Constants;
+
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Zentient.Endpoints.Http.Mapping
 {
@@ -163,15 +170,14 @@ namespace Zentient.Endpoints.Http.Mapping
             CancellationToken ct)
         {
             var metadata = outcome.Metadata;
-            var statusCode = metadata.GetHttpStatusCodeHint()
-                ?? this._successResponseOptions.DefaultOkStatusCode;
             var messages = outcome.Messages?.ToImmutableList()
-                ?? ImmutableList<string>.Empty;
-            var statusDescription = ResultStatuses.GetStatus(statusCode).Description;
+                           ?? ImmutableList<string>.Empty;
 
             object? value = null;
             bool isGenericOutcomeWithConcreteValue = false;
+            Type? outcomeValueType = null; // To store the T from IEndpointOutcome<T>
 
+            // Determine if it's a generic outcome and extract the value and its type
             if (outcome.GetType().IsGenericType
                 && outcome.GetType().GetGenericTypeDefinition() == typeof(EndpointOutcome<>))
             {
@@ -179,121 +185,226 @@ namespace Zentient.Endpoints.Http.Mapping
                 if (valueProperty != null)
                 {
                     value = valueProperty.GetValue(outcome);
-                    if (value is not null && value.GetType() != typeof(Unit))
+                    outcomeValueType = valueProperty.PropertyType; // Get the actual generic type argument
+
+                    // A concrete value is anything other than null AND not a Unit
+                    if (value is not null && outcomeValueType != typeof(Unit))
                     {
                         isGenericOutcomeWithConcreteValue = true;
                     }
                 }
             }
 
-            if (statusCode == this._successResponseOptions.DefaultNoContentStatusCode
-                && (value is Unit || value == null)
-                && messages.Count == 0)
+            int determinedStatusCode;
+
+            // FIX START: Refined statusCode determination logic
+            // 1. Prioritize HTTP status hint from metadata
+            // 1. Prioritize HTTP status hint from metadata
+            var statusCodeHint = metadata.GetHttpStatusCodeHint();
+            if (statusCodeHint.HasValue)
             {
-                return Task.FromResult(Microsoft.AspNetCore.Http.Results.StatusCode(statusCode));
+                determinedStatusCode = statusCodeHint.Value;
+            }
+            // 2. If no explicit hint, and it's a "no content" scenario, use DefaultNoContentStatusCode
+            //    A "no content" scenario means:
+            //    - It's not a generic outcome with a concrete value (i.e., it's non-generic or EndpointOutcome<Unit>)
+            //    - AND there are no messages to convey in the body.
+            else if (!isGenericOutcomeWithConcreteValue && messages.Count == 0)
+            {
+                determinedStatusCode = this._successResponseOptions.DefaultNoContentStatusCode;
+            }
+            // 3. Otherwise, use the DefaultOkStatusCode
+            else
+            {
+                determinedStatusCode = this._successResponseOptions.DefaultOkStatusCode;
+            }
+            // FIX END: Refined statusCode determination logic
+
+            var statusDescription = ResultStatuses.GetStatus(determinedStatusCode).Description;
+
+            // Strict HTTP spec adherence for 204/205: NO BODY ALLOWED.
+            if (determinedStatusCode == StatusCodes.Status204NoContent || determinedStatusCode == StatusCodes.Status205ResetContent)
+            {
+                return Task.FromResult(Microsoft.AspNetCore.Http.Results.StatusCode(determinedStatusCode));
             }
 
             object? responsePayload;
 
+            // This logic determines which CreateSuccessResponse overload to call on the factory.
+            // It should only pass `value` if it's a concrete, non-Unit value.
             if (isGenericOutcomeWithConcreteValue)
             {
-                responsePayload = this._successResponseFactory.CreateSuccessResponse(
-                    (dynamic)outcome,
-                    statusCode,
-                    statusDescription,
-                    messages,
-                    value);
+                var createSuccessResponseMethod = typeof(ISuccessResponseFactory)
+                    .GetMethods()
+                    .Where(m => m.Name == nameof(ISuccessResponseFactory.CreateSuccessResponse) && m.IsGenericMethod)
+                    .Single();
+
+                var genericMethod = createSuccessResponseMethod.MakeGenericMethod(outcomeValueType!);
+
+                responsePayload = genericMethod.Invoke(
+                    this._successResponseFactory,
+                    new object?[] { outcome, determinedStatusCode, statusDescription, messages, value });
             }
             else
             {
                 responsePayload = this._successResponseFactory.CreateSuccessResponse(
                     outcome,
-                    statusCode,
+                    determinedStatusCode,
                     statusDescription,
                     messages);
-            }
-
-            if (responsePayload is null && statusCode == this._successResponseOptions.DefaultNoContentStatusCode)
-            {
-                return Task.FromResult(Microsoft.AspNetCore.Http.Results.StatusCode(statusCode));
             }
 
             return Task.FromResult(Microsoft.AspNetCore.Http.Results.Json(
                 responsePayload,
                 this._jsonSerializerOptions,
-                statusCode: statusCode));
+                statusCode: determinedStatusCode));
         }
 
         private async Task<Microsoft.AspNetCore.Http.IResult> CreateFailureResult(
-            IEndpointOutcome outcome,
-            HttpContext httpContext,
-            CancellationToken ct)
+                    IEndpointOutcome outcome,
+                    HttpContext httpContext,
+                    CancellationToken ct)
         {
-            var metadata = outcome.Metadata;
-            ErrorInfo errorInfo = (outcome.Errors != null && outcome.Errors.Count > 0)
+            var errorInfo = GetPrimaryErrorInfo(outcome);
+            var (problem, usedOverride) = await GetProblemDetails(outcome, errorInfo, httpContext).ConfigureAwait(false);
+
+            EndpointOutcomeToHttpMapper.SetProblemDetailsStatus(problem, outcome.Metadata, usedOverride);
+            await SetProblemDetailsTypeAndInstance(problem, errorInfo, httpContext, usedOverride).ConfigureAwait(false);
+            SetProblemDetailsDetail(problem, errorInfo, outcome);
+            SetProblemDetailsExtensions(problem, errorInfo, outcome, httpContext);
+
+            return Microsoft.AspNetCore.Http.Results.Content(
+                JsonSerializer.Serialize(problem, _jsonSerializerOptions),
+                contentType: "application/problem+json",
+                statusCode: problem.Status);
+        }
+
+        private static ErrorInfo GetPrimaryErrorInfo(IEndpointOutcome outcome)
+        {
+            return (outcome.Errors != null && outcome.Errors.Count > 0)
                 ? outcome.Errors[0]
                 : new ErrorInfo(
                     ErrorCategory.InternalServerError,
-                    code: ResultStatuses.InternalServerError.Code.ToString(CultureInfo.InvariantCulture),
+                    code: Results.Constants.ErrorCodes.InternalServerError,
                     message: ResultStatuses.InternalServerError.Description);
+        }
 
-            ProblemDetails? problem = metadata.GetProblemDetailsOverride();
+        private async Task<(ProblemDetails Problem, bool UsedOverride)> GetProblemDetails(
+            IEndpointOutcome outcome,
+            ErrorInfo errorInfo,
+            HttpContext httpContext)
+        {
+            var problem = outcome.Metadata.GetProblemDetailsOverride();
             bool usedOverride = problem is not null;
 
             if (!usedOverride)
             {
-                problem = await this._problemDetailsMapper.Map(errorInfo, httpContext).ConfigureAwait(false);
+                problem = await _problemDetailsMapper.Map(errorInfo, httpContext).ConfigureAwait(false);
             }
 
-            int statusCode = metadata.GetHttpStatusCodeHint()
-                ?? problem?.Status
-                ?? ResultStatuses.InternalServerError.Code;
+            // Ensure ProblemDetails is not null, even if mapper returns null (shouldn't happen ideally)
+            problem ??= new ProblemDetails();
 
-            if (problem!.Status == null || problem.Status != statusCode)
+            return (problem, usedOverride);
+        }
+
+        private static void SetProblemDetailsStatus(ProblemDetails problem, TransportMetadata metadata, bool usedOverride)
+        {
+            int statusCode = metadata.GetHttpStatusCodeHint()
+                             ?? problem.Status
+                             ?? StatusCodes.Status500InternalServerError;
+
+            if (problem.Status == null || problem.Status != statusCode)
             {
                 problem.Status = statusCode;
+                if (!usedOverride)
+                {
+                    // Update title if status changed and no override was used.
+                    // The _problemDetailsMapper should ideally set this based on the error.
+                    // If not, this provides a fallback based on the HTTP status code.
+                    problem.Title = ResultStatuses.GetStatus(statusCode, "An Error Occurred").Description;
+                }
             }
+        }
 
+        private async Task SetProblemDetailsTypeAndInstance(
+            ProblemDetails problem,
+            ErrorInfo errorInfo,
+            HttpContext httpContext,
+            bool usedOverride)
+        {
             problem.Extensions ??= new Dictionary<string, object?>();
 
-            if (!usedOverride)
+            if (string.IsNullOrEmpty(problem.Type) || (!usedOverride && problem.Type == ProblemDetailsConstants.DefaultBaseUri.AbsoluteUri))
             {
-                problem.Title = ResultStatuses.GetStatus(statusCode, "An Error Occurred").Description;
-                problem.Detail = errorInfo.Message;
+                // Only try to generate type if it's not set by override OR it's a generic default from mapper and not overridden
+                string generatedType = await _problemTypeUriGenerator.Generate(errorInfo.Code, httpContext).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(generatedType) && generatedType != ProblemDetailsConstants.DefaultBaseUri.AbsoluteUri)
+                {
+                    problem.Type = generatedType;
+                }
             }
 
-            problem.Type = await this._problemTypeUriGenerator.Generate(errorInfo.Code, httpContext).ConfigureAwait(false);
-            problem.Instance = httpContext.Request.Path;
+            if (string.IsNullOrEmpty(problem.Instance))
+            {
+                problem.Instance = httpContext.Request.Path;
+            }
+        }
 
-            if (this._problemDetailsOptions.IncludeErrorCodeInExtensions
-                && !string.IsNullOrEmpty(errorInfo.Code)
-                && !problem.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.ErrorCode))
+        private void SetProblemDetailsDetail(ProblemDetails problem, ErrorInfo errorInfo, IEndpointOutcome outcome)
+        {
+            // Set problem.Detail from errorInfo.Detail if not an override
+            if (string.IsNullOrEmpty(problem.Detail) && !string.IsNullOrEmpty(errorInfo.Detail))
+            {
+                problem.Detail = errorInfo.Detail;
+            }
+            // Add outcome messages to detail if option is enabled
+            if (_problemDetailsOptions.IncludeErrorInfoMessagesInDetail && outcome.Messages != null && outcome.Messages.Any())
+            {
+                string messagesDetail = string.Join(" ", outcome.Messages);
+                if (!string.IsNullOrEmpty(messagesDetail))
+                {
+                    if (!string.IsNullOrEmpty(problem.Detail))
+                    {
+                        problem.Detail += " " + messagesDetail;
+                    }
+                    else
+                    {
+                        problem.Detail = messagesDetail;
+                    }
+                }
+            }
+        }
+
+        private void SetProblemDetailsExtensions(
+            ProblemDetails problem,
+            ErrorInfo errorInfo,
+            IEndpointOutcome outcome,
+            HttpContext httpContext)
+        {
+            problem.Extensions ??= new Dictionary<string, object?>();
+
+            if (_problemDetailsOptions.IncludeErrorCodeInExtensions &&
+                !string.IsNullOrEmpty(errorInfo.Code) &&
+                !problem.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.ErrorCode))
             {
                 problem.Extensions[ProblemDetailsConstants.Extensions.ErrorCode] = errorInfo.Code;
             }
 
-            if (!string.IsNullOrEmpty(errorInfo.Detail)
-                && !problem.Extensions.ContainsKey(ProblemDetailsConstants.Detail))
-            {
-                problem.Extensions[ProblemDetailsConstants.Detail] = errorInfo.Detail;
-            }
-
-            if (!string.IsNullOrEmpty(httpContext.TraceIdentifier)
-                && !problem.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.TraceId))
+            if (!string.IsNullOrEmpty(httpContext.TraceIdentifier) &&
+                !problem.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.TraceId))
             {
                 problem.Extensions[ProblemDetailsConstants.Extensions.TraceId] = httpContext.TraceIdentifier;
             }
 
-            if (this._problemDetailsOptions.IncludeStackTrace && this._isDevelopment)
+            if (_problemDetailsOptions.IncludeStackTrace && _isDevelopment)
             {
-                if (errorInfo.Metadata != null
-                    && errorInfo.Metadata.TryGetValue(Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace, out var stackTrace)
-                    && stackTrace is string st)
+                if (errorInfo.Metadata != null &&
+                    errorInfo.Metadata.TryGetValue(Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace, out var stackTrace) &&
+                    stackTrace is string st &&
+                    !problem.Extensions.ContainsKey(Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace))
                 {
-                    if (!problem.Extensions.ContainsKey(Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace))
-                    {
-                        problem.Extensions[Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace] = st;
-                    }
+                    problem.Extensions[Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace] = st;
                 }
             }
 
@@ -302,22 +413,18 @@ namespace Zentient.Endpoints.Http.Mapping
                 var mappedInnerErrors = errorInfo.InnerErrors
                     .Select(inner => new Dictionary<string, object?>
                     {
-                        [JsonConstants.ErrorInfo.Category] = inner.Category.ToString().ToUpperInvariant(),
-                        [JsonConstants.ErrorInfo.Code] = inner.Code,
-                        [JsonConstants.ErrorInfo.Message] = inner.Message,
-                        [JsonConstants.ErrorInfo.Detail] = inner.Detail,
+                        [Zentient.Results.Constants.JsonConstants.ErrorInfo.Category] = inner.Category.ToString().ToUpperInvariant(),
+                        [Zentient.Results.Constants.JsonConstants.ErrorInfo.Code] = inner.Code,
+                        [Zentient.Results.Constants.JsonConstants.ErrorInfo.Message] = inner.Message,
+                        [Zentient.Results.Constants.JsonConstants.ErrorInfo.Detail] = inner.Detail,
                     })
                     .ToList();
+
                 if (!problem.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.InnerErrors))
                 {
                     problem.Extensions[ProblemDetailsConstants.Extensions.InnerErrors] = mappedInnerErrors;
                 }
             }
-
-            return Microsoft.AspNetCore.Http.Results.Content(
-                JsonSerializer.Serialize(problem, this._jsonSerializerOptions),
-                contentType: "application/problem+json",
-                statusCode: problem.Status);
         }
     }
 }
