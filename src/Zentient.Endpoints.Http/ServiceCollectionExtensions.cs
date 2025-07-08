@@ -58,18 +58,17 @@ namespace Zentient.Endpoints.Http
             Action<JsonSerializerOptions>? configureJsonOptions = null)
         {
             ArgumentNullException.ThrowIfNull(services);
+
             var optionsBuilder = services.AddOptions<EndpointsHttpOptions>()
                                          .Configure(options => configureOptions?.Invoke(options))
                                          .ApplyZentientConventions();
+
             services.AddSingleton<IValidateOptions<EndpointsHttpOptions>, EndpointsHttpOptionsValidator>();
 
-            if (configureJsonOptions != null)
+            optionsBuilder.PostConfigure(options =>
             {
-                optionsBuilder.PostConfigure(options =>
-                {
-                    configureJsonOptions.Invoke(options.JsonSerializerOptions);
-                });
-            }
+                configureJsonOptions?.Invoke(options.JsonSerializerOptions);
+            });
 
             services.PostConfigure<EndpointsHttpOptions>(options =>
             {
@@ -107,7 +106,7 @@ namespace Zentient.Endpoints.Http
         /// Thrown if <paramref name="builder"/> is <see langword="null"/>.
         /// </exception>
         public static RouteHandlerBuilder WithNormalizeEndpointOutcomeFilter(
-            this RouteHandlerBuilder builder)
+                    this RouteHandlerBuilder builder)
         {
             ArgumentNullException.ThrowIfNull(builder);
             builder.AddEndpointFilter<NormalizeEndpointOutcomeFilter>();
