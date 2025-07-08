@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Http;
 
+using Zentient.Endpoints.Http.Constants;
+
 namespace Zentient.Endpoints.Http
 {
     /// <summary>
@@ -16,7 +18,7 @@ namespace Zentient.Endpoints.Http
     /// </summary>
     internal sealed class DefaultProblemTypeUriGenerator : IProblemTypeUriGenerator
     {
-        private static readonly Uri DefaultProblemTypeBaseUri = new Uri(ProblemDetailsConstants.DefaultBaseUri);
+        private static readonly Uri DefaultProblemTypeBaseUri = ProblemDetailsConstants.DefaultBaseUri;
         private readonly Uri _baseUri;
 
         /// <summary>
