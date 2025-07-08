@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Zentient.Results;
 
-namespace Zentient.Endpoints.Http
+namespace Zentient.Endpoints.Http.Mapping
 {
     /// <summary>
     /// Defines the contract for a mapper that converts <see cref="ErrorInfo"/>
@@ -23,6 +23,6 @@ namespace Zentient.Endpoints.Http
         /// <param name="errorInfo">The <see cref="ErrorInfo"/> to map. Can be <c>null</c> for generic errors.</param>
         /// <param name="httpContext">The current <see cref="HttpContext"/>, providing additional context.</param>
         /// <returns>A <see cref="Task"/> representing the asynchronous operation, containing the <see cref="ProblemDetails"/> instance.</returns>
-        Task<Microsoft.AspNetCore.Mvc.ProblemDetails> Map(ErrorInfo? errorInfo, HttpContext httpContext);
+        Task<ProblemDetails> Map(ErrorInfo? errorInfo, HttpContext httpContext);
     }
 }
