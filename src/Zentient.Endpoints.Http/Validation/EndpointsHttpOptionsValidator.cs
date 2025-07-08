@@ -40,8 +40,7 @@ namespace Zentient.Endpoints.Http.Validation
                 {
                     failures.Add("ProblemDetails.BaseTypeUri must be an absolute URI.");
                 }
-
-                if (!uri.AbsoluteUri.EndsWith('/'))
+                else if (!uri.AbsoluteUri.EndsWith('/'))
                 {
                     failures.Add("ProblemDetails.BaseTypeUri should end with a '/' to allow proper concatenation with error codes.");
                 }
