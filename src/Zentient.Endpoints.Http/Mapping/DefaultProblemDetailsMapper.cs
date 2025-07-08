@@ -144,8 +144,6 @@ namespace Zentient.Endpoints.Http.Mapping
                 extensions[ProblemDetailsConstants.Extensions.ErrorCode] = errorInfo.Code;
             }
 
-            // This condition ensures errorInfo.Detail is added as an extension only if it's not empty
-            // and doesn't conflict with a pre-existing key (though unlikely for standard extensions).
             if (!string.IsNullOrEmpty(errorInfo.Detail) && !extensions.ContainsKey(ProblemDetailsConstants.Detail))
             {
                 extensions[ProblemDetailsConstants.Detail] = errorInfo.Detail;
@@ -153,7 +151,7 @@ namespace Zentient.Endpoints.Http.Mapping
 
             if (errorInfo.Metadata is { Count: > 0 })
             {
-                var metadata = errorInfo.Metadata.AsEnumerable().Where(kvp => kvp.Key != MetadataKeys.ExceptionStackTrace);
+                var metadata = errorInfo.Metadata.AsEnumerable().Where(kvp => kvp.Key != Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace);
 
                 foreach (var kvp in metadata)
                 {
@@ -172,16 +170,16 @@ namespace Zentient.Endpoints.Http.Mapping
                 if (this._problemDetailsOptions.IncludeStackTrace && this._environment.IsDevelopment())
                 {
                     if (errorInfo.Metadata != null
-                        && errorInfo.Metadata.TryGetValue(MetadataKeys.ExceptionStackTrace, out var stackTrace)
+                        && errorInfo.Metadata.TryGetValue(Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace, out var stackTrace)
                         && stackTrace is string st)
                     {
-                        extensions[MetadataKeys.ExceptionStackTrace] = st;
+                        extensions[Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace] = st;
                     }
                     else
                     {
                         _logger.LogWarning(
                             "ProblemDetails.IncludeStackTrace is true in development, but no '{StackTraceKey}' key found in ErrorInfo metadata for Problem Details.",
-                            MetadataKeys.ExceptionStackTrace);
+                            Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace);
                     }
                 }
             }
@@ -203,16 +201,16 @@ namespace Zentient.Endpoints.Http.Mapping
             if (this._problemDetailsOptions.IncludeStackTrace && this._environment.IsDevelopment())
             {
                 if (errorInfo.Metadata != null
-                    && errorInfo.Metadata.TryGetValue(MetadataKeys.ExceptionStackTrace, out var stackTrace)
+                    && errorInfo.Metadata.TryGetValue(Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace, out var stackTrace)
                     && stackTrace is string st)
                 {
-                    extensions[MetadataKeys.ExceptionStackTrace] = st;
+                    extensions[Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace] = st;
                 }
                 else
                 {
                     this._logger.LogWarning(
                         "ProblemDetails.IncludeStackTrace is true in development, but no '{StackTraceKey}' key found in ErrorInfo metadata for Problem Details.",
-                        MetadataKeys.ExceptionStackTrace);
+                        Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace);
                 }
             }
         }
