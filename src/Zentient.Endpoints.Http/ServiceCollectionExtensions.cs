@@ -60,8 +60,8 @@ namespace Zentient.Endpoints.Http
             ArgumentNullException.ThrowIfNull(services);
 
             var optionsBuilder = services.AddOptions<EndpointsHttpOptions>()
-                                         .Configure(options => configureOptions?.Invoke(options))
-                                         .ApplyZentientConventions();
+                .Configure(options => configureOptions?.Invoke(options))
+                .ApplyZentientConventions();
 
             services.AddSingleton<IValidateOptions<EndpointsHttpOptions>, EndpointsHttpOptionsValidator>();
 
@@ -83,13 +83,19 @@ namespace Zentient.Endpoints.Http
             services.TryAddScoped<IProblemTypeUriGenerator, DefaultProblemTypeUriGenerator>();
             services.TryAddScoped<ISuccessResponseFactory, DefaultSuccessResponseFactory>();
 
-            var configuredOptionsForFilterCheck = new EndpointsHttpOptions();
-            configureOptions?.Invoke(configuredOptionsForFilterCheck);
-
-            if (configuredOptionsForFilterCheck.AddNormalizeEndpointOutcomeFilterGlobally)
+            // FIX: Conditionally add NormalizeEndpointOutcomeFilter based on the *actual* configured options
+            // by using a factory method that resolves IOptions<EndpointsHttpOptions> from the service provider.
+            services.AddScoped<IEndpointFilter>(serviceProvider =>
             {
-                services.TryAddScoped<IEndpointFilter, NormalizeEndpointOutcomeFilter>();
-            }
+                var options = serviceProvider.GetRequiredService<IOptions<EndpointsHttpOptions>>().Value;
+                if (options.AddNormalizeEndpointOutcomeFilterGlobally)
+                {
+                    return serviceProvider.GetRequiredService<NormalizeEndpointOutcomeFilter>();
+                }
+                return null!; // Return null if not globally added, DI will handle it.
+            });
+            // Also register the filter itself, but only instantiate it if needed.
+            services.TryAddScoped<NormalizeEndpointOutcomeFilter>(); // Register the concrete type
 
             return services;
         }

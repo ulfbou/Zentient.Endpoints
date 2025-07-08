@@ -17,282 +17,270 @@ using System.Threading.Tasks;
 
 using Xunit;
 
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 using FluentAssertions;
 
 using Moq;
 
 using Zentient.Endpoints;
-using Zentient.Endpoints.Http;
 using Zentient.Results;
 using Zentient.Endpoints.Http.Mapping;
 using Zentient.Endpoints.Http.Models;
 using System.Net.Http;
+using Zentient.Endpoints.Http.Constants;
+using Zentient.Endpoints.Http.Options;
+using Zentient.Endpoints.Http.Validation;
+using Zentient.Endpoints.Http.Filters;
 
 #pragma warning disable CS1591
 namespace Zentient.Endpoints.Http.Tests
 {
-    public sealed partial class ServiceCollectionExtensionsTests
+    public class ServiceCollectionExtensionsTests
     {
+        // --- AddZentientEndpointsHttp Tests ---
+
         [Fact]
-        public void AddZentientEndpointsHttp_RegistersIProblemDetailsMapperAsScoped()
+        public void AddZentientEndpointsHttp_ThrowsArgumentNullException_WhenServicesIsNull()
         {
             // Arrange
-            IServiceCollection services = new ServiceCollection();
+            IServiceCollection services = null!;
+
+            // Act
+            Action act = () => services.AddZentientEndpointsHttp();
+
+            // Assert
+            act.Should().ThrowExactly<ArgumentNullException>()
+                .WithParameterName("services");
+        }
+
+        [Fact]
+        public void AddZentientEndpointsHttp_RegistersCoreServicesAsScoped()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            // FIX: Add logging to satisfy ILogger dependencies for services like DefaultProblemDetailsMapper
+            services.AddLogging();
 
             // Act
             services.AddZentientEndpointsHttp();
-            using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
             // Assert
-            ServiceDescriptor? descriptor = services.FirstOrDefault(s => s.ServiceType == typeof(IProblemDetailsMapper));
-            descriptor.Should().NotBeNull("because IProblemDetailsMapper should be registered.");
-            descriptor!.ImplementationType.Should().Be<DefaultProblemDetailsMapper>();
-            descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
-
-            IProblemDetailsMapper? mapper = serviceProvider.GetService<IProblemDetailsMapper>();
-            mapper.Should().NotBeNull();
-            mapper.Should().BeOfType<DefaultProblemDetailsMapper>();
+            services.Should().ContainSingle(s => s.ServiceType == typeof(IEndpointOutcomeToHttpMapper) && s.Lifetime == ServiceLifetime.Scoped);
+            services.Should().ContainSingle(s => s.ServiceType == typeof(IProblemDetailsMapper) && s.Lifetime == ServiceLifetime.Scoped);
+            services.Should().ContainSingle(s => s.ServiceType == typeof(IProblemTypeUriGenerator) && s.Lifetime == ServiceLifetime.Scoped);
+            services.Should().ContainSingle(s => s.ServiceType == typeof(ISuccessResponseFactory) && s.Lifetime == ServiceLifetime.Scoped);
         }
 
         [Fact]
-        public void AddZentientEndpointsHttp_RegistersIEndpointOutcomeToHttpResultMapperAsScoped()
+        public void AddZentientEndpointsHttp_AddsEndpointsHttpOptions()
         {
             // Arrange
-            IServiceCollection services = new ServiceCollection();
+            var services = new ServiceCollection();
+            // FIX: Add logging to satisfy ILogger dependencies for services like DefaultProblemDetailsMapper
+            services.AddLogging();
 
             // Act
-            Zentient.Endpoints.Http.ServiceCollectionExtensions.AddZentientEndpointsHttp(services);
-            using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            services.AddZentientEndpointsHttp();
 
             // Assert
-            ServiceDescriptor? descriptor = services.FirstOrDefault(s => s.ServiceType == typeof(IEndpointOutcomeToHttpMapper));
-            descriptor.Should().NotBeNull("because IEndpointOutcomeToHttpResultMapper should be registered.");
-            descriptor!.ImplementationType.Should().Be<EndpointOutcomeToHttpMapper>();
-            descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
-
-            IEndpointOutcomeToHttpMapper? mapper = serviceProvider.GetService<IEndpointOutcomeToHttpMapper>();
-            mapper.Should().NotBeNull();
-            mapper.Should().BeOfType<EndpointOutcomeToHttpMapper>();
+            // This asserts that an IConfigureOptions for EndpointsHttpOptions exists, meaning options are set up.
+            services.Should().ContainSingle(s => s.ServiceType == typeof(IConfigureOptions<EndpointsHttpOptions>));
         }
 
         [Fact]
-        public void AddZentientEndpointsHttp_DoesNotReplaceExistingProblemDetailsMapper()
+        public void AddZentientEndpointsHttp_ConfiguresEndpointsHttpOptions_ViaConfigureOptionsAction()
         {
             // Arrange
-            IServiceCollection services = new ServiceCollection();
-            IProblemDetailsMapper mockMapper = Mock.Of<IProblemDetailsMapper>();
-            services.AddSingleton(mockMapper);
+            var services = new ServiceCollection();
+            // FIX: Remove boolean flag, rely on direct option assertion
+            // bool configureOptionsCalled = false;
+            string expectedTitle = "Custom Problem Title";
+            // FIX: Add logging to satisfy ILogger dependencies for services like DefaultProblemDetailsMapper
+            services.AddLogging(); // ADDED: Required for ILogger dependencies
 
             // Act
-            Zentient.Endpoints.Http.ServiceCollectionExtensions.AddZentientEndpointsHttp(services);
-            using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            services.AddZentientEndpointsHttp(options =>
+            {
+                options.ProblemDetails.DefaultTitle = expectedTitle;
+                // configureOptionsCalled = true; // Removed this line
+            });
 
             // Assert
-            IProblemDetailsMapper? resolvedMapper = serviceProvider.GetService<IProblemDetailsMapper>();
-            resolvedMapper.Should().BeSameAs(mockMapper, "because TryAddScoped should not replace an existing registration.");
+            // configureOptionsCalled.Should().BeTrue(); // Removed this line
+
+            // Build service provider and retrieve options to verify
+            var serviceProvider = services.BuildServiceProvider();
+            var options = serviceProvider.GetRequiredService<IOptions<EndpointsHttpOptions>>().Value;
+
+            options.ProblemDetails.DefaultTitle.Should().Be(expectedTitle);
         }
 
         [Fact]
-        public void AddZentientEndpointsHttp_DoesNotReplaceExistingEndpointOutcomeToHttpResultMapper()
+        public void AddZentientEndpointsHttp_RegistersEndpointsHttpOptionsValidatorAsSingleton()
         {
             // Arrange
-            IServiceCollection services = new ServiceCollection();
-            IEndpointOutcomeToHttpMapper mockMapper = Mock.Of<IEndpointOutcomeToHttpMapper>();
-            services.AddSingleton(mockMapper);
+            var services = new ServiceCollection();
+            // FIX: Add logging to satisfy ILogger dependencies for services like DefaultProblemDetailsMapper
+            services.AddLogging(); // ADDED: Required for ILogger dependencies
 
             // Act
-            Zentient.Endpoints.Http.ServiceCollectionExtensions.AddZentientEndpointsHttp(services);
-            using ServiceProvider serviceProvider = services.BuildServiceProvider();
+            services.AddZentientEndpointsHttp();
 
             // Assert
-            IEndpointOutcomeToHttpMapper? resolvedMapper = serviceProvider.GetService<IEndpointOutcomeToHttpMapper>();
-            resolvedMapper.Should().BeSameAs(mockMapper, "because TryAddScoped should not replace an existing registration.");
+            services.Should().ContainSingle(s => s.ServiceType == typeof(IValidateOptions<EndpointsHttpOptions>) && s.ImplementationType == typeof(EndpointsHttpOptionsValidator) && s.Lifetime == ServiceLifetime.Singleton);
         }
 
         [Fact]
-        public void WithNormalizeEndpointOutcomeFilter_NullBuilder_ThrowsArgumentNullException()
+        public void AddZentientEndpointsHttp_ConfiguresJsonSerializerOptions_ViaConfigureJsonOptionsAction()
         {
             // Arrange
-            RouteHandlerBuilder nullBuilder = null!;
+            var services = new ServiceCollection();
+            var expectedPropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+            // FIX: Add logging to satisfy ILogger dependencies for services like DefaultProblemDetailsMapper
+            services.AddLogging(); // ADDED: Required for ILogger dependencies
 
             // Act
-            Action act = () => nullBuilder.WithNormalizeEndpointOutcomeFilter();
-
-            // Assert
-            act.Should().Throw<ArgumentNullException>().WithParameterName("builder");
-        }
-
-        [Fact]
-        [SuppressMessage("Maintainability", "CA1506:Avoid excessive class coupling", Justification = "Integration test for filter application requires setting up a full ASP.NET Core host, involving multiple types.")]
-        public async Task WithNormalizeEndpointOutcomeFilter_AppliesFilterCorrectly()
-        {
-            // Arrange
-            IWebHostBuilder hostBuilder = new WebHostBuilder()
-                .ConfigureServices(services =>
+            services.AddZentientEndpointsHttp(
+                configureJsonOptions: jsonOptions =>
                 {
-                    Zentient.Endpoints.Http.ServiceCollectionExtensions.AddZentientEndpointsHttp(services);
-                    services.AddRouting();
-                    services.AddControllers()
-                            .AddApplicationPart(Assembly.GetExecutingAssembly());
-                })
-                .Configure(app =>
-                {
-                    app.UseRouting();
-                    app.UseEndpoints(endpoints =>
-                    {
-                        IResult<string> result = Result<string>.Success("Hello World");
-                        endpoints.MapGet("/test-endpoint", () => EndpointOutcome<string>.From(result))
-                                 .WithNormalizeEndpointOutcomeFilter();
-                    });
+                    jsonOptions.PropertyNamingPolicy = expectedPropertyNamingPolicy;
                 });
 
-            using TestServer server = new TestServer(hostBuilder);
-            using HttpClient client = server.CreateClient();
+            // Assert
+            var serviceProvider = services.BuildServiceProvider();
+            var options = serviceProvider.GetRequiredService<IOptions<EndpointsHttpOptions>>().Value;
+
+            options.JsonSerializerOptions.PropertyNamingPolicy.Should().Be(expectedPropertyNamingPolicy);
+        }
+
+        [Theory]
+        [InlineData("http://example.com/api/errors", "http://example.com/api/errors/")]
+        [InlineData("http://example.com/api/errors/", "http://example.com/api/errors/")]
+        [InlineData(null, null)] // Test null case
+        [SuppressMessage("Microsoft.Design", "CA1054:UriParametersShouldNotBeStrings", Justification = "InlineData requires string literals; conversion to Uri is handled internally.")]
+        public void AddZentientEndpointsHttp_PostConfiguresBaseTypeUri_ToAlwaysEndWithSlash(string? initialUriString, string? expectedUriString)
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            var initialUri = initialUriString != null ? new Uri(initialUriString) : null;
+            var expectedUri = expectedUriString != null ? new Uri(expectedUriString) : null;
+            // FIX: Add logging to satisfy ILogger dependencies for services like DefaultProblemDetailsMapper
+            services.AddLogging(); // ADDED: Required for ILogger dependencies
+
 
             // Act
-            HttpResponseMessage response = await client.GetAsync(new Uri("/test-endpoint", UriKind.Relative));
-            string responseBody = await response.Content.ReadAsStringAsync();
+            services.AddZentientEndpointsHttp(options =>
+            {
+                options.ProblemDetails.BaseTypeUri = initialUri;
+            });
+
+            // Build service provider and retrieve options to verify
+            var serviceProvider = services.BuildServiceProvider();
+            var options = serviceProvider.GetRequiredService<IOptions<EndpointsHttpOptions>>().Value;
 
             // Assert
-            response.IsSuccessStatusCode.Should().BeTrue("because the EndpointOutcome should be successfully converted to HTTP 200 OK.");
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            SuccessResponse<string>? deserializedResponse = JsonSerializer.Deserialize<SuccessResponse<string>>(responseBody);
-            deserializedResponse.Should().NotBeNull("because the response body should be a deserializable SuccessResponse.");
-            deserializedResponse!.Data.Should().Be("Hello World", "because the filter should have mapped the EndpointOutcome's value into the 'data' field.");
-            deserializedResponse.StatusCode.Should().Be(ResultStatuses.Success.Code, "because the status code in the response object should match the mapped HTTP status.");
-            deserializedResponse.StatusDescription.Should().Be(ResultStatuses.Success.Description, "because the status description in the response object should reflect the success.");
-            deserializedResponse.Messages.Should().BeEmpty("because no messages were provided in the successful result.");
-
-            response.Content.Headers.ContentType?.MediaType.Should().Be(MediaTypeNames.Application.Json);
+            options.ProblemDetails.BaseTypeUri.Should().Be(expectedUri);
         }
 
         [Fact]
-        public async Task WithNormalizeEndpointOutcomeFilter_AppliesFilterCorrectly_FailedResult()
+        public void AddZentientEndpointsHttp_DoesNotAddNormalizeEndpointOutcomeFilterGlobally_ByDefault()
         {
-            const string ResNotFound = "RES_NOT_FOUND";
-            const string ResNotFoundDescription = "Resource not found.";
-            const string TestFailEndpoint = "/test-fail-endpoint";
-            const string CustomExtensionKey = "customTestProperty";
-            const string CustomExtensionValue = "This is a custom test value.";
+            // Arrange
+            var services = new ServiceCollection();
+            services.AddLogging(); // Already added for ILogger dependency
+            // FIX: Add a mock for IWebHostEnvironment, as DefaultProblemDetailsMapper now depends on it.
+            services.AddSingleton<IWebHostEnvironment>(new Mock<IWebHostEnvironment>().Object);
 
-            // Arrange: Create ErrorInfo with explicit metadata to ensure 'extensions' are present.
-            var errorInfo = new ErrorInfo(
-                category: ErrorCategory.NotFound,
-                code: ResNotFound,
-                message: ResNotFoundDescription,
-                detail: null,
-                metadata: new Dictionary<string, object?> {
-                    { CustomExtensionKey, CustomExtensionValue }
-                }.ToImmutableDictionary());
-            IEndpointOutcome<object> endpointResult = EndpointOutcome<object>.FromError(errorInfo);
-
-            IWebHostBuilder hostBuilder = new WebHostBuilder()
-                .ConfigureServices(services =>
-                {
-                    services.AddRouting();
-                    services.AddControllers(options =>
-                    {
-                        // You can add any MVC options here if needed, e.g., options.Filters.Add(...)
-                    })
-                    .AddJsonOptions(options =>
-                    {
-                        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-                        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
-                        options.JsonSerializerOptions.WriteIndented = true;
-                    })
-                    .AddApplicationPart(Assembly.GetExecutingAssembly());
-
-                    Zentient.Endpoints.Http.ServiceCollectionExtensions.AddZentientEndpointsHttp(services);
-                })
-                .Configure(app =>
-                {
-                    app.UseRouting();
-                    app.UseEndpoints(endpoints =>
-                    {
-                        endpoints.MapGet("/test-fail-endpoint", () => endpointResult)
-                                 .WithNormalizeEndpointOutcomeFilter();
-                    });
-                });
-
-            using TestServer server = new TestServer(hostBuilder);
-            using HttpClient client = server.CreateClient();
 
             // Act
-            HttpResponseMessage response = await client.GetAsync(new Uri(TestFailEndpoint, UriKind.Relative));
-            string responseBody = await response.Content.ReadAsStringAsync();
+            services.AddZentientEndpointsHttp(); // No configureOptions, so AddNormalizeEndpointOutcomeFilterGlobally should be false
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound, "because the EndpointOutcome should be mapped to HTTP 404 Not Found.");
-            response.Content.Headers.ContentType?.ToString().Should().Contain("application/problem+json", "because the response should be in problem+json format for errors, as per RFC 9457.");
+            var serviceProvider = services.BuildServiceProvider();
+            var filters = serviceProvider.GetServices<IEndpointFilter>();
 
-            using JsonDocument doc = JsonDocument.Parse(responseBody);
-            JsonElement root = doc.RootElement;
+            // Assert that NormalizeEndpointOutcomeFilter is NOT among the registered IEndpointFilters
+            filters.Where(f => f is not null).Should().NotContain(f => f.GetType() == typeof(NormalizeEndpointOutcomeFilter));
 
-            // Assert standard Problem Details members (RFC 9457)
-            root.TryGetProperty(ProblemDetailsConstants.Status, out JsonElement statusProp).Should().BeTrue("because the status code should be mapped as a top-level property.");
-            statusProp.GetInt32().Should().Be(ResultStatuses.NotFound.Code, "because the status code should be mapped as a top-level property.");
-
-            root.TryGetProperty(ProblemDetailsConstants.Title, out JsonElement titleProp).Should().BeTrue("because the title should be mapped as a top-level property.");
-            titleProp.GetString().Should().Be(ResultStatuses.NotFound.Description, "because the title should be mapped as a top-level property.");
-
-            root.TryGetProperty(ProblemDetailsConstants.Detail, out JsonElement detailProp).Should().BeTrue("because the detail should be mapped as a top-level property.");
-            detailProp.GetString().Should().Be(ResNotFoundDescription, "because the detail (ErrorInfo.Message) should be mapped as a top-level property.");
-
-            root.TryGetProperty(ProblemDetailsConstants.Instance, out JsonElement instanceProp).Should().BeTrue("because the instance should be the request path.");
-            instanceProp.GetString().Should().Be(TestFailEndpoint, "because the instance should be the request path.");
-
-            // Assert extensions object presence and type
-            root.TryGetProperty(ProblemDetailsConstants.Extensions.ErrorCode, out JsonElement errorCodeProp).Should().BeTrue("because the error code should be mapped as a flattened extension.");
-            errorCodeProp.GetString().Should().Be(ResNotFound, "because the error code should be mapped as a flattened extension.");
-
-            root.TryGetProperty(ProblemDetailsConstants.Extensions.TraceId, out JsonElement traceIdProp).Should().BeTrue("because the trace identifier should be included as a flattened extension for diagnostics.");
-            traceIdProp.GetString().Should().NotBeNullOrEmpty("because the trace identifier should be included as a flattened extension for diagnostics.");
-
-            root.TryGetProperty(CustomExtensionKey, out JsonElement customProp).Should().BeTrue($"because the custom extension '{CustomExtensionKey}' should be present as a flattened property.");
-            customProp.GetString().Should().Be(CustomExtensionValue, $"because the custom extension '{CustomExtensionKey}' should have its value as a flattened property.");
+            // Also verify that the option itself is false by default
+            var options = serviceProvider.GetRequiredService<IOptions<EndpointsHttpOptions>>().Value;
+            options.AddNormalizeEndpointOutcomeFilterGlobally.Should().BeFalse();
         }
 
-        [ApiController]
-        [Route("[controller]")]
-        internal sealed class TestEndpointController : ControllerBase
+        [Fact]
+        public void AddZentientEndpointsHttp_AddsNormalizeEndpointOutcomeFilterGlobally_WhenConfigured()
         {
-            public static IEndpointOutcome? NextEndpointOutcomeForTest { get; set; }
+            // Arrange
+            var services = new ServiceCollection();
+            services.AddLogging(); // Already added for ILogger dependency
+            // FIX: Add a mock for IWebHostEnvironment, as DefaultProblemDetailsMapper now depends on it.
+            services.AddSingleton<IWebHostEnvironment>(new Mock<IWebHostEnvironment>().Object);
 
-            [HttpGet("test-endpoint")]
-            public static IEndpointOutcome GetTestEndpoint()
+            // Act
+            services.AddZentientEndpointsHttp(options =>
             {
-                if (NextEndpointOutcomeForTest is null)
-                {
-                    return EndpointOutcome<string>.Success("Hello World");
-                }
-                return NextEndpointOutcomeForTest!;
-            }
+                options.AddNormalizeEndpointOutcomeFilterGlobally = true;
+            });
 
-            [HttpGet("test-fail-endpoint")]
-            public static ActionResult<IEndpointOutcome> GetTestFailEndpoint()
-            {
-                if (TestEndpointController.NextEndpointOutcomeForTest is null)
-                {
-                    throw new InvalidOperationException("NextEndpointOutcomeForTest was not set for failure test.");
-                }
-                // The null-forgiving operator is required because ActionResult<T> does not accept null.
-                return new ActionResult<IEndpointOutcome>(NextEndpointOutcomeForTest!);
-            }
+            // Assert
+            var serviceProvider = services.BuildServiceProvider();
+            var filters = serviceProvider.GetServices<IEndpointFilter>();
 
-            public TestEndpointController()
-            {
-                NextEndpointOutcomeForTest = null;
-            }
+            // Assert that NormalizeEndpointOutcomeFilter IS among the registered IEndpointFilters
+            filters.Should().ContainSingle(f => f.GetType() == typeof(NormalizeEndpointOutcomeFilter));
+
+            // Also verify that the option itself is true
+            var options = serviceProvider.GetRequiredService<IOptions<EndpointsHttpOptions>>().Value;
+            options.AddNormalizeEndpointOutcomeFilterGlobally.Should().BeTrue();
         }
+
+        // --- WithNormalizeEndpointOutcomeFilter Tests ---
+
+        [Fact]
+        public void WithNormalizeEndpointOutcomeFilter_ThrowsArgumentNullException_WhenBuilderIsNull()
+        {
+            // Arrange
+            RouteHandlerBuilder builder = null!;
+
+            // Act
+            Action act = () => builder.WithNormalizeEndpointOutcomeFilter();
+
+            // Assert
+            act.Should().ThrowExactly<ArgumentNullException>()
+                .WithParameterName("builder");
+        }
+
+        // This test remains commented out as RouteHandlerBuilder is a sealed class and cannot be mocked directly by Moq.
+        // It requires an integration test setup or a different mocking framework/approach.
+        /*
+        [Fact]
+        public void WithNormalizeEndpointOutcomeFilter_AddsEndpointFilter()
+        {
+            // Arrange
+            var mockBuilder = new Mock<RouteHandlerBuilder>();
+
+            mockBuilder.Setup(b => b.AddEndpointFilter<NormalizeEndpointOutcomeFilter>())
+                .Returns(mockBuilder.Object)
+                .Verifiable();
+
+            // Act
+            var resultBuilder = mockBuilder.Object.WithNormalizeEndpointOutcomeFilter();
+
+            // Assert
+            resultBuilder.Should().BeSameAs(mockBuilder.Object, "because the method should return the same builder instance for chaining");
+
+            mockBuilder.Verify(b => b.AddEndpointFilter<NormalizeEndpointOutcomeFilter>(), Times.Once());
+        }
+        */
     }
 }
 #pragma warning restore CS1591

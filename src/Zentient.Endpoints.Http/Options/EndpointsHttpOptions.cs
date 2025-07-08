@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -19,19 +20,20 @@ namespace Zentient.Endpoints.Http.Options
     /// This includes settings for global filters, Problem Details generation, success response
     /// serialization, and logging defaults.
     /// </summary>
+    [SuppressMessage("Performance", "CA1805:Do not initialize unnecessarily", Justification = "<Pending>")]
     public class EndpointsHttpOptions
     {
         /// <summary>
         /// Gets or sets a value indicating whether the
         /// <see cref="Zentient.Endpoints.Http.Filters.NormalizeEndpointOutcomeFilter"/>
         /// should be automatically registered globally for all endpoints.
-        /// <para>Defaults to <see langword="true" />. Set to <see langword="false" /> if you intend
+        /// <para>Defaults to <see langword="false" />. Set to <see langword="true" /> if you intend
         /// to explicitly apply the filter using
         /// <see cref="ServiceCollectionExtensions.WithNormalizeEndpointOutcomeFilter(Microsoft.AspNetCore.Builder.RouteHandlerBuilder)"/>
         /// on specific endpoints or groups.</para>
         /// </summary>
         /// <value><see langword="true" /> if the filter is registered globally; otherwise, <see langword="false" />.</value>
-        public bool AddNormalizeEndpointOutcomeFilterGlobally { get; set; } = true;
+        public bool AddNormalizeEndpointOutcomeFilterGlobally { get; set; } = false;
 
         /// <summary>
         /// Gets or sets the default category name (logger name) used by internal loggers
