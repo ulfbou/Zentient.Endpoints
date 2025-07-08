@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
+using Zentient.Endpoints.Http.Constants;
 using Zentient.Endpoints.Http.Extensions;
 using Zentient.Endpoints.Http.Options;
 using Zentient.Results;
@@ -111,6 +112,18 @@ namespace Zentient.Endpoints.Http.Mapping
             this._problemDetailsOptions = options.Value.ProblemDetails ?? new Options.ProblemDetailsOptions();
         }
 
+        /// <summary>Gets the JSON serializer options used by this mapper.</summary>
+        /// <value>The <see cref="JsonSerializerOptions"/> used for serializing responses.</value>
+        internal JsonSerializerOptions JsonSerializerOptions => this._jsonSerializerOptions;
+
+        /// <summary>Gets the success response options used by this mapper.</summary>
+        /// <value>The <see cref="SuccessResponseOptions"/> that define default status codes and response behavior.</value>
+        internal SuccessResponseOptions SuccessResponseOptions => this._successResponseOptions;
+
+        /// <summary>Gets the problem details options used by this mapper.</summary>
+        /// <value>The <see cref="Options.ProblemDetailsOptions"/> that define how problem details are generated.</value>
+        internal Options.ProblemDetailsOptions ProblemDetailsOptions => this._problemDetailsOptions;
+
         /// <summary>
         /// Maps asynchronously an <see cref="IEndpointOutcome"/> to an ASP.NET Core
         /// <see cref="Microsoft.AspNetCore.Http.IResult"/>, using HTTP-specific metadata for
@@ -139,7 +152,7 @@ namespace Zentient.Endpoints.Http.Mapping
             ImmutableDictionary<string, string> headers = metadata.GetHeaders().ToImmutableDictionary();
             var location = metadata.GetLocationUri();
 
-            return !headers.IsEmpty && location is null
+            return headers.IsEmpty && location is null
                 ? result
                 : new HeaderWrappedResult(result, headers, location);
         }
@@ -173,7 +186,6 @@ namespace Zentient.Endpoints.Http.Mapping
                 }
             }
 
-            // Always return StatusCode result for NoContent, regardless of factory return value
             if (statusCode == this._successResponseOptions.DefaultNoContentStatusCode
                 && (value is Unit || value == null)
                 && messages.Count == 0)
@@ -201,7 +213,6 @@ namespace Zentient.Endpoints.Http.Mapping
                     messages);
             }
 
-            // If the payload is null and status is NoContent, return StatusCode result
             if (responsePayload is null && statusCode == this._successResponseOptions.DefaultNoContentStatusCode)
             {
                 return Task.FromResult(Microsoft.AspNetCore.Http.Results.StatusCode(statusCode));
@@ -225,8 +236,15 @@ namespace Zentient.Endpoints.Http.Mapping
                     ErrorCategory.InternalServerError,
                     code: ResultStatuses.InternalServerError.Code.ToString(CultureInfo.InvariantCulture),
                     message: ResultStatuses.InternalServerError.Description);
-            ProblemDetails problem = metadata.GetProblemDetailsOverride()
-                ?? await this._problemDetailsMapper.Map(errorInfo, httpContext).ConfigureAwait(false);
+
+            ProblemDetails? problem = metadata.GetProblemDetailsOverride();
+            bool usedOverride = problem is not null;
+
+            if (!usedOverride)
+            {
+                problem = await this._problemDetailsMapper.Map(errorInfo, httpContext).ConfigureAwait(false);
+            }
+
             int statusCode = metadata.GetHttpStatusCodeHint()
                 ?? problem?.Status
                 ?? ResultStatuses.InternalServerError.Code;
@@ -238,44 +256,43 @@ namespace Zentient.Endpoints.Http.Mapping
 
             problem.Extensions ??= new Dictionary<string, object?>();
 
-            var problemDetailsToSerialize = new ProblemDetails
+            if (!usedOverride)
             {
-                Status = statusCode,
-                Title = ResultStatuses.GetStatus(statusCode, "An Error Occurred").Description,
-                Detail = errorInfo.Message,
-                Type = await this._problemTypeUriGenerator.Generate(errorInfo.Code, httpContext).ConfigureAwait(false),
-                Instance = httpContext.Request.Path,
-                Extensions = new Dictionary<string, object?>(problem.Extensions),
-            };
+                problem.Title = ResultStatuses.GetStatus(statusCode, "An Error Occurred").Description;
+                problem.Detail = errorInfo.Message;
+            }
+
+            problem.Type = await this._problemTypeUriGenerator.Generate(errorInfo.Code, httpContext).ConfigureAwait(false);
+            problem.Instance = httpContext.Request.Path;
 
             if (this._problemDetailsOptions.IncludeErrorCodeInExtensions
                 && !string.IsNullOrEmpty(errorInfo.Code)
-                && !problemDetailsToSerialize.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.ErrorCode))
+                && !problem.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.ErrorCode))
             {
-                problemDetailsToSerialize.Extensions[ProblemDetailsConstants.Extensions.ErrorCode] = errorInfo.Code;
+                problem.Extensions[ProblemDetailsConstants.Extensions.ErrorCode] = errorInfo.Code;
             }
 
             if (!string.IsNullOrEmpty(errorInfo.Detail)
-                && !problemDetailsToSerialize.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.Detail))
+                && !problem.Extensions.ContainsKey(ProblemDetailsConstants.Detail))
             {
-                problemDetailsToSerialize.Extensions[ProblemDetailsConstants.Extensions.Detail] = errorInfo.Detail;
+                problem.Extensions[ProblemDetailsConstants.Detail] = errorInfo.Detail;
             }
 
             if (!string.IsNullOrEmpty(httpContext.TraceIdentifier)
-                && !problemDetailsToSerialize.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.TraceId))
+                && !problem.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.TraceId))
             {
-                problemDetailsToSerialize.Extensions[ProblemDetailsConstants.Extensions.TraceId] = httpContext.TraceIdentifier;
+                problem.Extensions[ProblemDetailsConstants.Extensions.TraceId] = httpContext.TraceIdentifier;
             }
 
             if (this._problemDetailsOptions.IncludeStackTrace && this._isDevelopment)
             {
                 if (errorInfo.Metadata != null
-                    && errorInfo.Metadata.TryGetValue(MetadataKeys.ExceptionStackTrace, out var stackTrace)
+                    && errorInfo.Metadata.TryGetValue(Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace, out var stackTrace)
                     && stackTrace is string st)
                 {
-                    if (!problemDetailsToSerialize.Extensions.ContainsKey(MetadataKeys.ExceptionStackTrace))
+                    if (!problem.Extensions.ContainsKey(Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace))
                     {
-                        problemDetailsToSerialize.Extensions[MetadataKeys.ExceptionStackTrace] = st;
+                        problem.Extensions[Zentient.Results.Constants.MetadataKeys.ExceptionStackTrace] = st;
                     }
                 }
             }
@@ -291,16 +308,16 @@ namespace Zentient.Endpoints.Http.Mapping
                         [JsonConstants.ErrorInfo.Detail] = inner.Detail,
                     })
                     .ToList();
-                if (!problemDetailsToSerialize.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.InnerErrors))
+                if (!problem.Extensions.ContainsKey(ProblemDetailsConstants.Extensions.InnerErrors))
                 {
-                    problemDetailsToSerialize.Extensions[ProblemDetailsConstants.Extensions.InnerErrors] = mappedInnerErrors;
+                    problem.Extensions[ProblemDetailsConstants.Extensions.InnerErrors] = mappedInnerErrors;
                 }
             }
 
             return Microsoft.AspNetCore.Http.Results.Content(
-                JsonSerializer.Serialize(problemDetailsToSerialize, this._jsonSerializerOptions),
+                JsonSerializer.Serialize(problem, this._jsonSerializerOptions),
                 contentType: "application/problem+json",
-                statusCode: problemDetailsToSerialize.Status);
+                statusCode: problem.Status);
         }
     }
 }
