@@ -12,6 +12,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 using Moq;
 
@@ -38,7 +41,10 @@ namespace Zentient.Endpoints.Tests.Common
             HttpContext httpContext,
             JsonSerializerOptions serializerOptions)
         {
-            ArgumentNullException.ThrowIfNull(contentResult, nameof(contentResult));
+            // Defensive: If contentResult is null, throw with a clear message
+            if (contentResult is null)
+                throw new ArgumentNullException(nameof(contentResult), "ContentHttpResult must not be null. Ensure the result is of type ContentHttpResult before calling this helper.");
+
             ArgumentNullException.ThrowIfNull(httpContext, nameof(httpContext));
             ArgumentNullException.ThrowIfNull(serializerOptions, nameof(serializerOptions));
 
@@ -58,14 +64,57 @@ namespace Zentient.Endpoints.Tests.Common
         /// Configures a basic request path and an in-memory response body.
         /// Returns both the context and the response stream for test inspection.
         /// </summary>
+        /// <param name="jsonSerializerOptions">Optional JsonSerializerOptions to register in the service provider.</param>
         /// <returns>A tuple of the <see cref="DefaultHttpContext"/> and its <see cref="MemoryStream"/> response body.</returns>
-        public static (DefaultHttpContext context, MemoryStream responseStream) CreateHttpContext()
+        public static (DefaultHttpContext HttpContext, MemoryStream ResponseStream) CreateHttpContext(
+            JsonSerializerOptions? jsonSerializerOptions = null) // Added optional parameter
         {
-            var context = new DefaultHttpContext();
-            context.Request.Path = "/mocked-test-path";
+            var httpContext = new DefaultHttpContext();
             var responseStream = new MemoryStream();
-            context.Response.Body = responseStream;
-            return (context, responseStream);
+            httpContext.Response.Body = responseStream;
+
+            // Set a default TraceIdentifier, as it's often used in ProblemDetails
+            httpContext.TraceIdentifier = Guid.NewGuid().ToString();
+
+            // Optional: Set a default request path/instance for ProblemDetails
+            httpContext.Request.Path = "/mocked-test-path";
+
+            // --- Crucial addition for "provider" issue ---
+            // Create a basic service collection
+            var services = new ServiceCollection();
+
+            // Add a test logger factory
+            // Assuming TestLoggerFactory is correctly implemented and can be instantiated this way.
+            services.AddSingleton<ILoggerFactory>(sp => TestLoggerFactory.Instance);
+
+            // Add a mock HttpContextFactory, as IResult implementations might try to resolve it.
+            services.AddSingleton<IHttpContextFactory>(new Mock<IHttpContextFactory>().Object);
+
+            // Add JsonSerializerOptions to the service provider, wrapped in IOptions<JsonOptions>.
+            // JsonHttpResult (and other JSON-based results) will try to resolve this.
+            services.AddOptions<JsonOptions>().Configure(options =>
+            {
+                // Use provided options, or a reasonable default if none are provided.
+                if (jsonSerializerOptions is not null)
+                {
+                    options.JsonSerializerOptions.PropertyNamingPolicy = jsonSerializerOptions.PropertyNamingPolicy;
+                    // Copy other relevant properties as needed
+                }
+                else
+                {
+                    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                    // Set other default settings if necessary for your application's JSON handling
+                }
+            });
+
+            // Build the service provider
+            var serviceProvider = services.BuildServiceProvider();
+
+            // Assign the service provider to the HttpContext.RequestServices
+            httpContext.RequestServices = serviceProvider;
+            // --- End of crucial addition ---
+
+            return (httpContext, responseStream);
         }
 
         /// <summary>
@@ -76,12 +125,21 @@ namespace Zentient.Endpoints.Tests.Common
         /// <returns>A tuple of the <see cref="DefaultHttpContext"/> and its <see cref="MemoryStream"/> response body.</returns>
         public static (DefaultHttpContext context, MemoryStream responseStream) CreateHttpContextWithMapper(Mock<IEndpointOutcomeToHttpMapper>? mapperMock = null)
         {
+            // Call the base CreateHttpContext, which now handles the common service provider setup.
+            // Note: If the mapper's JSON options are critical for this specific helper, you might need to pass them.
             var (context, responseStream) = CreateHttpContext();
-            var services = new ServiceCollection();
+            var services = new ServiceCollection(); // Create a new ServiceCollection for mapper-specific services
 
             mapperMock ??= new Mock<IEndpointOutcomeToHttpMapper>();
             services.AddSingleton(mapperMock.Object);
 
+            // Merge services from the base context with mapper-specific services
+            // This is a common pattern if you have multiple layers of DI setup.
+            // For simplicity, if you only add the mapper here, you might just replace RequestServices.
+            // However, if CreateHttpContext already built a provider, you should extend it.
+            // A more robust way would be to pass the existing provider to a new ServiceCollection
+            // or build a new one and overwrite. For now, let's assume overwriting is fine if
+            // mapper is the only additional service needed.
             context.RequestServices = services.BuildServiceProvider();
             return (context, responseStream);
         }
