@@ -20,13 +20,13 @@ using Moq;
 
 using Xunit;
 
-using Zentient.Endpoints.Http;
+using Zentient.Endpoints.Http.Constants;
 using Zentient.Endpoints.Http.Mapping;
 using Zentient.Results;
 using Zentient.Results.Constants;
 
 #pragma warning disable CS1591
-namespace Zentient.Endpoints.Http.Tests
+namespace Zentient.Endpoints.Http.Tests.Mapping
 {
     public sealed class DefaultProblemDetailsMapperTests
     {
@@ -36,17 +36,17 @@ namespace Zentient.Endpoints.Http.Tests
 
         public DefaultProblemDetailsMapperTests()
         {
-            this._mockHttpContext = new Mock<HttpContext>();
-            this._mockProblemTypeUriGenerator = new Mock<IProblemTypeUriGenerator>();
-            this._mockProblemTypeUriGenerator
+            _mockHttpContext = new Mock<HttpContext>();
+            _mockProblemTypeUriGenerator = new Mock<IProblemTypeUriGenerator>();
+            _mockProblemTypeUriGenerator
                 .Setup(g => g.Generate(It.Is<string?>(s => string.IsNullOrEmpty(s)), It.IsAny<HttpContext>()))
-                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(ProblemDetailsConstants.DefaultBaseUri));
-            this._mockProblemTypeUriGenerator
+                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(ProblemDetailsConstants.DefaultBaseUri.AbsoluteUri));
+            _mockProblemTypeUriGenerator
                 .Setup(g => g.Generate(It.Is<string>(s => !string.IsNullOrEmpty(s)), It.IsAny<HttpContext>()))
                 .Returns((string code, HttpContext ctx) => new ValueTask<string>(new Uri(DefaultTestProblemTypeBaseUri, code!.ToUpperInvariant().Replace(' ', '-')).ToString()));
-            this._mockProblemTypeUriGenerator
+            _mockProblemTypeUriGenerator
                 .Setup(g => g.Generate(null, It.IsAny<HttpContext>()))
-                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(ProblemDetailsConstants.DefaultBaseUri));
+                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(ProblemDetailsConstants.DefaultBaseUri.AbsoluteUri));
         }
 
         [Fact]
@@ -56,7 +56,7 @@ namespace Zentient.Endpoints.Http.Tests
             const string ApiResource = "/api/resource";
 
             // Arrange
-            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
+            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(_mockProblemTypeUriGenerator.Object);
             HttpContext context = CreateHttpContext(TraceId, ApiResource);
 
             // Act
@@ -69,10 +69,10 @@ namespace Zentient.Endpoints.Http.Tests
             result.Detail.Should().Be("An unexpected error occurred and no specific error information was provided.");
             result.Instance.Should().Be(ApiResource);
             result.Extensions.Should().NotContainKey(ProblemDetailsConstants.Extensions.ErrorCode);
-            result.Extensions.Should().NotContainKey(ProblemDetailsConstants.Extensions.Detail);
+            result.Extensions.Should().NotContainKey(ProblemDetailsConstants.Detail);
             result.Extensions[ProblemDetailsConstants.Extensions.TraceId].Should().Be(TraceId);
             result.Type.Should().Be($"{DefaultTestProblemTypeBaseUri}{ErrorCodes.InternalServerError.ToUpperInvariant().Replace(' ', '-')}");
-            this._mockProblemTypeUriGenerator.Verify(g => g.Generate(ErrorCodes.InternalServerError, It.IsAny<HttpContext>()), Times.Once);
+            _mockProblemTypeUriGenerator.Verify(g => g.Generate(ErrorCodes.InternalServerError, It.IsAny<HttpContext>()), Times.Once);
         }
 
         [Fact]
@@ -80,7 +80,7 @@ namespace Zentient.Endpoints.Http.Tests
         {
             // Arrange
             ErrorInfo error = new ErrorInfo(ErrorCategory.Validation, "VAL001", "Validation failed.", "Field X is required.");
-            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
+            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(_mockProblemTypeUriGenerator.Object);
             HttpContext context = CreateHttpContext("trace-456", "/api/validate");
 
             // Act
@@ -92,10 +92,10 @@ namespace Zentient.Endpoints.Http.Tests
             result.Detail.Should().Be("Validation failed.");
             result.Instance.Should().Be("/api/validate");
             result.Extensions[ProblemDetailsConstants.Extensions.ErrorCode].Should().Be("VAL001");
-            result.Extensions[ProblemDetailsConstants.Extensions.Detail].Should().Be("Field X is required.");
+            result.Extensions[ProblemDetailsConstants.Detail].Should().Be("Field X is required.");
             result.Extensions[ProblemDetailsConstants.Extensions.TraceId].Should().Be("trace-456");
             result.Type.Should().Be($"{DefaultTestProblemTypeBaseUri}VAL001");
-            this._mockProblemTypeUriGenerator.Verify(g => g.Generate("VAL001", It.IsAny<HttpContext>()), Times.Once);
+            _mockProblemTypeUriGenerator.Verify(g => g.Generate("VAL001", It.IsAny<HttpContext>()), Times.Once);
         }
 
         [Theory]
@@ -122,7 +122,7 @@ namespace Zentient.Endpoints.Http.Tests
             var mockGenerator = new Mock<IProblemTypeUriGenerator>();
             mockGenerator
                 .Setup(g => g.Generate(It.IsAny<string?>(), It.IsAny<HttpContext>()))
-                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(code == null ? ProblemDetailsConstants.DefaultBaseUri : $"https://testdomain.com/errors/{code.ToUpperInvariant().Replace(' ', '-')}"));
+                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(code == null ? ProblemDetailsConstants.DefaultBaseUri.AbsoluteUri : $"https://testdomain.com/errors/{code.ToUpperInvariant().Replace(' ', '-')}"));
 
             var mockLogger = new Mock<Microsoft.Extensions.Logging.ILogger<DefaultProblemDetailsMapper>>();
             var mockEnv = new Mock<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
@@ -168,7 +168,7 @@ namespace Zentient.Endpoints.Http.Tests
                 metadata: customExtensions.ToImmutableDictionary(),
                 innerErrors: innerErrors.ToImmutableList());
 
-            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
+            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(_mockProblemTypeUriGenerator.Object);
             HttpContext context = CreateHttpContext();
 
             // Act
@@ -196,7 +196,7 @@ namespace Zentient.Endpoints.Http.Tests
                 .Should()
                 .BeEquivalentTo(expectedInnerErrorsInExtensions, options => options.WithoutStrictOrdering());
 
-            this._mockProblemTypeUriGenerator.Verify(g => g.Generate("CONFLICT", It.IsAny<HttpContext>()), Times.Once);
+            _mockProblemTypeUriGenerator.Verify(g => g.Generate("CONFLICT", It.IsAny<HttpContext>()), Times.Once);
         }
 
         [Fact]
@@ -211,7 +211,7 @@ namespace Zentient.Endpoints.Http.Tests
                 metadata: ImmutableDictionary<string, object?>.Empty, // <-- Changed 'extensions' to 'metadata' and use ImmutableDictionary.Empty
                 innerErrors: ImmutableList<ErrorInfo>.Empty);      // <-- Use ImmutableList.Empty
 
-            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
+            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(_mockProblemTypeUriGenerator.Object);
             HttpContext context = CreateHttpContext();
 
             // Act
@@ -224,7 +224,7 @@ namespace Zentient.Endpoints.Http.Tests
             // Based on typical ProblemDetails implementations, empty collections are usually omitted or empty.
             // Double-check your mapper's behavior regarding empty inner errors.
             result.Extensions.Should().NotContainKey("innerErrors");
-            this._mockProblemTypeUriGenerator.Verify(g => g.Generate("NOTFOUND", It.IsAny<HttpContext>()), Times.Once);
+            _mockProblemTypeUriGenerator.Verify(g => g.Generate("NOTFOUND", It.IsAny<HttpContext>()), Times.Once);
         }
 
         [Fact]
@@ -232,7 +232,7 @@ namespace Zentient.Endpoints.Http.Tests
         {
             // Arrange
             ErrorInfo error = new ErrorInfo(ErrorCategory.InternalServerError, "ERR", "Error");
-            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
+            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(_mockProblemTypeUriGenerator.Object);
 
             // Act
             Func<Task> act = () => mapper.Map(error, null!);
@@ -246,7 +246,7 @@ namespace Zentient.Endpoints.Http.Tests
         {
             // Arrange
             ErrorInfo error = new ErrorInfo(ErrorCategory.Validation, string.Empty, "Validation failed", string.Empty);
-            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
+            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(_mockProblemTypeUriGenerator.Object);
             HttpContext context = CreateHttpContext();
 
             // Act
@@ -255,8 +255,8 @@ namespace Zentient.Endpoints.Http.Tests
             // Assert
             result.Extensions.Should().NotContainKey("errorCode");
             result.Detail.Should().Be("Validation failed");
-            this._mockProblemTypeUriGenerator.Verify(g => g.Generate(string.Empty, It.IsAny<HttpContext>()), Times.Once);
-            result.Type.Should().Be(ProblemDetailsConstants.DefaultBaseUri);
+            _mockProblemTypeUriGenerator.Verify(g => g.Generate(string.Empty, It.IsAny<HttpContext>()), Times.Once);
+            result.Type.Should().Be(ProblemDetailsConstants.DefaultBaseUri.AbsoluteUri);
         }
 
         [Fact]
@@ -264,7 +264,7 @@ namespace Zentient.Endpoints.Http.Tests
         {
             // Arrange
             ErrorInfo error = new ErrorInfo(ErrorCategory.Validation, "Invalid Input", "Validation failed");
-            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(this._mockProblemTypeUriGenerator.Object);
+            DefaultProblemDetailsMapper mapper = CreateMapperWithMockGenerator(_mockProblemTypeUriGenerator.Object);
             HttpContext context = CreateHttpContext();
 
             // Act
@@ -272,7 +272,7 @@ namespace Zentient.Endpoints.Http.Tests
 
             // Assert
             result.Type.Should().Be($"{DefaultTestProblemTypeBaseUri}INVALID-INPUT");
-            this._mockProblemTypeUriGenerator.Verify(g => g.Generate("Invalid Input", It.IsAny<HttpContext>()), Times.Once);
+            _mockProblemTypeUriGenerator.Verify(g => g.Generate("Invalid Input", It.IsAny<HttpContext>()), Times.Once);
         }
 
         private static DefaultProblemDetailsMapper CreateMapperWithMockGenerator(IProblemTypeUriGenerator generator)
@@ -289,11 +289,11 @@ namespace Zentient.Endpoints.Http.Tests
             var mockGenerator = new Mock<IProblemTypeUriGenerator>();
             mockGenerator
                 .Setup(g => g.Generate(It.IsAny<string?>(), It.IsAny<HttpContext>()))
-                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(ProblemDetailsConstants.DefaultBaseUri));
+                .Returns((string? code, HttpContext ctx) => new ValueTask<string>(ProblemDetailsConstants.DefaultBaseUri.AbsoluteUri));
             var mockLogger = new Mock<Microsoft.Extensions.Logging.ILogger<DefaultProblemDetailsMapper>>();
             var mockEnv = new Mock<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
             mockEnv.SetupGet(e => e.EnvironmentName).Returns("Development");
-            Microsoft.Extensions.Options.IOptions<Zentient.Endpoints.Http.Options.EndpointsHttpOptions> options = Microsoft.Extensions.Options.Options.Create(new Zentient.Endpoints.Http.Options.EndpointsHttpOptions());
+            Microsoft.Extensions.Options.IOptions<Options.EndpointsHttpOptions> options = Microsoft.Extensions.Options.Options.Create(new Options.EndpointsHttpOptions());
             return new DefaultProblemDetailsMapper(mockGenerator.Object, mockLogger.Object, mockEnv.Object, options);
         }
 
