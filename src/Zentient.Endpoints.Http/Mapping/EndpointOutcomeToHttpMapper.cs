@@ -197,28 +197,23 @@ namespace Zentient.Endpoints.Http.Mapping
 
             int determinedStatusCode;
 
-            // FIX START: Refined statusCode determination logic
-            // 1. Prioritize HTTP status hint from metadata
-            // 1. Prioritize HTTP status hint from metadata
             var statusCodeHint = metadata.GetHttpStatusCodeHint();
             if (statusCodeHint.HasValue)
             {
                 determinedStatusCode = statusCodeHint.Value;
             }
-            // 2. If no explicit hint, and it's a "no content" scenario, use DefaultNoContentStatusCode
-            //    A "no content" scenario means:
-            //    - It's not a generic outcome with a concrete value (i.e., it's non-generic or EndpointOutcome<Unit>)
-            //    - AND there are no messages to convey in the body.
-            else if (!isGenericOutcomeWithConcreteValue && messages.Count == 0)
+            // If no explicit hint, and it's specifically a Unit outcome, use DefaultNoContentStatusCode.
+            else if (outcomeValueType == typeof(Unit))
             {
                 determinedStatusCode = this._successResponseOptions.DefaultNoContentStatusCode;
             }
-            // 3. Otherwise, use the DefaultOkStatusCode
+            // For all other success outcomes (no hint, not Unit), use the DefaultOkStatusCode.
+            // This handles generic outcomes with concrete values, and non-generic outcomes
+            // like EndpointOutcome.Success() which should default to DefaultOkStatusCode (e.g., 200 OK or 201 Created).
             else
             {
                 determinedStatusCode = this._successResponseOptions.DefaultOkStatusCode;
             }
-            // FIX END: Refined statusCode determination logic
 
             var statusDescription = ResultStatuses.GetStatus(determinedStatusCode).Description;
 
@@ -261,16 +256,16 @@ namespace Zentient.Endpoints.Http.Mapping
         }
 
         private async Task<Microsoft.AspNetCore.Http.IResult> CreateFailureResult(
-                    IEndpointOutcome outcome,
-                    HttpContext httpContext,
-                    CancellationToken ct)
+            IEndpointOutcome outcome,
+            HttpContext httpContext,
+            CancellationToken ct)
         {
             var errorInfo = GetPrimaryErrorInfo(outcome);
             var (problem, usedOverride) = await GetProblemDetails(outcome, errorInfo, httpContext).ConfigureAwait(false);
 
             EndpointOutcomeToHttpMapper.SetProblemDetailsStatus(problem, outcome.Metadata, usedOverride);
             await SetProblemDetailsTypeAndInstance(problem, errorInfo, httpContext, usedOverride).ConfigureAwait(false);
-            SetProblemDetailsDetail(problem, errorInfo, outcome);
+            SetProblemDetailsDetail(problem, errorInfo, outcome, usedOverride); // <-- ADD usedOverride HERE
             SetProblemDetailsExtensions(problem, errorInfo, outcome, httpContext);
 
             return Microsoft.AspNetCore.Http.Results.Content(
@@ -351,8 +346,21 @@ namespace Zentient.Endpoints.Http.Mapping
             }
         }
 
-        private void SetProblemDetailsDetail(ProblemDetails problem, ErrorInfo errorInfo, IEndpointOutcome outcome)
+        private void SetProblemDetailsDetail(
+            ProblemDetails problem,
+            ErrorInfo errorInfo,
+            IEndpointOutcome outcome,
+            bool usedOverride)
         {
+            // FIX: If an override was used, assume its detail is authoritative
+            // and do not modify it further with errorInfo.Detail or outcome.Messages.
+            if (usedOverride)
+            {
+                return;
+            }
+
+            // Original logic below, which now only applies when no override was used.
+
             // Set problem.Detail from errorInfo.Detail if not an override
             if (string.IsNullOrEmpty(problem.Detail) && !string.IsNullOrEmpty(errorInfo.Detail))
             {
