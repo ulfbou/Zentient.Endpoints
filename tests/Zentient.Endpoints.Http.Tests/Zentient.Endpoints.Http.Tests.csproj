@@ -1,4 +1,4 @@
-<!-- Zentient Endpoints HTTP Tests Project File -->
+﻿<!-- Zentient Endpoints HTTP Tests Project File -->
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
@@ -28,6 +28,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\..\src\Zentient.Endpoints.Http\Zentient.Endpoints.Http.csproj" />
 		<ProjectReference Include="..\..\src\Zentient.Endpoints\Zentient.Endpoints.csproj" />
 		<ProjectReference Include="..\..\src\Zentient.Endpoints.Tests.Common\Zentient.Endpoints.Tests.Common.csproj" />
 	</ItemGroup>
