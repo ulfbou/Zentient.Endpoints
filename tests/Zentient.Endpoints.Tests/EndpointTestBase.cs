@@ -240,7 +240,7 @@ namespace Zentient.Endpoints.Tests
         /// </summary>
         /// <returns>A new <see cref="Microsoft.AspNetCore.Http.DefaultHttpContext"/> instance.</returns>
         protected static Microsoft.AspNetCore.Http.DefaultHttpContext CreateHttpContext()
-            => HttpContextHelper.CreateHttpContext().context;
+            => HttpContextHelper.CreateHttpContext().HttpContext;
 
         /// <summary>
         /// Creates a <see cref="Microsoft.AspNetCore.Http.DefaultHttpContext"/> instance with a mocked <see cref="IEndpointOutcomeToHttpMapper"/>
