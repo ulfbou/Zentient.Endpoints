@@ -31,6 +31,14 @@ namespace Zentient.Endpoints.Http.Options
         public Uri? BaseTypeUri { get; set; }
 
         /// <summary>
+        /// Gets or sets the default title for Problem Details responses.
+        /// </summary>
+        /// <value>
+        /// The default title to use in Problem Details responses, or <see langword="null"/> if not set.
+        /// </value>
+        public string? DefaultTitle { get; set; }
+
+        /// <summary>
         /// Gets or sets a value indicating whether to include exception stack traces in
         /// Problem Details responses.
         /// <para>Defaults to <c>false</c>. Highly recommended to set to <c>true</c> only
@@ -84,5 +92,22 @@ namespace Zentient.Endpoints.Http.Options
             // { "Conflict", 409 },
             // { "InternalError", 500 },
         };
+
+        /// <summary>
+        /// Creates a deep copy of the current <see cref="ProblemDetailsOptions"/> instance.
+        /// </summary>
+        /// <returns>A new <see cref="ProblemDetailsOptions"/> instance with the same settings as the original.</returns>
+        public ProblemDetailsOptions Clone()
+        {
+            return new ProblemDetailsOptions
+            {
+                BaseTypeUri = this.BaseTypeUri,
+                DefaultTitle = this.DefaultTitle,
+                IncludeStackTrace = this.IncludeStackTrace,
+                IncludeErrorCodeInExtensions = this.IncludeErrorCodeInExtensions,
+                IncludeErrorInfoMessagesInDetail = this.IncludeErrorInfoMessagesInDetail,
+                CategoryToStatusCodeMap = new Dictionary<string, int>(this.CategoryToStatusCodeMap)
+            };
+        }
     }
 }

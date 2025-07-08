@@ -44,5 +44,19 @@ namespace Zentient.Endpoints.Http.Options
         /// If this is false, even a single message will only appear in the 'messages' array.
         /// </remarks>
         public bool IncludeSingleMessageField { get; set; } = true;
+
+        /// <summary>
+        /// Creates a deep copy of the current <see cref="SuccessResponseOptions"/> instance.
+        /// </summary>
+        /// <returns>A new <see cref="SuccessResponseOptions"/> instance with the same settings.</returns>
+        public SuccessResponseOptions Clone()
+        {
+            return new SuccessResponseOptions
+            {
+                DefaultOkStatusCode = this.DefaultOkStatusCode,
+                DefaultNoContentStatusCode = this.DefaultNoContentStatusCode,
+                IncludeSingleMessageField = this.IncludeSingleMessageField
+            };
+        }
     }
 }

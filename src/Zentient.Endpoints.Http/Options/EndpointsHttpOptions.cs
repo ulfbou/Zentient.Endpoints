@@ -71,6 +71,22 @@ namespace Zentient.Endpoints.Http.Options
         public JsonSerializerOptions JsonSerializerOptions { get; set; } = CreateDefaultJsonSerializerOptions();
 
         /// <summary>
+        /// Creates a deep copy of the current <see cref="EndpointsHttpOptions"/> instance.
+        /// </summary>
+        /// <returns>A new <see cref="EndpointsHttpOptions"/> instance with the same settings as the original.</returns>
+        public EndpointsHttpOptions Clone()
+        {
+            return new EndpointsHttpOptions
+            {
+                AddNormalizeEndpointOutcomeFilterGlobally = this.AddNormalizeEndpointOutcomeFilterGlobally,
+                DefaultLoggerCategory = this.DefaultLoggerCategory,
+                ProblemDetails = this.ProblemDetails.Clone(),
+                SuccessResponse = this.SuccessResponse.Clone(),
+                JsonSerializerOptions = new JsonSerializerOptions(this.JsonSerializerOptions)
+            };
+        }
+
+        /// <summary>
         /// Creates a default set of <see cref="JsonSerializerOptions"/> for API responses.
         /// </summary>
         /// <returns>A new <see cref="JsonSerializerOptions"/> instance.</returns>
