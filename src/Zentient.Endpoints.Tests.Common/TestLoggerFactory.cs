@@ -13,6 +13,8 @@ namespace Zentient.Endpoints.Tests.Common
     {
         private readonly List<ILogger> _loggers = new();
 
+        public static TestLoggerFactory Instance { get; } = new TestLoggerFactory();
+
         /// <summary>
         /// Creates a logger for the given category name.
         /// </summary>

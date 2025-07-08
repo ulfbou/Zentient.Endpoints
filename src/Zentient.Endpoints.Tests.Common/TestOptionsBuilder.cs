@@ -29,7 +29,7 @@ namespace Zentient.Endpoints.Tests.Common
         public static IOptions<EndpointsHttpOptions> CreateDefault()
         {
             var options = new EndpointsHttpOptions();
-            return Options.Create(options);
+            return Microsoft.Extensions.Options.Options.Create(options);
         }
 
         /// <summary>
@@ -41,7 +41,7 @@ namespace Zentient.Endpoints.Tests.Common
         {
             var options = new EndpointsHttpOptions();
             configure?.Invoke(options);
-            return Options.Create(options);
+            return Microsoft.Extensions.Options.Options.Create(options);
         }
 
         /// <summary>
